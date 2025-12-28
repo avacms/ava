@@ -79,6 +79,44 @@ Run validation checks on all content files directly from the dashboard. This che
 
 Results are displayed inline, showing any errors or warnings.
 
+### Themes
+
+The Themes page shows complete information about your active theme:
+
+- **Active theme** — Which theme is currently in use
+- **Templates** — All available templates with file sizes
+- **Assets** — CSS, JS, images, fonts served via the `/theme/` route
+- **Theme structure** — Visual diagram of the theme directory
+
+This page also explains how theme assets work — they're served via PHP at `/theme/*` URLs, keeping all theme files self-contained. See the [Themes](/themes) documentation for details.
+
+### Shortcodes Reference
+
+View all registered shortcodes and available snippets. Shows:
+
+- All registered shortcode tags
+- Available PHP snippets from `snippets/` directory
+- Usage examples
+
+### Admin Logs
+
+View a log of admin actions — logins, logouts, cache rebuilds, and warnings. Logs are stored in `storage/logs/admin.log` and show:
+
+- Timestamp
+- Log level (INFO, WARNING)
+- Action description
+- IP address
+
+### System Info
+
+Detailed system information including:
+
+- Server load and memory usage
+- PHP version and extensions
+- Cache status and file counts
+- Directory permissions
+- Hook registrations
+
 ### Content Browser
 
 Browse all content by type. Each item shows:

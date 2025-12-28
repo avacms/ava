@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= $ava->metaTags($page) ?>
     <?= $ava->itemAssets($page) ?>
-    <link rel="stylesheet" href="<?= $ava->asset('/assets/style.css') ?>">
+    <link rel="stylesheet" href="<?= $ava->asset('style.css') ?>">
 </head>
 <body>
     <header class="site-header">

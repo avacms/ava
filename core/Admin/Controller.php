@@ -374,6 +374,36 @@ final class Controller
     }
 
     /**
+     * Themes page - overview of theme system and current theme.
+     */
+    public function themes(Request $request): Response
+    {
+        $currentTheme = $this->app->config('theme', 'default');
+        $themesPath = $this->app->configPath('themes');
+        $themeInfo = $this->getThemeInfo($currentTheme, $themesPath);
+        $availableThemes = $this->getAvailableThemes($themesPath);
+
+        $data = [
+            'currentTheme' => $currentTheme,
+            'themeInfo' => $themeInfo,
+            'availableThemes' => $availableThemes,
+            'themesPath' => $themesPath,
+            'content' => $this->getContentStats(),
+            'taxonomies' => $this->getTaxonomyStats(),
+            'taxonomyConfig' => $this->getTaxonomyConfig(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+                'timezone' => $this->app->config('site.timezone', 'UTC'),
+            ],
+            'csrf' => $this->auth->csrfToken(),
+            'user' => $this->auth->user(),
+        ];
+
+        return Response::html($this->render('themes', $data));
+    }
+
+    /**
      * Admin logs page.
      */
     public function logs(Request $request): Response
@@ -937,6 +967,128 @@ final class Controller
     // -------------------------------------------------------------------------
     // Rendering
     // -------------------------------------------------------------------------
+
+    /**
+     * Get information about a specific theme.
+     */
+    private function getThemeInfo(string $themeName, string $themesPath): array
+    {
+        $themePath = $themesPath . '/' . $themeName;
+        
+        if (!is_dir($themePath)) {
+            return ['error' => 'Theme directory not found'];
+        }
+
+        $info = [
+            'name' => $themeName,
+            'path' => $themePath,
+            'has_theme_php' => file_exists($themePath . '/theme.php'),
+            'templates' => [],
+            'assets' => [],
+            'total_size' => 0,
+        ];
+
+        // Scan templates
+        $templatesPath = $themePath . '/templates';
+        if (is_dir($templatesPath)) {
+            $templates = glob($templatesPath . '/*.php');
+            foreach ($templates as $template) {
+                $name = basename($template, '.php');
+                $info['templates'][$name] = [
+                    'file' => basename($template),
+                    'size' => filesize($template),
+                    'modified' => filemtime($template),
+                ];
+                $info['total_size'] += filesize($template);
+            }
+        }
+
+        // Scan assets
+        $assetsPath = $themePath . '/assets';
+        if (is_dir($assetsPath)) {
+            $info['assets'] = $this->scanThemeAssets($assetsPath);
+            foreach ($info['assets'] as $asset) {
+                $info['total_size'] += $asset['size'];
+            }
+        }
+
+        return $info;
+    }
+
+    /**
+     * Scan theme assets directory recursively.
+     */
+    private function scanThemeAssets(string $path, string $prefix = ''): array
+    {
+        $assets = [];
+        $items = scandir($path);
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') continue;
+
+            $fullPath = $path . '/' . $item;
+            $relativePath = $prefix ? $prefix . '/' . $item : $item;
+
+            if (is_dir($fullPath)) {
+                $assets = array_merge($assets, $this->scanThemeAssets($fullPath, $relativePath));
+            } else {
+                $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
+                $assets[] = [
+                    'file' => $relativePath,
+                    'size' => filesize($fullPath),
+                    'modified' => filemtime($fullPath),
+                    'type' => $this->getAssetType($ext),
+                    'url' => '/theme/' . $relativePath,
+                ];
+            }
+        }
+
+        return $assets;
+    }
+
+    /**
+     * Get asset type from extension.
+     */
+    private function getAssetType(string $ext): string
+    {
+        return match ($ext) {
+            'css' => 'stylesheet',
+            'js' => 'javascript',
+            'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico' => 'image',
+            'woff', 'woff2', 'ttf', 'eot', 'otf' => 'font',
+            'json' => 'data',
+            default => 'other',
+        };
+    }
+
+    /**
+     * Get list of available themes.
+     */
+    private function getAvailableThemes(string $themesPath): array
+    {
+        $themes = [];
+
+        if (!is_dir($themesPath)) {
+            return $themes;
+        }
+
+        $items = scandir($themesPath);
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') continue;
+
+            $themePath = $themesPath . '/' . $item;
+            if (is_dir($themePath) && is_dir($themePath . '/templates')) {
+                $themes[] = [
+                    'name' => $item,
+                    'has_theme_php' => file_exists($themePath . '/theme.php'),
+                    'template_count' => count(glob($themePath . '/templates/*.php')),
+                    'has_assets' => is_dir($themePath . '/assets'),
+                ];
+            }
+        }
+
+        return $themes;
+    }
 
     private function render(string $view, array $data): string
     {

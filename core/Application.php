@@ -260,6 +260,62 @@ final class Application
         if (file_exists($themePath)) {
             require $themePath;
         }
+
+        // Register theme assets route
+        $this->registerThemeAssetsRoute($theme);
+    }
+
+    /**
+     * Register a route to serve theme assets with proper caching.
+     */
+    private function registerThemeAssetsRoute(string $theme): void
+    {
+        $themesPath = $this->configPath('themes');
+
+        $this->router()->addPrefixRoute('/theme/', function (Request $request) use ($themesPath, $theme) {
+            $path = $request->path();
+            // Remove /theme/ prefix
+            $assetPath = substr($path, 7);
+
+            // Security: prevent directory traversal
+            $assetPath = str_replace(['..', "\0"], '', $assetPath);
+
+            $fullPath = $themesPath . '/' . $theme . '/assets/' . $assetPath;
+
+            if (!file_exists($fullPath) || !is_file($fullPath)) {
+                return null; // Let it 404
+            }
+
+            // Determine content type
+            $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+            $contentTypes = [
+                'css' => 'text/css',
+                'js' => 'application/javascript',
+                'json' => 'application/json',
+                'svg' => 'image/svg+xml',
+                'png' => 'image/png',
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                'woff' => 'font/woff',
+                'woff2' => 'font/woff2',
+                'ttf' => 'font/ttf',
+                'eot' => 'application/vnd.ms-fontobject',
+                'ico' => 'image/x-icon',
+            ];
+
+            $contentType = $contentTypes[$ext] ?? 'application/octet-stream';
+            $content = file_get_contents($fullPath);
+            $mtime = filemtime($fullPath);
+
+            return new Response($content, 200, [
+                'Content-Type' => $contentType,
+                'Cache-Control' => 'public, max-age=31536000, immutable',
+                'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
+                'ETag' => '"' . md5_file($fullPath) . '"',
+            ]);
+        });
     }
 
     private function registerAdminRoutes(): void

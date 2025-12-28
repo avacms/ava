@@ -88,6 +88,11 @@ final class AdminRouter
             return $this->handle('system', $request);
         });
 
+        // Themes (protected)
+        $router->addRoute($basePath . '/themes', function (Request $request) {
+            return $this->handle('themes', $request);
+        });
+
         // Shortcodes reference (protected)
         $router->addRoute($basePath . '/shortcodes', function (Request $request) {
             return $this->handle('shortcodes', $request);
@@ -149,6 +154,7 @@ final class AdminRouter
             'rebuild' => $this->controller->rebuild($request),
             'lint' => $this->controller->lint($request),
             'system' => $this->controller->system($request),
+            'themes' => $this->controller->themes($request),
             'shortcodes' => $this->controller->shortcodes($request),
             'logs' => $this->controller->logs($request),
             default => null,

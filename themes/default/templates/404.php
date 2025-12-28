@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page Not Found - <?= $ava->e($site['name']) ?></title>
-    <link rel="stylesheet" href="<?= $ava->asset('/assets/style.css') ?>">
+    <link rel="stylesheet" href="<?= $ava->asset('style.css') ?>">
 </head>
 <body>
     <header class="site-header">

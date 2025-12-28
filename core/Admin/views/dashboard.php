@@ -127,6 +127,10 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="material-symbols-rounded">history</span>
                 Admin Logs
             </a>
+            <a href="<?= $admin_url ?>/themes" class="nav-item">
+                <span class="material-symbols-rounded">palette</span>
+                Themes
+            </a>
             <a href="<?= $admin_url ?>/system" class="nav-item">
                 <span class="material-symbols-rounded">dns</span>
                 System Info

@@ -9,7 +9,7 @@
     <?php else: ?>
         <title><?= $ava->e($site['name']) ?></title>
     <?php endif; ?>
-    <link rel="stylesheet" href="<?= $ava->asset('/assets/style.css') ?>">
+    <link rel="stylesheet" href="<?= $ava->asset('style.css') ?>">
 </head>
 <body>
     <header class="site-header">

@@ -98,17 +98,50 @@ final class TemplateHelpers
 
     /**
      * Get asset URL (with cache busting if file exists).
+     * 
+     * For theme assets, use: $ava->asset('style.css') or $ava->asset('js/app.js')
+     * For public assets, use: $ava->asset('/assets/file.css') (leading slash)
      */
     public function asset(string $path): string
     {
-        $fullPath = $this->app->path('public/' . ltrim($path, '/'));
+        // If path starts with /, it's a public asset
+        if (str_starts_with($path, '/')) {
+            $fullPath = $this->app->path('public/' . ltrim($path, '/'));
 
-        if (file_exists($fullPath)) {
-            $mtime = filemtime($fullPath);
-            return $path . '?v=' . $mtime;
+            if (file_exists($fullPath)) {
+                $mtime = filemtime($fullPath);
+                return $path . '?v=' . $mtime;
+            }
+
+            return $path;
         }
 
-        return $path;
+        // Otherwise, it's a theme asset
+        $theme = $this->app->config('theme', 'default');
+        $themePath = $this->app->configPath('themes') . '/' . $theme . '/assets/' . $path;
+
+        if (file_exists($themePath)) {
+            $mtime = filemtime($themePath);
+            return '/theme/' . $path . '?v=' . $mtime;
+        }
+
+        return '/theme/' . $path;
+    }
+
+    /**
+     * Get theme asset URL explicitly.
+     */
+    public function themeAsset(string $path): string
+    {
+        $theme = $this->app->config('theme', 'default');
+        $themePath = $this->app->configPath('themes') . '/' . $theme . '/assets/' . ltrim($path, '/');
+
+        if (file_exists($themePath)) {
+            $mtime = filemtime($themePath);
+            return '/theme/' . ltrim($path, '/') . '?v=' . $mtime;
+        }
+
+        return '/theme/' . ltrim($path, '/');
     }
 
     // -------------------------------------------------------------------------

@@ -11,6 +11,6 @@
 - [Updates](updates.md)
 - [API](api.md)
 
-## Developing
+**Maintainers**
 - [Releasing](releasing.md)
 - [AI Reference](ai-reference.md)
