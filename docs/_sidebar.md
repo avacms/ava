@@ -10,7 +10,7 @@
 - [CLI](cli.md)
 - [Updates](updates.md)
 - [API](api.md)
-- [AI Reference](ai-reference.md)
 
-**Maintainers**
+## Developing
 - [Releasing](releasing.md)
+- [AI Reference](ai-reference.md)
