@@ -1,10 +1,30 @@
 # Content Authoring
 
-Content in Ava CMS is Markdown files with YAML frontmatter.
+Content in Ava is Markdown files with YAML frontmatter. There's no database — your files are the source of truth.
+
+## The Basics
+
+Every piece of content is a `.md` file containing:
+
+1. **Frontmatter** — YAML metadata between `---` fences
+2. **Body** — Markdown content
+
+```markdown
+---
+title: My Post Title
+slug: my-post-title
+status: published
+date: 2024-12-28
+---
+
+# My Post Title
+
+Your content goes here. Use standard Markdown syntax.
+```
 
 ## File Location
 
-Content lives under `content/` organized by type:
+Content lives in `content/`, organized by type:
 
 ```
 content/
@@ -20,58 +40,67 @@ content/
     └── tag.yml
 ```
 
-## Frontmatter
+The directory structure depends on your content type configuration. Pages typically use hierarchical URLs (folder = URL path), while posts use pattern-based URLs.
 
-Every content file starts with YAML frontmatter:
-
-```yaml
----
-id: 01JGMK0000POST0000000000001
-title: My Post Title
-slug: my-post-title
-status: published
-date: 2024-12-28
-excerpt: A brief summary
-category:
-  - tutorials
-tag:
-  - php
-  - cms
----
-
-# Content starts here
-
-Your Markdown content...
-```
+## Frontmatter Reference
 
 ### Required Fields
 
-| Field | Description |
-|-------|-------------|
-| `title` | Display title |
-| `slug` | URL-safe identifier (auto-generated from filename if missing) |
-| `status` | `draft`, `published`, or `private` |
+Every content file needs these:
 
-### Recommended Fields
+| Field | Description | Example |
+|-------|-------------|---------|
+| `title` | Display title | `"My Post Title"` |
+| `slug` | URL-safe identifier | `"my-post-title"` |
+| `status` | Visibility status | `draft`, `published`, or `private` |
 
-| Field | Description |
-|-------|-------------|
-| `id` | ULID for stable references (auto-generated via CLI) |
-| `date` | Publication date (for dated types) |
-| `updated` | Last modified date |
-| `excerpt` | Summary for listings |
+If you omit `slug`, Ava generates one from the filename.
+
+### Common Fields
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `id` | Unique identifier (ULID) | `"01JGMK..."` |
+| `date` | Publication date | `2024-12-28` |
+| `updated` | Last modified date | `2024-12-28` |
+| `excerpt` | Summary for listings | `"A brief intro..."` |
+| `template` | Override default template | `"custom-post"` |
+| `draft` | Quick draft toggle | `true` |
 
 ### SEO Fields
 
 | Field | Description |
 |-------|-------------|
-| `meta_title` | Custom title for `<title>` tag |
-| `meta_description` | Meta description |
-| `noindex` | Set to `true` to add noindex |
-| `canonical` | Canonical URL |
+| `meta_title` | Custom `<title>` tag (falls back to `title`) |
+| `meta_description` | Meta description for search engines |
+| `noindex` | Set `true` to add `noindex` meta tag |
+| `canonical` | Canonical URL for duplicate content |
 | `og_image` | Open Graph image path |
 
-### Redirects
+### Taxonomy Assignment
+
+Assign content to taxonomy terms:
+
+```yaml
+category:
+  - tutorials
+  - php
+tag:
+  - getting-started
+  - cms
+```
+
+For hierarchical taxonomies:
+
+```yaml
+topic:
+  - guides/basics
+  - guides/advanced
+```
+
+## Redirects
+
+When you move or rename content, set up redirects in the new file:
 
 ```yaml
 redirect_from:
@@ -79,51 +108,43 @@ redirect_from:
   - /another-old-url
 ```
 
-### Per-Item Assets
+Requests to the old URLs will 301 redirect to the new location.
+
+## Per-Item Assets
+
+Load CSS or JS only on specific pages:
 
 ```yaml
 assets:
   css:
     - "@uploads:2024/custom-post.css"
   js:
-    - "@assets:post.js"
-```
-
-## Taxonomies
-
-Assign terms in frontmatter:
-
-```yaml
-# Simple format
-category:
-  - tutorials
-  - php
-tag:
-  - getting-started
-
-# Hierarchical paths
-topic:
-  - guides/basics
+    - "@assets:interactive-chart.js"
 ```
 
 ## Path Aliases
 
-Use magic tokens instead of hard-coded URLs:
+Use aliases instead of hard-coded URLs. These are configured in `ava.php` and expanded at render time:
 
-| Alias | Expands To |
-|-------|------------|
+| Alias | Default Expansion |
+|-------|-------------------|
 | `@media:` | `/media/` |
 | `@uploads:` | `/media/uploads/` |
 | `@assets:` | `/assets/` |
 
-Example:
+Use in your Markdown:
+
 ```markdown
 ![Hero image](@uploads:2024/hero.jpg)
+
+[Download PDF](@media:docs/guide.pdf)
 ```
+
+This makes it easy to change asset locations later without updating every content file.
 
 ## Shortcodes
 
-Shortcodes are processed after Markdown:
+Embed dynamic content using shortcodes:
 
 ```markdown
 Current year: [year]
@@ -135,8 +156,55 @@ Site name: [site_name]
 [snippet name="cta" heading="Join Us"]
 ```
 
-## Status
+See [Shortcodes](shortcodes.md) for the full reference.
 
-- `draft` — Not visible unless preview mode
-- `published` — Visible to everyone
-- `private` — Only visible with preview token
+## Content Status
+
+| Status | Visibility |
+|--------|------------|
+| `draft` | Hidden from site. Viewable with preview token. |
+| `published` | Visible to everyone. |
+| `private` | Hidden from listings. Accessible via direct URL with preview token. |
+
+## Creating Content
+
+### Via CLI (Recommended)
+
+```bash
+# Create a page
+./ava make page "About Us"
+
+# Create a post
+./ava make post "Hello World"
+```
+
+This creates a properly formatted file with:
+- Generated ULID
+- Slugified filename
+- Date (for dated types)
+- Draft status
+
+### Manually
+
+Create a `.md` file in the appropriate directory:
+
+```bash
+# content/posts/my-new-post.md
+```
+
+Add frontmatter and content, then save. If cache mode is `auto`, the site updates immediately.
+
+## Validation
+
+Run the linter to check all content:
+
+```bash
+./ava lint
+```
+
+This catches:
+- Invalid YAML syntax
+- Missing required fields
+- Invalid status values
+- Malformed slugs
+- Duplicate slugs or IDs

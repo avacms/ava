@@ -1,19 +1,29 @@
 # Configuration
 
-All configuration lives in `app/config/`. This guide explains every available option.
+All configuration lives in `app/config/` as plain PHP files that return arrays. No YAML, no JSON, no `.env` magic — just PHP you can read and version control.
+
+## Philosophy
+
+Ava's configuration is intentionally simple:
+
+- **PHP arrays** — Full IDE support, type hints, comments, constants.
+- **Version controlled** — Everything except `users.php` goes in Git.
+- **No magic** — What you see is what you get. No environment variable parsing, no cascading configs.
 
 ## Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `ava.php` | Main configuration (site, paths, cache, etc.) |
-| `content_types.php` | Define pages, posts, and custom content types |
-| `taxonomies.php` | Define categories, tags, and custom taxonomies |
-| `users.php` | Admin user credentials (auto-generated, gitignored) |
+| File | Purpose | In Git? |
+|------|---------|---------|
+| `ava.php` | Main configuration (site, paths, cache) | Yes |
+| `content_types.php` | Define pages, posts, custom types | Yes |
+| `taxonomies.php` | Define categories, tags, custom taxonomies | Yes |
+| `users.php` | Admin credentials (auto-generated) | No |
 
 ---
 
 ## Main Config: `ava.php`
+
+This is the primary configuration file. It returns an array with all site settings.
 
 ### Site Settings
 

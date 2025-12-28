@@ -1,24 +1,33 @@
 # Plugins
 
-Plugins extend Ava's functionality by adding new features, routes, shortcodes, and more.
+Plugins extend Ava without modifying core files. They can add routes, shortcodes, content types, and hook into the rendering pipeline.
+
+## Philosophy
+
+Plugins in Ava are intentionally simple:
+
+- **Just PHP** — No special syntax, no compilation, no autoloading magic.
+- **Hooks-based** — Plugins interact via well-defined hook points.
+- **Self-contained** — Each plugin is a folder with a manifest file.
+- **Opt-in** — Plugins must be explicitly enabled in configuration.
 
 ## Plugin Location
 
-Plugins live in the `plugins/` directory. Each plugin has its own folder:
+Plugins live in `plugins/`, each in its own folder:
 
 ```
 plugins/
-  my-plugin/
-    plugin.php      # Required: Plugin manifest
-    src/            # Optional: Additional PHP files
-    assets/         # Optional: CSS, JS, images
+└── my-plugin/
+    ├── plugin.php      # Required: Plugin manifest
+    ├── src/            # Optional: Additional PHP files
+    └── assets/         # Optional: CSS, JS, images
 ```
 
 ## Creating a Plugin
 
-### Basic Structure
+### The Manifest
 
-Create a `plugin.php` file that returns a manifest array:
+Every plugin needs a `plugin.php` that returns a manifest array:
 
 ```php
 <?php
@@ -27,47 +36,47 @@ Create a `plugin.php` file that returns a manifest array:
 use Ava\Plugins\Hooks;
 
 return [
+    // Plugin metadata
     'name' => 'My Plugin',
     'version' => '1.0.0',
-    'description' => 'A brief description of what this plugin does',
+    'description' => 'What this plugin does',
     'author' => 'Your Name',
     
-    // Called when plugin is loaded
+    // Boot function - called when plugin loads
     'boot' => function($app) {
-        // Register hooks, shortcodes, routes, etc.
+        // Your plugin code here
     }
 ];
 ```
 
-### Boot Function
+### The Boot Function
 
-The `boot` callback receives the Application instance and is called when Ava initializes:
+The `boot` callback is where your plugin does its work. It receives the Application instance:
 
 ```php
 'boot' => function($app) {
     // Access configuration
     $siteName = $app->config('site.name');
     
-    // Get the repository
+    // Access content repository
     $repo = $app->repository();
     
     // Register routes
     $router = $app->router();
-    $router->addRoute('/my-custom-page', function($request) {
-        return new \Ava\Routing\RouteMatch(
-            type: 'custom',
-            template: 'my-template.php'
-        );
-    });
+    
+    // Register shortcodes
+    $shortcodes = $app->shortcodes();
 }
 ```
 
 ## Hooks System
 
-Plugins interact with Ava primarily through the hooks system. Hooks allow you to:
+Plugins interact with Ava primarily through hooks. There are two types:
 
-- **Filter** data as it flows through the system
-- **Act** on events at specific points
+| Type | Purpose | Example |
+|------|---------|---------|
+| **Filters** | Modify data as it flows through | Change rendered HTML |
+| **Actions** | React to events | Log when content is rendered |
 
 ### Registering Hooks
 

@@ -1,13 +1,22 @@
 # Themes
 
-Themes control how content is rendered.
+Themes control how content is rendered. They're plain PHP templates — no template language to learn.
+
+## Philosophy
+
+Ava themes are deliberately simple:
+
+- **Plain PHP** — Use `<?= ?>` for output. No Blade, no Twig, no new syntax.
+- **Helper object** — The `$ava` helper provides content queries, URLs, formatting.
+- **Full control** — You write the HTML. Ava doesn't impose a structure.
+- **Zero build step** — No compilation. Edit and refresh.
 
 ## Structure
 
 ```
 themes/
 └── default/
-    ├── theme.php         # Theme bootstrap
+    ├── theme.php         # Theme bootstrap (optional)
     ├── templates/        # Page templates
     │   ├── index.php     # Fallback template
     │   ├── page.php      # Pages
@@ -18,7 +27,7 @@ themes/
     ├── partials/         # Reusable parts
     │   ├── header.php
     │   └── footer.php
-    └── assets/           # Theme assets
+    └── assets/           # Theme assets (CSS, JS, images)
 ```
 
 ## Template Context

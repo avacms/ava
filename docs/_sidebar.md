@@ -5,6 +5,7 @@
 - [Routing](routing.md)
 - [Shortcodes](shortcodes.md)
 - [Plugins](plugins.md)
+- [Admin](admin.md)
 - [API](api.md)
 - [CLI](cli.md)
 - [AI Reference](ai-reference.md)

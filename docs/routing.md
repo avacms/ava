@@ -1,15 +1,27 @@
 # Routing
 
-Ava uses a custom router with no external dependencies.
+Ava uses a custom router with no external dependencies. URLs are derived from your content and configuration — no route files to maintain.
+
+## How It Works
+
+1. **Content is indexed** — When cache builds, Ava scans all content and generates a route map.
+2. **Routes are compiled** — The route map is saved as a PHP array for fast lookups.
+3. **Requests are matched** — Incoming URLs are matched against the compiled routes.
+
+You don't define routes manually. They're generated from your content types, taxonomies, and content files.
 
 ## Route Matching Order
 
-1. **Trailing slash redirect** — Normalize URLs per config
-2. **Redirects** — From `redirect_from` in frontmatter
-3. **System routes** — Registered at runtime (plugins, admin)
-4. **Exact routes** — Compiled from content (single pages, archives)
-5. **Taxonomy routes** — `/category/{term}`, `/tag/{term}`, etc.
-6. **404** — No match found
+When a request comes in, Ava checks in this order:
+
+| Priority | Type | Example |
+|----------|------|---------|
+| 1 | Trailing slash redirect | `/about/` → `/about` |
+| 2 | Redirects (from frontmatter) | `/old-url` → `/new-url` |
+| 3 | System routes (plugins, admin) | `/admin`, `/api/posts` |
+| 4 | Exact content routes | `/about`, `/blog/hello` |
+| 5 | Taxonomy routes | `/category/tutorials` |
+| 6 | 404 | No match found |
 
 ## URL Configuration
 

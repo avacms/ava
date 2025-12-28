@@ -1,24 +1,38 @@
 # CLI Reference
 
-The Ava CLI provides commands for managing your site.
+The Ava CLI helps you manage your site from the command line. It's your primary tool for cache management, content validation, and scaffolding.
 
 ## Usage
 
 ```bash
+./ava <command> [arguments]
+
+# Or explicitly with PHP
 php bin/ava <command> [arguments]
 ```
 
-## Commands
+## Commands Overview
 
-### `status`
+| Command | Description |
+|---------|-------------|
+| `status` | Show site status, cache info, content counts |
+| `rebuild` | Rebuild all cache files |
+| `lint` | Validate all content files |
+| `make <type> "Title"` | Create new content |
+| `user:create` | Create admin user |
 
-Show site status, cache info, and content counts.
+---
+
+## status
+
+Show a summary of your site's current state.
 
 ```bash
-php bin/ava status
+./ava status
 ```
 
-Output:
+Example output:
+
 ```
 === Ava CMS Status ===
 
@@ -39,65 +53,90 @@ Taxonomies:
   tags: 8 terms
 ```
 
-### `rebuild`
+Use this to verify your site is configured correctly and cache is up to date.
 
-Rebuild all cache files.
+---
+
+## rebuild
+
+Force a complete cache rebuild.
 
 ```bash
-php bin/ava rebuild
+./ava rebuild
 ```
 
-This regenerates:
-- `storage/cache/content_index.php`
-- `storage/cache/tax_index.php`
-- `storage/cache/routes.php`
-- `storage/cache/fingerprint.json`
+This regenerates all cached files:
 
-### `lint`
+| File | Contents |
+|------|----------|
+| `storage/cache/content_index.php` | All content metadata |
+| `storage/cache/tax_index.php` | Taxonomy terms and assignments |
+| `storage/cache/routes.php` | Compiled route map |
+| `storage/cache/fingerprint.json` | Content file hashes |
 
-Validate all content files.
+Use after:
+- Deploying content changes (if cache mode is `never`)
+- Modifying content type or taxonomy configuration
+- Troubleshooting stale content issues
+
+---
+
+## lint
+
+Validate all content files for errors.
 
 ```bash
-php bin/ava lint
+./ava lint
 ```
 
 Checks for:
-- Valid YAML frontmatter
-- Required fields (title, slug, status)
-- Valid status values
-- Slug format (lowercase, alphanumeric, hyphens)
-- Duplicate slugs within content types
-- Duplicate IDs
 
-### `make`
+| Check | Description |
+|-------|-------------|
+| YAML syntax | Valid frontmatter parsing |
+| Required fields | `title`, `slug`, `status` present |
+| Status values | Must be `draft`, `published`, or `private` |
+| Slug format | Lowercase, alphanumeric, hyphens only |
+| Duplicate slugs | Within the same content type |
+| Duplicate IDs | Across all content |
 
-Create content of any type.
+Run this before committing content changes to catch errors early.
+
+---
+
+## make
+
+Create new content with proper scaffolding.
 
 ```bash
-php bin/ava make <type> "Title"
+./ava make <type> "Title"
 ```
 
 Examples:
 
 ```bash
 # Create a page
-php bin/ava make page "About Us"
+./ava make page "About Us"
+# → content/pages/about-us.md
 
-# Create a blog post (date auto-added for dated types)
-php bin/ava make post "Hello World"
+# Create a blog post
+./ava make post "Hello World"
+# → content/posts/hello-world.md
 
-# Create a custom type item
-php bin/ava make resource "PHP Tutorial"
+# Create custom type content
+./ava make recipe "Chocolate Cake"
+# → content/recipes/chocolate-cake.md
 ```
 
-Creates a file in the type's content directory with:
+The generated file includes:
+
 ```yaml
 ---
-id: 01JGMK...
+id: 01JGMK...           # Auto-generated ULID
 title: About Us
-slug: about-us
-status: draft
-date: 2024-12-28  # Only for dated types
+slug: about-us          # Slugified from title
+status: draft           # Always starts as draft
+date: 2024-12-28        # Only for dated types
 ---
 
 # About Us
@@ -105,12 +144,26 @@ date: 2024-12-28  # Only for dated types
 Your content here.
 ```
 
-If you run `make` without arguments, it shows available types:
+Run without arguments to see available types:
+
+```bash
+./ava make
+# Available types:
+#   page - Pages
+#   post - Posts
 ```
-Available types:
-  page - Pages
-  post - Posts
+
+---
+
+## user:create
+
+Create an admin dashboard user.
+
+```bash
+./ava user:create
 ```
+
+Prompts for email and password, then saves to `app/config/users.php` with bcrypt-hashed credentials.
 
 ## Exit Codes
 
