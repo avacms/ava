@@ -85,7 +85,7 @@
     }
 
     .sidebar-nav > p > strong {
-      font-weight: 300;
+      font-weight: 500;
       opacity: 0.6;
     }
 
@@ -269,24 +269,27 @@
 
     /* Search box */
     .search {
-      padding: 0.75rem 1.5rem;
-      border-bottom: 1px solid #e5e7eb;
+      padding: 0;
       margin: 0;
+      border-bottom: none;
     }
 
     .search input {
       width: 100%;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-bottom: 1px solid #e5e7eb;
+      border-radius: 0;
       font-size: 0.875rem;
       outline: none;
-      background: white;
+      background: #f9fafb;
+      color: #1f2937;
     }
 
     .search input:focus {
+      background: #fff;
       border-color: var(--theme-color);
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+      box-shadow: none;
     }
 
     .search input::placeholder {
@@ -369,6 +372,177 @@
         padding: 1rem 1.25rem 0.75rem;
       }
     }
+
+    /* Cover page / Hero */
+    section.cover {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+      color: #f8fafc;
+    }
+
+    section.cover.show {
+      height: 100vh;
+    }
+
+    section.cover .cover-main {
+      max-width: 600px;
+      text-align: center;
+    }
+
+    section.cover .cover-logo {
+      font-size: 6rem;
+      line-height: 1;
+      margin-bottom: 1.5rem;
+      filter: drop-shadow(0 0 40px rgba(251, 191, 36, 0.3));
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    section.cover h1 {
+      font-size: 3.5rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin: 0 0 1rem;
+      background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    section.cover blockquote {
+      font-size: 1.25rem;
+      color: #94a3b8;
+      font-weight: 400;
+      margin: 0 0 2.5rem;
+      border: none;
+    }
+
+    section.cover blockquote p {
+      margin: 0;
+    }
+
+    section.cover ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    section.cover li {
+      font-size: 1rem;
+      color: #cbd5e1;
+    }
+
+    section.cover li strong {
+      color: #f8fafc;
+    }
+
+    section.cover .cover-main > p:last-of-type {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin: 0;
+    }
+
+    section.cover .cover-main > p:last-of-type a {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.875rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    section.cover .cover-main > p:last-of-type a:first-child {
+      background: var(--theme-color);
+      color: #fff;
+      border: none;
+    }
+
+    section.cover .cover-main > p:last-of-type a:first-child:hover {
+      background: var(--theme-color-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+    }
+
+    section.cover .cover-main > p:last-of-type a:last-child {
+      background: transparent;
+      color: #f8fafc;
+      border: 1px solid #475569;
+    }
+
+    section.cover .cover-main > p:last-of-type a:last-child:hover {
+      border-color: #94a3b8;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    section.cover.show ~ .sidebar,
+    section.cover.show ~ .sidebar-toggle {
+      display: none;
+    }
+
+    section.cover .mask {
+      background: transparent !important;
+    }
+
+    /* Cover scroll indicator */
+    section.cover::after {
+      content: '';
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 40px;
+      border: 2px solid #475569;
+      border-radius: 12px;
+      opacity: 0.6;
+    }
+
+    section.cover::before {
+      content: '';
+      position: absolute;
+      bottom: 2.75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 8px;
+      background: #64748b;
+      border-radius: 2px;
+      animation: scroll 1.5s ease-in-out infinite;
+      z-index: 1;
+    }
+
+    @keyframes scroll {
+      0%, 100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      50% { opacity: 0.3; transform: translateX(-50%) translateY(10px); }
+    }
+
+    @media (max-width: 768px) {
+      section.cover h1 {
+        font-size: 2.5rem;
+      }
+      section.cover .cover-logo {
+        font-size: 4rem;
+      }
+      section.cover blockquote {
+        font-size: 1.1rem;
+      }
+      section.cover .cover-main > p:last-of-type {
+        flex-direction: column;
+      }
+      section.cover .cover-main > p:last-of-type a {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -378,6 +552,8 @@
       name: '✨ Ava CMS',
       repo: 'adamgreenough/ava',
       loadSidebar: true,
+      coverpage: true,
+      onlyCover: false,
       subMaxLevel: 2,
       auto2top: true,
       requestHeaders: {

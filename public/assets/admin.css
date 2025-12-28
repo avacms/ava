@@ -691,7 +691,7 @@ code {
 
 /* Table that extends to card edges when mixed with other content */
 .table-flush {
-    margin: var(--sp-3) calc(-1 * var(--sp-5));
+    margin: var(--sp-4) calc(-1 * var(--sp-5)) var(--sp-3);
     width: calc(100% + var(--sp-5) * 2);
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
