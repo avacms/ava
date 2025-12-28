@@ -689,6 +689,13 @@ code {
 .table tbody tr:last-child td { border-bottom: none; }
 .table tbody tr:hover td { background: var(--bg-hover); }
 
+/* Table that extends to card edges when mixed with other content */
+.table-flush {
+    margin-left: calc(-1 * var(--sp-5));
+    margin-right: calc(-1 * var(--sp-5));
+    width: calc(100% + var(--sp-5) * 2);
+}
+
 .table-title { font-weight: 500; }
 .table-title a { color: var(--text); }
 .table-title a:hover { color: var(--accent); }

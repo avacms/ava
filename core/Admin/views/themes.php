@@ -310,7 +310,7 @@ foreach ($assets as $asset):
             <div class="card-body">
                 <p class="mb-3">Theme assets are served with aggressive caching headers for optimal performance:</p>
                 
-                <table class="table">
+                <table class="table table-flush">
                     <thead>
                         <tr>
                             <th>Header</th>
