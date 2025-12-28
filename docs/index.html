@@ -368,10 +368,14 @@
       loadSidebar: true,
       subMaxLevel: 2,
       auto2top: true,
+      requestHeaders: {
+        'cache-control': 'no-cache'
+      },
       search: {
         placeholder: 'Search...',
         noData: 'No results',
-        depth: 3
+        depth: 3,
+        maxAge: 300000  // 5 minutes instead of default 24 hours
       }
     }
   </script>

@@ -497,7 +497,6 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                     <?php foreach ($users as $email => $userData): ?>
                     <div class="list-item">
                         <span class="list-label">
-                            <span class="material-symbols-rounded"><?= $email === $user ? 'person' : 'person_outline' ?></span>
                             <span>
                                 <?= htmlspecialchars($userData['name'] ?? $email) ?>
                                 <span class="text-xs text-tertiary" style="display: block;"><?= htmlspecialchars($email) ?></span>
