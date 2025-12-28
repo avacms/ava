@@ -9,4 +9,8 @@
 - [Admin](admin.md)
 - [API](api.md)
 - [CLI](cli.md)
+- [Updates](updates.md)
 - [AI Reference](ai-reference.md)
+
+**Maintainers**
+- [Releasing](releasing.md)

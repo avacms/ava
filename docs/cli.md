@@ -24,6 +24,8 @@ php bin/ava <command> [arguments]
 | `user:password` | Update user password |
 | `user:remove` | Remove a user |
 | `user:list` | List all users |
+| `update:check` | Check for available updates |
+| `update:apply` | Download and apply updates |
 
 ---
 
@@ -221,6 +223,68 @@ Examples:
 ```
 
 This reads the `date` field from frontmatter. Run `ava rebuild` after to update the cache.
+
+---
+
+## update:check
+
+Check for available Ava updates.
+
+```bash
+./ava update:check
+```
+
+Example output:
+
+```
+Checking for updates...
+
+Current version: 25.12.1
+Latest version:  25.12.3
+
+✓ Update available!
+
+Release: December Bug Fixes
+Published: 2025-12-30
+
+Changelog:
+----------
+- 🐛 Fixed routing issue with trailing slashes
+- 🔧 Improved cache rebuild performance
+
+Run `php bin/ava update:apply` to update.
+```
+
+Results are cached for 1 hour. Force a fresh check:
+
+```bash
+./ava update:check --force
+```
+
+---
+
+## update:apply
+
+Download and apply the latest update.
+
+```bash
+./ava update:apply
+```
+
+The updater will:
+1. Show what will be updated
+2. Ask for confirmation
+3. Download the release
+4. Apply updates to core files
+5. Rebuild the cache
+
+Skip confirmation with `-y`:
+
+```bash
+./ava update:apply -y
+```
+
+See [Updates](updates.md) for full documentation on what gets updated and preserved.
 
 ## Exit Codes
 

@@ -9,10 +9,12 @@ namespace Ava;
  *
  * Handles checking for and applying updates from GitHub.
  *
- * Version Format: YYYY.MM.DD (e.g., 2025.12.28)
- * - Simple, always increasing
- * - No semver debates about major/minor/patch
- * - Multiple releases on same day: 2025.12.28.1, 2025.12.28.2
+ * Version Format: CalVer YY.0M.MICRO (e.g., 25.12.1)
+ * - YY: Two-digit year
+ * - 0M: Zero-padded month
+ * - MICRO: Release number within that month (starts at 1)
+ * 
+ * Examples: 25.12.1, 25.12.2, 26.01.1
  *
  * Update Process:
  * 1. Check GitHub API for latest release
