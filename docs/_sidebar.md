@@ -1,15 +1,15 @@
 - [Home](/)
 - [Configuration](configuration.md)
+- [Admin](admin.md)
 - [Content](content.md)
 - [Themes](themes.md)
 - [Routing](routing.md)
 - [Shortcodes](shortcodes.md)
 - [Creating Plugins](creating-plugins.md)
 - [Bundled Plugins](bundled-plugins.md)
-- [Admin](admin.md)
-- [API](api.md)
 - [CLI](cli.md)
 - [Updates](updates.md)
+- [API](api.md)
 - [AI Reference](ai-reference.md)
 
 **Maintainers**
