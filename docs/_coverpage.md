@@ -5,7 +5,7 @@
 <div class="cover-content">
   <h1>Ava CMS ✨</h1>
 
- > The friendly, flat-file CMS for bespoke websites.
+ > The friendly, free & open-source flat-file CMS for bespoke websites.
 
 
   <div class="feature-grid">
