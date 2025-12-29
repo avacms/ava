@@ -1,4 +1,4 @@
-# Ava CMS
+# Addy's (very adaptable) CMS
 
 A developer-first, flat-file PHP CMS for long-lived personal sites.
 
