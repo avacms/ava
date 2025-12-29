@@ -59,6 +59,7 @@ final class Parser
      * Split frontmatter from content.
      *
      * @return array{0: string, 1: string} [frontmatter, content]
+     * @throws \RuntimeException If frontmatter delimiters are incomplete
      */
     private function splitFrontmatter(string $content): array
     {
@@ -74,8 +75,10 @@ final class Parser
         $endPos = strpos($content, "\n" . self::FRONTMATTER_DELIMITER, $delimiterLength);
 
         if ($endPos === false) {
-            // No closing delimiter - treat entire content as body
-            return ['', $content];
+            // No closing delimiter - this is an error
+            throw new \RuntimeException(
+                "Missing closing frontmatter delimiter (---). Files must start with --- and have a closing --- on its own line."
+            );
         }
 
         $frontmatter = substr($content, $delimiterLength, $endPos - $delimiterLength);
@@ -120,20 +123,20 @@ final class Parser
         $errors = [];
 
         if (empty($item->title())) {
-            $errors[] = "Missing required field: title";
+            $errors[] = "Missing required field: title — see https://ava.addy.zone/#/content?id=frontmatter-guide";
         }
 
         if (empty($item->slug())) {
-            $errors[] = "Missing required field: slug";
+            $errors[] = "Missing required field: slug — see https://ava.addy.zone/#/content?id=frontmatter-guide";
         }
 
         if (!in_array($item->status(), ['draft', 'published', 'private'], true)) {
-            $errors[] = "Invalid status: {$item->status()} (must be draft, published, or private)";
+            $errors[] = "Invalid status: {$item->status()} (must be draft, published, or private) — see https://ava.addy.zone/#/content?id=status";
         }
 
         // Validate slug is URL-safe
         if (!preg_match('/^[a-z0-9-]+$/', $item->slug())) {
-            $errors[] = "Slug must be lowercase alphanumeric with hyphens: {$item->slug()}";
+            $errors[] = "Slug must be lowercase alphanumeric with hyphens: {$item->slug()} — see https://ava.addy.zone/#/content?id=slug";
         }
 
         return $errors;

@@ -1,7 +1,8 @@
 - [Introduction](/ "Ava CMS | Flat-file PHP/Markdown CMS Documentation")
 - [Configuration](configuration.md "Configuration | Ava CMS")
-- [Admin](admin.md "Admin | Ava CMS")
 - [Content](content.md "Content | Ava CMS")
+- [CLI](cli.md "CLI (Command Line Interface) | Ava CMS")
+- [Admin Dashboard](admin.md "Admin | Ava CMS")
 - [Themes](themes.md "Themes | Ava CMS")
 - [Routing](routing.md "Routing | Ava CMS")
 - [Shortcodes](shortcodes.md "Shortcodes | Ava CMS")
@@ -9,7 +10,6 @@
 - [Creating Plugins](creating-plugins.md "Creating Plugins | Ava CMS")
 - [Bundled Plugins](bundled-plugins.md "Bundled Plugins | Ava CMS")
 - [Showcase](showcase.md "Showcase | Ava CMS")
-- [CLI](cli.md "CLI | Ava CMS")
 - [Updates](updates.md "Updates | Ava CMS")
 - [API](api.md "API | Ava CMS")
 

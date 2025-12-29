@@ -131,8 +131,11 @@ $activePage = 'dashboard';
                 <?php if ($updateCheck['release']['name'] ?? null): ?>
                     — <?= htmlspecialchars($updateCheck['release']['name']) ?>
                 <?php endif; ?>
+                <br>
+                <span class="text-xs" style="opacity: 0.7;">
+                    Run <code>./ava update:apply</code> or <a href="https://ava.addy.zone/#/updates" target="_blank" style="color: inherit;">see the update guide</a>
+                </span>
             </div>
-            <code class="text-xs" style="opacity: 0.8;">php bin/ava update:apply</code>
         </div>
         <?php endif; ?>
 
@@ -170,6 +173,7 @@ $activePage = 'dashboard';
                 <div class="stat-value"><?= $totalTerms ?></div>
                 <div class="stat-meta"><?= count($taxonomies) ?> taxonom<?= count($taxonomies) !== 1 ? 'ies' : 'y' ?></div>
             </div>
+            <!--
             <div class="stat-card">
                 <div class="stat-label">
                     <span class="material-symbols-rounded">speed</span>
@@ -178,6 +182,7 @@ $activePage = 'dashboard';
                 <div class="stat-value"><?= $renderTime ?><span class="text-dim text-sm">ms</span></div>
                 <div class="stat-meta">This page</div>
             </div>
+            -->
         </div>
 
         <!-- Top Row: Cache, Page Cache, System, Site -->
@@ -186,7 +191,7 @@ $activePage = 'dashboard';
                 <div class="card-header">
                     <span class="card-title">
                         <span class="material-symbols-rounded">cached</span>
-                        Cache
+                        Cache Index
                     </span>
                     <span class="badge <?= $cache['fresh'] ? 'badge-success' : 'badge-warning' ?>">
                         <?= $cache['fresh'] ? 'Fresh' : 'Stale' ?>

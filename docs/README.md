@@ -44,25 +44,26 @@ Ava is built to scale. Here's what it can handle:
 
 The caching system uses optimized binary serialization (igbinary when available) for fast loading even with massive content libraries. There's no database—just lightning-fast PHP arrays loaded from disk.
 
+
 ## Requirements
+
+<img src="https://addy.zip/ava/i-love-php.webp" alt="I love PHP" style="float: right; width: 180px; margin: 0 0 1rem 1.5rem;" />
 
 Ava requires **PHP 8.3** or later. Most modern hosts include this, but check before you start.
 
 **Required Extensions:**
-| Extension | Purpose |
-|-----------|---------|
-| `mbstring` | UTF-8 text handling |
-| `json` | Config and API responses |
-| `ctype` | String validation |
+
+- `mbstring` — UTF-8 text handling
+- `json` — Config and API responses
+- `ctype` — String validation
 
 These are bundled with most PHP installations. If you're missing one, your host's control panel or `apt install php-mbstring` will sort it out.
 
 **Optional Extensions:**
-| Extension | Purpose |
-|-----------|---------|
-| `igbinary` | Faster cache serialization (15× faster, 90% smaller) |
-| `opcache` | Opcode caching for production |
-| `gd` or `imagick` | Image processing if you add it later |
+
+- `igbinary` — Faster cache serialization (15× faster, 90% smaller)
+- `opcache` — Opcode caching for production
+- `gd` or `imagick` — Image processing if you add it later
 
 If `igbinary` isn't available, Ava automatically falls back to PHP's built-in `serialize`. You get the same functionality, just slightly slower cache loads. The system auto-detects which format was used when reading cache files, so you can add or remove igbinary at any time.
 
@@ -123,6 +124,15 @@ mysite/
 
 The system handles all the boring stuff: routing, sorting, pagination, and search. You just focus on the content and the design.
 
+## Editing Content: Pick Your Style
+
+Ava is flexible about *how* you edit. Start with local-first. It’s the fastest feedback loop: type → save → refresh.
+
+If you want some beginner-friendly background on the tools involved:
+
+- Learn the basics of running commands in [CLI](cli.md)
+- Learn what Markdown is (and what editors are great) in [Content](content.md)
+
 ## Is Ava for You?
 
 Ava is perfect if:
@@ -144,7 +154,7 @@ It won't be a good fit if you need a drag-and-drop page builder or a massive eco
 
 ## License
 
-Ava CMS is free and open-source software licensed under the [MIT License](https://github.com/addy/ava/blob/main/LICENSE).
+Ava CMS is free and open-source software licensed under the [MIT License](https://github.com/adamgreenough/ava/blob/main/LICENSE).
 
 In plain English, that means you can:
 
@@ -155,6 +165,7 @@ In plain English, that means you can:
 The main thing the license asks is that you keep the MIT license text and copyright notice with the software.
 
 Also worth knowing: the MIT license comes with a standard “no warranty” clause. Ava is provided as-is, so you’re responsible for how you deploy and run it. There's no guarantees that it's fit-for-purpose or impenetrably secure. Standard open-source stuff.
+
 ## Contributing
 
 Ava is still fairly early and moving quickly, so I’m not looking for pull requests or additional contributors just yet.

@@ -1,6 +1,63 @@
 # Writing Content
 
-Content in Ava is just text. You write in Markdown, which is a simple way to format text, and save it as a file. There's no database to manage—your files are your content.
+Content in Ava is just text. You write in [Markdown](https://www.markdownguide.org/basic-syntax/), which is a simple way to format text, and save it as a file. There's no database to manage—your files are your content. 
+
+Ava can handle any combination of Markdown and standard HTML, even within the same file. You can also embed safe and reusable PHP snippets using [Shortcodes](https://ava-dev.addy.zone/docs/#/shortcodes) for absolute flexibility.
+
+<div class="beginner-box">
+
+## What is Markdown?
+
+Markdown is a lightweight way to format text using plain characters.
+
+- You write readable text.
+- You sprinkle in simple symbols for headings, links, lists, and code.
+- Mix in your own custom HTML if required for advanced styling.
+- Ava (and your theme) turns it into HTML.
+
+### A tiny Markdown cheat-sheet
+
+```markdown
+# Heading 1
+## Heading 2
+
+**bold** and *italic*
+
+- bullet item
+1. numbered item
+
+[a link](https://example.com)
+
+`inline code`
+
+```php
+// a code block
+echo 'Hello';
+```‎ 
+```
+
+[View full Markdown reference](https://www.markdownguide.org/basic-syntax/)
+
+### Markdown Editors (use what you like)
+
+You can write Ava content in almost anything:
+
+- **Code editors:** VS Code, Sublime Text, PhpStorm
+- **Markdown-focused apps:** Obsidian, Typora, MarkText, iA Writer, Zettlr
+- **In the browser:** GitHub’s built-in editor (edit a `.md` file on GitHub), or tools like StackEdit
+
+There’s no “correct” editor. If you like writing in a notes app and then committing to Git, that works. If you like editing on the server over SSH, that works too.
+
+### Frontmatter vs Markdown (two different things)
+
+Each content file has:
+
+- **Frontmatter (YAML)** between `---` lines: structured metadata
+- **Body (Markdown)**: the actual writing
+
+**Note:** YAML is sensitive to indentation. If something breaks, it’s often a missing space or an unclosed quote in frontmatter. Running `./ava lint` is the fastest way to get a clear error message.
+
+</div>
 
 ## The Basics
 
@@ -22,6 +79,69 @@ date: 2024-12-28
 This is my first post. I can use **bold**, *italics*, and [links](https://example.com).
 ```
 
+**Tip:** You can keep drafts forever. Set `status: draft` while writing, then switch to `published` when you’re happy.
+
+## Creating Content
+
+### Via CLI (Recommended)
+
+
+```bash
+./ava make <type> "Title"
+```
+
+Examples:
+
+```bash
+./ava make page "About Us"
+./ava make post "Hello World"
+```
+
+<pre><samp>  <span class="t-green">╭───────────────────────────╮
+  │  Created new post!        │
+  ╰───────────────────────────╯</span>
+
+  <span class="t-dim">File:</span>       <span class="t-white">content/posts/hello-world.md</span>
+  <span class="t-dim">ID:</span>         <span class="t-white">01JGHK8M3Q4R5S6T7U8V9WXYZ</span>
+  <span class="t-dim">Slug:</span>       <span class="t-cyan">hello-world</span>
+  <span class="t-dim">Status:</span>     <span class="t-yellow">draft</span>
+
+  <span class="t-yellow">💡 Tip:</span> Edit your content, then set status: published when ready</samp></pre>
+
+Run without arguments to see available types:
+
+```bash
+./ava make
+```
+
+<pre><samp>  <span class="t-red">✗</span> Usage: ./ava make &lt;type&gt; "Title"
+
+  <span class="t-bold">Available types:</span>
+
+    <span class="t-cyan">▸ page</span> <span class="t-dim">— Pages</span>
+    <span class="t-cyan">▸ post</span> <span class="t-dim">— Posts</span>
+
+  <span class="t-bold">Example:</span>
+    <span class="t-dim">./ava make post "My New Post"</span></samp></pre>
+
+This creates a properly formatted file with:
+- Generated ULID
+- Slugified filename
+- Date (for dated types)
+- Draft status
+
+**Beginner's need not worry**: the CLI isn’t “advanced mode” — it’s just a helper that saves you from remembering boilerplate and file naming.
+
+### Manually
+
+Create a `.md` file in the appropriate directory:
+
+```bash
+# content/posts/my-new-post.md
+```
+
+Add frontmatter and content, then save. If cache mode is `auto`, the site updates immediately.
+
 ## Organizing Your Files
 
 Content lives in the `content/` folder. You can organize it however you like, but typically it looks like this:
@@ -39,6 +159,8 @@ content/
     ├── category.yml
     └── tag.yml
 ```
+
+**Tip:** For pages, folder structure usually maps nicely to URLs. For example `content/pages/services/web.md` becomes `/services/web`.
 
 ## Frontmatter Guide
 
@@ -151,33 +273,17 @@ See [Shortcodes](shortcodes.md) for the full reference.
 | `published` | Visible to everyone. |
 | `private` | Hidden from listings. Accessible via direct URL with preview token. |
 
-## Creating Content
+## Previewing Your Site Locally
 
-### Via CLI (Recommended)
-
-```bash
-# Create a page
-./ava make page "About Us"
-
-# Create a post
-./ava make post "Hello World"
-```
-
-This creates a properly formatted file with:
-- Generated ULID
-- Slugified filename
-- Date (for dated types)
-- Draft status
-
-### Manually
-
-Create a `.md` file in the appropriate directory:
+If you’re working on your own machine, the simplest preview is PHP’s built-in dev server:
 
 ```bash
-# content/posts/my-new-post.md
+php -S localhost:8000 -t public
 ```
 
-Add frontmatter and content, then save. If cache mode is `auto`, the site updates immediately.
+Then open `http://localhost:8000` in your browser.
+
+> **Tip:** This is a development server only — for real hosting you’ll use Apache/Nginx (or your host’s PHP setup).
 
 ## Validation
 

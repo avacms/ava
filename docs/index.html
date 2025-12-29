@@ -29,6 +29,8 @@
       --border-color: #e5e7eb;
       --bg-subtle: #f9fafb;
       --bg-muted: #fafafa;
+      --cover-bg-opacity: 0.25;
+      --cover-bg-gradient: linear-gradient(180deg, rgba(5, 7, 24, 0.15) 0%, rgba(5, 7, 24, 0.5) 100%);
     }
 
     * {
@@ -152,6 +154,39 @@
 
     .markdown-section img {
       border-radius: 12px;
+    }
+
+    /* Beginner Box Styling */
+    .beginner-box {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--theme-color);
+      border-radius: 6px;
+      padding: 1.5rem 1.75rem;
+      margin: 2.5rem 0;
+      line-height: 1.7;
+    }
+    .beginner-box strong {
+      color: var(--theme-color);
+      font-weight: 600;
+    }
+    .beginner-box > *:first-child {
+      margin-top: 0;
+    }
+    .beginner-box > *:last-child {
+      margin-bottom: 0;
+    }
+    .beginner-box ul {
+      margin: 0.5rem 0 1rem 0;
+      padding-left: 1.5rem;
+    }
+    .beginner-box li {
+      margin: 0.4rem 0;
+    }
+    .beginner-box pre {
+      background: #fff !important;
+      border: 1px solid var(--border-color);
+      margin: 1rem 0 !important;
     }
 
     /* Headings */
@@ -464,6 +499,7 @@
       align-items: center !important;
       justify-content: center !important;
       background: #050718 !important;
+      background-image: none !important;
       min-height: 100vh !important;
       width: 100% !important;
       padding: 3rem 0 !important;
@@ -472,96 +508,31 @@
       overflow: hidden !important;
     }
 
-    /* Animated noise overlay */
-    section.cover.show::before {
-      content: '';
-      position: fixed;
-      top: -50%;
-      left: -50%;
-      right: -50%;
-      bottom: -50%;
-      width: 200%;
-      height: 200vh;
-      background: transparent url('./images/noise.png') repeat 0 0;
-      animation: noise-animation 0.2s infinite;
-      opacity: 0.4;
-      pointer-events: none;
-      z-index: 30;
+    /* Separate cover background via pseudo-element so blur works reliably */
+    section.cover.show::after {
+      content: '' !important;
+      position: absolute !important;
+      inset: 0 !important;
+      background-image: var(--cover-bg-gradient), url('https://addy.zip/ava/ava-cover.webp') !important;
+      background-size: cover, cover !important;
+      background-position: center, center !important;
+      background-repeat: no-repeat, no-repeat !important;
+      background-attachment: fixed, fixed !important;
+      opacity: var(--cover-bg-opacity, 0.25) !important;
+      pointer-events: none !important;
+      z-index: 10 !important;
     }
 
-    @keyframes noise-animation {
-      0% { transform: translate(0, 0); }
-      10% { transform: translate(-5%, -5%); }
-      20% { transform: translate(-10%, 5%); }
-      30% { transform: translate(5%, -10%); }
-      40% { transform: translate(-5%, 15%); }
-      50% { transform: translate(-10%, 5%); }
-      60% { transform: translate(15%, 0); }
-      70% { transform: translate(0, 10%); }
-      80% { transform: translate(-15%, 0); }
-      90% { transform: translate(10%, 5%); }
-      100% { transform: translate(5%, 0); }
-    }
-
-    /* Cover main wrapper */
+    /* Ensure content appears above background image */
     section.cover .cover-main {
-      flex: unset !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 auto !important;
-      padding: 3rem 2rem !important;
-      text-align: center !important;
       position: relative !important;
-      z-index: 2 !important;
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: center !important;
-    }
-
-    /* Logo */
-    section.cover .cover-logo {
-      display: block !important;
-      font-size: 7rem !important;
-      line-height: 1 !important;
-      margin: 0 0 1.5rem 0 !important;
-      padding: 0 !important;
-      text-align: center !important;
-    }
-
-    section.cover .cover-logo img {
-      width: 100%;
-      max-width: 1500px;
-      height: auto;
-      margin-top: -200px;
-      opacity: 0.3;
-    }
-
-    /* Cover content gradient overlay */
-    section.cover .cover-content {
-      padding-top: 15rem;
-      position: relative;
-      z-index: 10;
-      width: 100%;
-      margin-top: -600px;
-      background: linear-gradient(0deg, #050718 10%, transparent 100%) !important;
-    }
-
-    @media(max-width: 1000px) {
-      section.cover .cover-logo img {
-        max-width: 100%;
-        margin-top: -3rem;
-      }
-
-      section.cover .cover-content {
-        padding-top: 10%;
-        margin-top: -25%;
-      }
+      z-index: 20 !important;
     }
 
     /* Main heading */
     section.cover h1 {
       display: block !important;
-      font-size: 5rem !important;
+      font-size: 6rem !important;
       font-weight: 800 !important;
       letter-spacing: -0.04em !important;
       line-height: 1 !important;
@@ -800,6 +771,42 @@
         font-size: 0.9375rem !important;
       }
     }
+
+    /* Terminal Output Styling */
+    .markdown-section pre:has(samp),
+    .markdown-section pre samp {
+      background: #1a1b26 !important;
+    }
+
+    .markdown-section pre:has(samp) {
+      border-radius: 6px !important;
+      padding: 1rem 1.25rem !important;
+      margin: 0.5rem 0 1.5rem !important;
+      overflow-x: auto !important;
+      border: 1px solid #2a2b3d !important;
+    }
+
+    .markdown-section pre samp {
+      color: #a9b1d6 !important;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace !important;
+      font-size: 0.8125rem !important;
+      line-height: 1.6 !important;
+      white-space: pre !important;
+      letter-spacing: -0.5px;
+      line-height: 1.2 !important;
+      display: block !important;
+    }
+
+    /* Terminal color classes */
+    .markdown-section pre samp .t-green { color: #9ece6a !important; }
+    .markdown-section pre samp .t-red { color: #f7768e !important; }
+    .markdown-section pre samp .t-yellow { color: #e0af68 !important; }
+    .markdown-section pre samp .t-blue { color: #7aa2f7 !important; }
+    .markdown-section pre samp .t-cyan { color: #7dcfff !important; }
+    .markdown-section pre samp .t-magenta { color: #bb9af7 !important; }
+    .markdown-section pre samp .t-dim { color: #565f89 !important; }
+    .markdown-section pre samp .t-bold { font-weight: 600 !important; color: #c0caf5 !important; }
+    .markdown-section pre samp .t-white { color: #c0caf5 !important; }
   </style>
 </head>
 <body>

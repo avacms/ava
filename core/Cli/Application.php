@@ -18,6 +18,41 @@ final class Application
     private AvaApp $app;
     private array $commands = [];
 
+    // ANSI color codes
+    private const RESET = "\033[0m";
+    private const BOLD = "\033[1m";
+    private const DIM = "\033[2m";
+    private const ITALIC = "\033[3m";
+
+    // Colors
+    private const BLACK = "\033[30m";
+    private const RED = "\033[31m";
+    private const GREEN = "\033[32m";
+    private const YELLOW = "\033[33m";
+    private const BLUE = "\033[34m";
+    private const MAGENTA = "\033[35m";
+    private const CYAN = "\033[36m";
+    private const WHITE = "\033[37m";
+
+    // Bright colors
+    private const BRIGHT_BLACK = "\033[90m";
+    private const BRIGHT_GREEN = "\033[92m";
+    private const BRIGHT_CYAN = "\033[96m";
+
+    // Background colors
+    private const BG_GREEN = "\033[42m";
+    private const BG_RED = "\033[41m";
+    private const BG_BLUE = "\033[44m";
+    private const BG_YELLOW = "\033[43m";
+
+    // ASCII Art banner
+    private const BANNER = <<<'ASCII'
+
+   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄ 
+  ██▀██ ██▄██ ██▀██   ██▀▀▀ ██▀▄▀██ ███▄▄ 
+  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀
+ASCII;
+
     public function __construct()
     {
         $this->app = AvaApp::getInstance();
@@ -40,7 +75,9 @@ final class Application
 
         // Handle version
         if ($command === 'version' || $command === '--version' || $command === '-v') {
-            $this->writeln('Ava CMS v' . AVA_VERSION);
+            $this->showBanner();
+            echo $this->color('  v' . AVA_VERSION, self::DIM) . "\n";
+            $this->writeln('');
             return 0;
         }
 
@@ -90,86 +127,103 @@ final class Application
      */
     private function cmdStatus(array $args): int
     {
-        $this->writeln('');
-        $this->writeln('=== Ava CMS Status ===');
-        $this->writeln('');
-
-        // PHP environment
-        $this->writeln('PHP ' . PHP_VERSION);
-        $extensions = [];
-        if (extension_loaded('igbinary')) {
-            $extensions[] = 'igbinary';
-        }
-        if (extension_loaded('opcache') && ini_get('opcache.enable')) {
-            $extensions[] = 'opcache';
-        }
-        if (!empty($extensions)) {
-            $this->writeln('Extensions: ' . implode(', ', $extensions));
-        }
-        $this->writeln('');
+        $this->showBanner();
+        echo $this->color('  v' . AVA_VERSION, self::DIM) . "\n";
 
         // Site info
-        $this->writeln('Site: ' . $this->app->config('site.name'));
-        $this->writeln('URL:  ' . $this->app->config('site.base_url'));
-        $this->writeln('');
+        $this->sectionHeader('Site');
+        $this->keyValue('Name', $this->color($this->app->config('site.name'), self::BOLD));
+        $this->keyValue('URL', $this->color($this->app->config('site.base_url'), self::BRIGHT_CYAN));
+
+        // PHP environment
+        $this->sectionHeader('Environment');
+        $this->keyValue('PHP', PHP_VERSION);
+        $extensions = [];
+        if (extension_loaded('igbinary')) {
+            $extensions[] = $this->color('igbinary', self::GREEN);
+        }
+        if (extension_loaded('opcache') && ini_get('opcache.enable')) {
+            $extensions[] = $this->color('opcache', self::GREEN);
+        }
+        if (!empty($extensions)) {
+            $this->keyValue('Extensions', implode(', ', $extensions));
+        }
 
         // Cache status
+        $this->sectionHeader('Content Cache');
         $cachePath = $this->app->configPath('storage') . '/cache';
         $fingerprintPath = $cachePath . '/fingerprint.json';
 
         if (file_exists($fingerprintPath)) {
-            $fingerprint = json_decode(file_get_contents($fingerprintPath), true);
             $fresh = $this->app->indexer()->isCacheFresh();
-
-            $this->writeln('Cache:');
-            $this->writeln('  Status: ' . ($fresh ? '✓ Fresh' : '✗ Stale'));
-            $this->writeln('  Mode:   ' . $this->app->config('cache.mode', 'auto'));
+            $status = $fresh
+                ? $this->color('● Fresh', self::GREEN, self::BOLD)
+                : $this->color('○ Stale', self::YELLOW, self::BOLD);
+            $this->keyValue('Status', $status);
+            $this->keyValue('Mode', $this->app->config('cache.mode', 'auto'));
 
             if (file_exists($cachePath . '/content_index.php')) {
                 $mtime = filemtime($cachePath . '/content_index.php');
-                $this->writeln('  Built:  ' . date('Y-m-d H:i:s', $mtime));
+                $this->keyValue('Built', $this->color(date('Y-m-d H:i:s', $mtime), self::DIM));
             }
         } else {
-            $this->writeln('Cache: Not built');
+            $this->keyValue('Status', $this->color('○ Not built', self::YELLOW));
+            $this->tip('Run ./ava rebuild to build the cache');
         }
-        $this->writeln('');
 
         // Content counts
-        $this->writeln('Content:');
+        $this->sectionHeader('Content');
         $repository = $this->app->repository();
 
+        $rows = [];
         foreach ($repository->types() as $type) {
             $total = $repository->count($type);
             $published = $repository->count($type, 'published');
             $drafts = $repository->count($type, 'draft');
 
-            $this->writeln("  {$type}: {$total} total ({$published} published, {$drafts} drafts)");
+            $draftBadge = $drafts > 0 ? $this->color(" ({$drafts} drafts)", self::YELLOW) : '';
+            $this->labeledItem(
+                ucfirst($type),
+                $this->color((string) $published, self::GREEN, self::BOLD) .
+                    $this->color(' published', self::DIM) . $draftBadge,
+                $total > 0 ? '◆' : '◇',
+                $total > 0 ? self::GREEN : self::DIM
+            );
         }
-        $this->writeln('');
 
         // Taxonomies
-        $this->writeln('Taxonomies:');
+        $this->sectionHeader('Taxonomies');
         foreach ($repository->taxonomies() as $taxonomy) {
             $terms = $repository->terms($taxonomy);
-            $this->writeln("  {$taxonomy}: " . count($terms) . ' terms');
+            $count = count($terms);
+            $this->labeledItem(
+                ucfirst($taxonomy),
+                $this->color((string) $count, self::CYAN, self::BOLD) .
+                    $this->color(' terms', self::DIM),
+                '◆',
+                self::CYAN
+            );
         }
-        $this->writeln('');
 
         // Page cache stats
         $pageCache = $this->app->pageCache();
         $stats = $pageCache->stats();
-        $this->writeln('Page Cache:');
-        $this->writeln('  Status: ' . ($stats['enabled'] ? '✓ Enabled' : '✗ Disabled'));
+        $this->sectionHeader('Page Cache');
+        $status = $stats['enabled']
+            ? $this->color('● Enabled', self::GREEN, self::BOLD)
+            : $this->color('○ Disabled', self::DIM);
+        $this->keyValue('Status', $status);
+
         if ($stats['enabled']) {
             $ttl = $stats['ttl'] ?? null;
-            $this->writeln('  TTL:    ' . ($ttl ? $ttl . 's' : 'Forever'));
-            $this->writeln('  Pages:  ' . $stats['count'] . ' cached');
+            $this->keyValue('TTL', $ttl ? "{$ttl}s" : 'Forever');
+            $this->keyValue('Cached', $this->color((string) $stats['count'], self::CYAN, self::BOLD) . ' pages');
             if ($stats['count'] > 0) {
-                $this->writeln('  Size:   ' . $this->formatBytes($stats['size']));
+                $this->keyValue('Size', $this->formatBytes($stats['size']));
             }
         }
-        $this->writeln('');
 
+        $this->writeln('');
         return 0;
     }
 
@@ -178,14 +232,14 @@ final class Application
      */
     private function cmdRebuild(array $args): int
     {
-        $this->writeln('Rebuilding cache...');
+        $this->writeln('');
+        $this->withSpinner('Rebuilding content cache', function () {
+            $this->app->indexer()->rebuild();
+            return true;
+        });
 
-        $start = microtime(true);
-        $this->app->indexer()->rebuild();
-        $elapsed = round((microtime(true) - $start) * 1000);
-
-        $this->success("Cache rebuilt in {$elapsed}ms");
-
+        $this->success('Cache rebuilt successfully!');
+        $this->writeln('');
         return 0;
     }
 
@@ -194,19 +248,27 @@ final class Application
      */
     private function cmdLint(array $args): int
     {
-        $this->writeln('Validating content...');
+        $this->writeln('');
+        echo $this->color('  🔍 Validating content files...', self::DIM) . "\n";
+        $this->writeln('');
 
         $errors = $this->app->indexer()->lint();
 
         if (empty($errors)) {
-            $this->success('All content files are valid.');
+            $this->box("All content files are valid!\nNo issues found.", 'success');
+            $this->writeln('');
             return 0;
         }
 
-        $this->error('Found ' . count($errors) . ' error(s):');
+        $this->error("Found " . count($errors) . " issue(s):");
+        $this->writeln('');
         foreach ($errors as $error) {
-            $this->writeln('  - ' . $error);
+            echo "    " . $this->color('•', self::RED) . " {$error}\n";
         }
+
+        $this->writeln('');
+        $this->tip('Fix the issues above and run lint again');
+        $this->writeln('');
 
         return 1;
     }
@@ -217,9 +279,14 @@ final class Application
     private function cmdMake(array $args): int
     {
         if (count($args) < 2) {
-            $this->error('Usage: ava make <type> "Title"');
+            $this->writeln('');
+            $this->error('Usage: ./ava make <type> "Title"');
             $this->writeln('');
             $this->showAvailableTypes();
+            $this->writeln('');
+            $this->writeln($this->color('  Example:', self::BOLD));
+            $this->writeln('    ' . $this->color('./ava make post "My New Post"', self::BRIGHT_CYAN));
+            $this->writeln('');
             return 1;
         }
 
@@ -230,6 +297,7 @@ final class Application
         $contentTypes = require $this->app->path('app/config/content_types.php');
         if (!isset($contentTypes[$type])) {
             $this->error("Unknown content type: {$type}");
+            $this->writeln('');
             $this->showAvailableTypes();
             return 1;
         }
@@ -251,10 +319,13 @@ final class Application
     private function showAvailableTypes(): void
     {
         $contentTypes = require $this->app->path('app/config/content_types.php');
-        $this->writeln('Available types:');
+        $this->writeln($this->color('  Available types:', self::BOLD));
+        $this->writeln('');
         foreach ($contentTypes as $name => $config) {
             $label = $config['label'] ?? ucfirst($name);
-            $this->writeln("  {$name} - {$label}");
+            echo '    ' . $this->color('▸ ', self::CYAN);
+            echo $this->color($name, self::BRIGHT_CYAN);
+            echo $this->color(" — {$label}", self::DIM) . "\n";
         }
     }
 
@@ -311,9 +382,18 @@ final class Application
         // Write file
         file_put_contents($filePath, $yaml);
 
-        $this->success("Created: {$filePath}");
-        $this->writeln("  ID: {$id}");
-        $this->writeln("  Slug: {$slug}");
+        $relativePath = str_replace($this->app->path('') . '/', '', $filePath);
+
+        $this->writeln('');
+        $this->box("Created new {$type}!", 'success');
+        $this->writeln('');
+        $this->keyValue('File', $this->color($relativePath, self::BRIGHT_CYAN));
+        $this->keyValue('ID', $this->color($id, self::DIM));
+        $this->keyValue('Slug', $slug);
+        $this->keyValue('Status', $this->color('draft', self::YELLOW));
+        $this->writeln('');
+        $this->tip("Edit your content, then set status: published when ready");
+        $this->writeln('');
 
         return 0;
     }
@@ -327,12 +407,13 @@ final class Application
         $typeFilter = $args[1] ?? null;
 
         if (!in_array($action, ['add', 'remove'], true)) {
-            $this->error('Usage: ava prefix <add|remove> [type]');
             $this->writeln('');
-            $this->writeln('Examples:');
-            $this->writeln('  ava prefix add post      # Add date prefix to posts');
-            $this->writeln('  ava prefix remove post   # Remove date prefix from posts');
-            $this->writeln('  ava prefix add           # Add to all dated types');
+            $this->error('Usage: ./ava prefix <add|remove> [type]');
+            $this->writeln('');
+            $this->writeln($this->color('  Examples:', self::BOLD));
+            $this->writeln('    ' . $this->color('./ava prefix add post', self::BRIGHT_CYAN) . $this->color('      # Add date prefix to posts', self::DIM));
+            $this->writeln('    ' . $this->color('./ava prefix remove post', self::BRIGHT_CYAN) . $this->color('   # Remove date prefix', self::DIM));
+            $this->writeln('');
             return 1;
         }
 
@@ -340,6 +421,11 @@ final class Application
         $parser = new \Ava\Content\Parser();
         $renamed = 0;
         $skipped = 0;
+
+        $this->writeln('');
+        $actionLabel = $action === 'add' ? 'Adding' : 'Removing';
+        echo $this->color("  {$actionLabel} date prefixes...", self::DIM) . "\n";
+        $this->writeln('');
 
         foreach ($contentTypes as $typeName => $typeConfig) {
             // Filter by type if specified
@@ -366,11 +452,13 @@ final class Application
 
         if ($renamed > 0) {
             $this->success("Renamed {$renamed} file(s)");
-            $this->writeln('Run "ava rebuild" to update the cache.');
+            $this->writeln('');
+            $this->nextStep('./ava rebuild', 'Update the cache');
         } else {
-            $this->writeln('No files needed renaming.');
+            $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' No files needed renaming.');
         }
 
+        $this->writeln('');
         return 0;
     }
 
@@ -384,7 +472,7 @@ final class Application
         try {
             $item = $parser->parseFile($filePath, $type);
         } catch (\Exception $e) {
-            $this->warning("Skipping {$filePath}: " . $e->getMessage());
+            $this->warning("Skipping: " . basename($filePath) . " — " . $e->getMessage());
             return false;
         }
 
@@ -407,12 +495,13 @@ final class Application
             $newPath = $dir . '/' . $newFilename;
 
             if (file_exists($newPath)) {
-                $this->warning("Cannot rename {$filename}: {$newFilename} already exists");
+                $this->warning("Cannot rename: {$newFilename} already exists");
                 return false;
             }
 
             rename($filePath, $newPath);
-            $this->writeln("  {$filename} → {$newFilename}");
+            echo "    " . $this->color('→', self::GREEN) . " ";
+            echo $this->color($filename, self::DIM) . " → " . $this->color($newFilename, self::BRIGHT_CYAN) . "\n";
             return true;
 
         } elseif ($action === 'remove' && $hasPrefix) {
@@ -421,12 +510,13 @@ final class Application
             $newPath = $dir . '/' . $newFilename;
 
             if (file_exists($newPath)) {
-                $this->warning("Cannot rename {$filename}: {$newFilename} already exists");
+                $this->warning("Cannot rename: {$newFilename} already exists");
                 return false;
             }
 
             rename($filePath, $newPath);
-            $this->writeln("  {$filename} → {$newFilename}");
+            echo "    " . $this->color('→', self::GREEN) . " ";
+            echo $this->color($filename, self::DIM) . " → " . $this->color($newFilename, self::BRIGHT_CYAN) . "\n";
             return true;
         }
 
@@ -462,7 +552,12 @@ final class Application
     private function cmdUserAdd(array $args): int
     {
         if (count($args) < 2) {
-            $this->error('Usage: ava user:add <email> <password> [name]');
+            $this->writeln('');
+            $this->error('Usage: ./ava user:add <email> <password> [name]');
+            $this->writeln('');
+            $this->writeln($this->color('  Example:', self::BOLD));
+            $this->writeln('    ' . $this->color('./ava user:add admin@example.com mypassword "Admin"', self::BRIGHT_CYAN));
+            $this->writeln('');
             return 1;
         }
 
@@ -488,15 +583,24 @@ final class Application
             return 1;
         }
 
+        $userName = $name ?? explode('@', $email)[0];
         $users[$email] = [
             'password' => password_hash($password, PASSWORD_DEFAULT),
-            'name' => $name ?? explode('@', $email)[0],
+            'name' => $userName,
             'created' => date('Y-m-d'),
         ];
 
         $this->saveUsers($usersFile, $users);
 
-        $this->success("User created: {$email}");
+        $this->writeln('');
+        $this->box("User created successfully!", 'success');
+        $this->writeln('');
+        $this->keyValue('Email', $this->color($email, self::BRIGHT_CYAN));
+        $this->keyValue('Name', $userName);
+        $this->writeln('');
+        $this->nextStep('/admin', 'Login at your admin dashboard');
+        $this->writeln('');
+
         return 0;
     }
 
@@ -506,7 +610,9 @@ final class Application
     private function cmdUserPassword(array $args): int
     {
         if (count($args) < 2) {
-            $this->error('Usage: ava user:password <email> <new-password>');
+            $this->writeln('');
+            $this->error('Usage: ./ava user:password <email> <new-password>');
+            $this->writeln('');
             return 1;
         }
 
@@ -532,6 +638,8 @@ final class Application
         $this->saveUsers($usersFile, $users);
 
         $this->success("Password updated for: {$email}");
+        $this->writeln('');
+
         return 0;
     }
 
@@ -541,7 +649,9 @@ final class Application
     private function cmdUserRemove(array $args): int
     {
         if (count($args) < 1) {
-            $this->error('Usage: ava user:remove <email>');
+            $this->writeln('');
+            $this->error('Usage: ./ava user:remove <email>');
+            $this->writeln('');
             return 1;
         }
 
@@ -560,6 +670,8 @@ final class Application
         $this->saveUsers($usersFile, $users);
 
         $this->success("User removed: {$email}");
+        $this->writeln('');
+
         return 0;
     }
 
@@ -571,21 +683,30 @@ final class Application
         $usersFile = $this->app->path('app/config/users.php');
         $users = $this->loadUsers($usersFile);
 
+        $this->writeln('');
+
         if (empty($users)) {
-            $this->writeln('No users configured.');
+            $this->box("No users configured yet", 'warning');
             $this->writeln('');
-            $this->writeln('Create one with: ava user:add <email> <password>');
+            $this->nextStep('./ava user:add <email> <password>', 'Create your first user');
+            $this->writeln('');
             return 0;
         }
 
+        echo $this->color('  ─── Users ', self::CYAN, self::BOLD);
+        echo $this->color(str_repeat('─', 45), self::DIM) . "\n";
         $this->writeln('');
-        $this->writeln('Users:');
+
         foreach ($users as $email => $data) {
             $name = $data['name'] ?? '';
             $created = $data['created'] ?? '';
-            $this->writeln("  {$email} - {$name} (created: {$created})");
+
+            echo "    " . $this->color('◆', self::CYAN) . " ";
+            echo $this->color($email, self::BRIGHT_CYAN, self::BOLD) . "\n";
+            echo "      " . $this->color("Name: {$name}", self::DIM) . "\n";
+            echo "      " . $this->color("Created: {$created}", self::DIM) . "\n";
+            $this->writeln('');
         }
-        $this->writeln('');
 
         return 0;
     }
@@ -622,60 +743,60 @@ final class Application
         $force = in_array('--force', $args) || in_array('-f', $args);
 
         $this->writeln('');
-        $this->writeln('Checking for updates...');
+        echo $this->color('  🔍 Checking for updates...', self::DIM) . "\n";
         $this->writeln('');
 
         $updater = new \Ava\Updater($this->app);
         $result = $updater->check($force);
 
-        $this->writeln('Current version: ' . $result['current']);
-        $this->writeln('Latest version:  ' . $result['latest']);
+        $this->keyValue('Current', $this->color($result['current'], self::BOLD));
+        $this->keyValue('Latest', $this->color($result['latest'], self::BOLD));
 
         if ($result['error']) {
-            $this->writeln('');
             $this->error($result['error']);
             return 1;
         }
 
         if ($result['available']) {
             $this->writeln('');
-            $this->success('Update available!');
+            $this->box("Update available!", 'success');
             $this->writeln('');
 
             if ($result['release']) {
                 if ($result['release']['name']) {
-                    $this->writeln('Release: ' . $result['release']['name']);
+                    $this->keyValue('Release', $result['release']['name']);
                 }
                 if ($result['release']['published_at']) {
                     $date = date('Y-m-d', strtotime($result['release']['published_at']));
-                    $this->writeln('Published: ' . $date);
+                    $this->keyValue('Published', $date);
                 }
                 if ($result['release']['body']) {
                     $this->writeln('');
-                    $this->writeln('Changelog:');
-                    $this->writeln('----------');
-                    // Show first 20 lines of changelog
+                    echo $this->color('  ─── Changelog ', self::CYAN, self::BOLD);
+                    echo $this->color(str_repeat('─', 42), self::DIM) . "\n";
+                    $this->writeln('');
+                    // Show first 15 lines of changelog
                     $lines = explode("\n", $result['release']['body']);
-                    foreach (array_slice($lines, 0, 20) as $line) {
-                        $this->writeln($line);
+                    foreach (array_slice($lines, 0, 15) as $line) {
+                        $this->writeln('  ' . $line);
                     }
-                    if (count($lines) > 20) {
-                        $this->writeln('... (truncated)');
+                    if (count($lines) > 15) {
+                        $this->writeln('  ' . $this->color('... (truncated)', self::DIM));
                     }
                 }
             }
 
             $this->writeln('');
-            $this->writeln('Run `php bin/ava update:apply` to update.');
+            $this->nextStep('./ava update:apply', 'Download and apply the update');
 
         } else {
             $this->writeln('');
-            $this->success('You are running the latest version.');
+            $this->box("You're up to date!", 'success');
         }
 
         if (isset($result['from_cache']) && $result['from_cache']) {
             $this->writeln('');
-            $this->writeln('(cached result - use --force to refresh)');
+            $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' ' . $this->color('Cached result — use --force to refresh', self::DIM));
         }
 
         $this->writeln('');
@@ -699,40 +820,46 @@ final class Application
         }
 
         if (!$check['available']) {
-            $this->success('Already running the latest version (' . $check['current'] . ')');
+            $this->box("Already running the latest version ({$check['current']})", 'success');
+            $this->writeln('');
             return 0;
         }
 
-        $this->writeln('Update available: ' . $check['current'] . ' → ' . $check['latest']);
+        echo $this->color('  ─── Update Available ', self::CYAN, self::BOLD);
+        echo $this->color(str_repeat('─', 35), self::DIM) . "\n";
+        $this->writeln('');
+        $this->keyValue('From', $check['current']);
+        $this->keyValue('To', $this->color($check['latest'], self::GREEN, self::BOLD));
         $this->writeln('');
 
         // Confirm unless --yes flag
         if (!in_array('--yes', $args) && !in_array('-y', $args)) {
-            $this->writeln('This will update the following:');
-            $this->writeln('  - Core files (core/, bin/, bootstrap.php)');
-            $this->writeln('  - Default theme (themes/default/)');
-            $this->writeln('  - Bundled plugins (plugins/sitemap, feed, redirects)');
-            $this->writeln('  - Documentation (docs/)');
+            $this->writeln($this->color('  Will be updated:', self::BOLD));
+            echo "    " . $this->color('▸', self::GREEN) . " Core files (core/, bin/, bootstrap.php)\n";
+            echo "    " . $this->color('▸', self::GREEN) . " Default theme (themes/default/)\n";
+            echo "    " . $this->color('▸', self::GREEN) . " Bundled plugins (sitemap, feed, redirects)\n";
+            echo "    " . $this->color('▸', self::GREEN) . " Documentation (docs/)\n";
             $this->writeln('');
-            $this->writeln('These will NOT be modified:');
-            $this->writeln('  - Your content (content/)');
-            $this->writeln('  - Your configuration (app/)');
-            $this->writeln('  - Your custom themes');
-            $this->writeln('  - Your custom plugins');
-            $this->writeln('  - Storage and cache files');
+            $this->writeln($this->color('  Will NOT be modified:', self::BOLD));
+            echo "    " . $this->color('•', self::DIM) . " Your content (content/)\n";
+            echo "    " . $this->color('•', self::DIM) . " Your configuration (app/)\n";
+            echo "    " . $this->color('•', self::DIM) . " Custom themes and plugins\n";
+            echo "    " . $this->color('•', self::DIM) . " Storage and cache files\n";
             $this->writeln('');
-            echo 'Continue? [y/N]: ';
+            echo '  Continue? [' . $this->color('y', self::GREEN) . '/N]: ';
             $answer = trim(fgets(STDIN));
             if (strtolower($answer) !== 'y') {
-                $this->writeln('Update cancelled.');
+                $this->writeln('');
+                $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' Update cancelled.');
+                $this->writeln('');
                 return 0;
             }
             $this->writeln('');
         }
 
-        $this->writeln('Downloading update...');
-
-        $result = $updater->apply();
+        $result = $this->withSpinner('Downloading update', function () use ($updater) {
+            return $updater->apply();
+        });
 
         if (!$result['success']) {
             $this->error($result['message']);
@@ -743,17 +870,19 @@ final class Application
 
         if (!empty($result['new_plugins'])) {
             $this->writeln('');
-            $this->writeln('New bundled plugins available (not activated):');
+            echo $this->color('  New bundled plugins available:', self::BOLD) . "\n";
             foreach ($result['new_plugins'] as $plugin) {
-                $this->writeln('  - ' . $plugin);
+                echo "    " . $this->color('•', self::CYAN) . " {$plugin}\n";
             }
             $this->writeln('');
-            $this->writeln('To activate, add them to your plugins array in app/config/ava.php');
+            $this->tip('Add them to your plugins array in app/config/ava.php to activate');
         }
 
         $this->writeln('');
-        $this->writeln('Rebuilding cache...');
-        $this->app->indexer()->rebuild();
+        $this->withSpinner('Rebuilding cache', function () {
+            $this->app->indexer()->rebuild();
+            return true;
+        });
         $this->success('Cache rebuilt.');
 
         $this->writeln('');
@@ -787,13 +916,15 @@ final class Application
     private function cmdStressGenerate(array $args): int
     {
         if (count($args) < 2) {
-            $this->error('Usage: ava stress:generate <type> <count>');
             $this->writeln('');
-            $this->writeln('Examples:');
-            $this->writeln('  ava stress:generate post 100    # Generate 100 posts');
-            $this->writeln('  ava stress:generate post 1000   # Generate 1000 posts');
+            $this->error('Usage: ./ava stress:generate <type> <count>');
+            $this->writeln('');
+            $this->writeln($this->color('  Examples:', self::BOLD));
+            $this->writeln('    ' . $this->color('./ava stress:generate post 100', self::BRIGHT_CYAN) . $this->color('    # Generate 100 posts', self::DIM));
+            $this->writeln('    ' . $this->color('./ava stress:generate post 1000', self::BRIGHT_CYAN) . $this->color('   # Generate 1000 posts', self::DIM));
             $this->writeln('');
             $this->showAvailableTypes();
+            $this->writeln('');
             return 1;
         }
 
@@ -801,7 +932,7 @@ final class Application
         $count = (int) $args[1];
 
         if ($count < 1 || $count > 10000) {
-            $this->error('Count must be between 1 and 10000');
+            $this->error('Count must be between 1 and 10,000');
             return 1;
         }
 
@@ -828,7 +959,8 @@ final class Application
         // Determine if content is dated
         $isDated = ($typeConfig['sorting'] ?? 'manual') === 'date_desc';
 
-        $this->writeln("Generating {$count} dummy {$type}(s)...");
+        $this->writeln('');
+        echo $this->color("  🧪 Generating {$count} dummy {$type}(s)...", self::CYAN) . "\n";
         $this->writeln('');
 
         $start = microtime(true);
@@ -839,26 +971,23 @@ final class Application
             if ($result) {
                 $created++;
                 // Progress indicator
-                if ($i % 100 === 0 || $i === $count) {
-                    $this->writeln("  Created {$i}/{$count}...");
-                }
+                $this->progress($i, $count, "Creating {$type}s...");
             }
         }
 
         $elapsed = round((microtime(true) - $start) * 1000);
 
+        $this->success("Generated {$created} files in {$elapsed}ms");
         $this->writeln('');
-        $this->success("Generated {$created} dummy content files in {$elapsed}ms");
-        $this->writeln('');
-        $this->writeln('Rebuilding cache...');
 
-        $rebuildStart = microtime(true);
-        $this->app->indexer()->rebuild();
-        $rebuildTime = round((microtime(true) - $rebuildStart) * 1000);
+        $this->withSpinner('Rebuilding cache', function () {
+            $this->app->indexer()->rebuild();
+            return true;
+        });
 
-        $this->success("Cache rebuilt in {$rebuildTime}ms");
         $this->writeln('');
-        $this->writeln('Run "ava stress:clean ' . $type . '" to remove generated content.');
+        $this->nextStep("./ava stress:clean {$type}", 'Remove generated content when done');
+        $this->writeln('');
 
         return 0;
     }
@@ -869,9 +998,11 @@ final class Application
     private function cmdStressClean(array $args): int
     {
         if (count($args) < 1) {
-            $this->error('Usage: ava stress:clean <type>');
             $this->writeln('');
-            $this->writeln('This will remove all content files with the _dummy- prefix.');
+            $this->error('Usage: ./ava stress:clean <type>');
+            $this->writeln('');
+            $this->writeln('  This will remove all files with the ' . $this->color('_dummy-', self::YELLOW) . ' prefix.');
+            $this->writeln('');
             return 1;
         }
 
@@ -890,7 +1021,9 @@ final class Application
         $basePath = $this->app->configPath('content') . '/' . $contentDir;
 
         if (!is_dir($basePath)) {
-            $this->writeln('No content directory found.');
+            $this->writeln('');
+            $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' No content directory found.');
+            $this->writeln('');
             return 0;
         }
 
@@ -899,33 +1032,44 @@ final class Application
         $files = glob($pattern);
 
         if (empty($files)) {
-            $this->writeln('No dummy content files found.');
+            $this->writeln('');
+            $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' No dummy content files found.');
+            $this->writeln('');
             return 0;
         }
 
         $count = count($files);
-        $this->writeln("Found {$count} dummy content file(s).");
-        echo 'Delete all? [y/N]: ';
+        $this->writeln('');
+        $this->writeln('  Found ' . $this->color((string) $count, self::YELLOW, self::BOLD) . ' dummy content file(s).');
+        $this->writeln('');
+        echo '  Delete all? [' . $this->color('y', self::RED) . '/N]: ';
         $answer = trim(fgets(STDIN));
 
         if (strtolower($answer) !== 'y') {
-            $this->writeln('Cancelled.');
+            $this->writeln('');
+            $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' Cancelled.');
+            $this->writeln('');
             return 0;
         }
 
+        $this->writeln('');
         $deleted = 0;
-        foreach ($files as $file) {
+        foreach ($files as $i => $file) {
             if (unlink($file)) {
                 $deleted++;
             }
+            $this->progress($i + 1, $count, 'Deleting files...');
         }
 
         $this->success("Deleted {$deleted} file(s)");
-
         $this->writeln('');
-        $this->writeln('Rebuilding cache...');
-        $this->app->indexer()->rebuild();
-        $this->success('Cache rebuilt.');
+
+        $this->withSpinner('Rebuilding cache', function () {
+            $this->app->indexer()->rebuild();
+            return true;
+        });
+        $this->success('Done!');
+        $this->writeln('');
 
         return 0;
     }
@@ -937,19 +1081,25 @@ final class Application
     {
         $pageCache = $this->app->pageCache();
 
+        $this->writeln('');
+
         if (!$pageCache->isEnabled()) {
-            $this->writeln('Page cache is not enabled.');
-            $this->writeln('Enable it in app/config/ava.php with page_cache.enabled = true');
+            $this->box("Page cache is not enabled", 'warning');
+            $this->writeln('');
+            $this->tip("Enable it in app/config/ava.php with 'page_cache' => ['enabled' => true]");
+            $this->writeln('');
             return 0;
         }
 
         $stats = $pageCache->stats();
         if ($stats['count'] === 0) {
-            $this->writeln('Page cache is empty.');
+            $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' Page cache is empty.');
+            $this->writeln('');
             return 0;
         }
 
-        $this->writeln("Found {$stats['count']} cached page(s).");
+        $this->writeln('  Found ' . $this->color((string) $stats['count'], self::CYAN, self::BOLD) . ' cached page(s).');
+        $this->writeln('');
 
         // Check for pattern argument
         if (isset($args[0])) {
@@ -957,11 +1107,13 @@ final class Application
             $count = $pageCache->clearPattern($pattern);
             $this->success("Cleared {$count} page(s) matching: {$pattern}");
         } else {
-            echo 'Clear all cached pages? [y/N]: ';
+            echo '  Clear all cached pages? [' . $this->color('y', self::RED) . '/N]: ';
             $answer = trim(fgets(STDIN));
 
             if (strtolower($answer) !== 'y') {
-                $this->writeln('Cancelled.');
+                $this->writeln('');
+                $this->writeln('  ' . $this->color('ℹ', self::CYAN) . ' Cancelled.');
+                $this->writeln('');
                 return 0;
             }
 
@@ -969,6 +1121,7 @@ final class Application
             $this->success("Cleared {$count} cached page(s)");
         }
 
+        $this->writeln('');
         return 0;
     }
 
@@ -981,26 +1134,30 @@ final class Application
         $stats = $pageCache->stats();
 
         $this->writeln('');
-        $this->writeln('=== Page Cache Stats ===');
+        echo $this->color('  ─── Page Cache ', self::CYAN, self::BOLD);
+        echo $this->color(str_repeat('─', 41), self::DIM) . "\n";
         $this->writeln('');
-        $this->writeln('Status:  ' . ($stats['enabled'] ? '✓ Enabled' : '✗ Disabled'));
+
+        $status = $stats['enabled']
+            ? $this->color('● Enabled', self::GREEN, self::BOLD)
+            : $this->color('○ Disabled', self::DIM);
+        $this->keyValue('Status', $status);
 
         if (!$stats['enabled']) {
             $this->writeln('');
-            $this->writeln('Enable page caching in app/config/ava.php:');
-            $this->writeln("  'page_cache' => ['enabled' => true]");
+            $this->tip("Enable page caching in app/config/ava.php: 'page_cache' => ['enabled' => true]");
             $this->writeln('');
             return 0;
         }
 
-        $this->writeln('TTL:     ' . ($stats['ttl'] ? $stats['ttl'] . ' seconds' : 'Forever (until cleared)'));
+        $this->keyValue('TTL', $stats['ttl'] ? $stats['ttl'] . ' seconds' : 'Forever (until cleared)');
         $this->writeln('');
-        $this->writeln('Cached:  ' . $stats['count'] . ' page(s)');
-        $this->writeln('Size:    ' . $this->formatBytes($stats['size']));
+        $this->keyValue('Cached', $this->color((string) $stats['count'], self::CYAN, self::BOLD) . ' pages');
+        $this->keyValue('Size', $this->formatBytes($stats['size']));
 
         if ($stats['oldest']) {
-            $this->writeln('Oldest:  ' . $stats['oldest']);
-            $this->writeln('Newest:  ' . $stats['newest']);
+            $this->keyValue('Oldest', $stats['oldest']);
+            $this->keyValue('Newest', $stats['newest']);
         }
 
         $this->writeln('');
@@ -1158,44 +1315,289 @@ final class Application
     // Output helpers
     // =========================================================================
 
-    private function showHelp(): void
+    /**
+     * Check if terminal supports colors.
+     */
+    private function supportsColors(): bool
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            return getenv('ANSICON') !== false
+                || getenv('ConEmuANSI') === 'ON'
+                || getenv('TERM') === 'xterm';
+        }
+
+        return function_exists('posix_isatty') && @posix_isatty(STDOUT);
+    }
+
+    /**
+     * Apply color formatting if supported.
+     */
+    private function color(string $text, string ...$codes): string
+    {
+        if (!$this->supportsColors()) {
+            return $text;
+        }
+        return implode('', $codes) . $text . self::RESET;
+    }
+
+    /**
+     * Show the banner.
+     */
+    private function showBanner(): void
+    {
+        echo $this->color(self::BANNER, self::CYAN, self::BOLD);
+    }
+
+    /**
+     * Show a section header.
+     */
+    private function sectionHeader(string $title): void
     {
         $this->writeln('');
-        $this->writeln('Ava CMS v' . AVA_VERSION . ' - Command Line Interface');
+        echo $this->color("  ─── {$title} ", self::CYAN, self::BOLD);
+        echo $this->color(str_repeat('─', max(0, 50 - strlen($title))), self::DIM);
         $this->writeln('');
-        $this->writeln('Usage:');
-        $this->writeln('  php ava <command> [options] [arguments]');
         $this->writeln('');
-        $this->writeln('Commands:');
-        $this->writeln('  status         Show site status and cache info');
-        $this->writeln('  rebuild        Rebuild all cache files');
-        $this->writeln('  lint           Validate content files');
-        $this->writeln('  make <type>    Create content of a specific type');
-        $this->writeln('  prefix <add|remove> [type]  Toggle date prefix on filenames');
+    }
+
+    /**
+     * Show a key-value pair.
+     */
+    private function keyValue(string $key, string $value, string $indent = '  '): void
+    {
+        $paddedKey = str_pad($key . ':', 12);
+        echo $indent . $this->color($paddedKey, self::DIM);
+        echo $value . "\n";
+    }
+
+    /**
+     * Show a labeled item with icon.
+     */
+    private function labeledItem(string $label, string $value, string $icon = '•', string $iconColor = ''): void
+    {
+        $coloredIcon = $iconColor ? $this->color($icon, $iconColor) : $this->color($icon, self::DIM);
+        $this->writeln("  {$coloredIcon} " . $this->color($label . ':', self::DIM) . " {$value}");
+    }
+
+    /**
+     * Show a status badge.
+     */
+    private function badge(string $text, string $type = 'info'): string
+    {
+        return match ($type) {
+            'success' => $this->color(" {$text} ", self::BLACK, self::BG_GREEN),
+            'error' => $this->color(" {$text} ", self::WHITE, self::BG_RED),
+            'warning' => $this->color(" {$text} ", self::BLACK, self::BG_YELLOW),
+            'info' => $this->color(" {$text} ", self::WHITE, self::BG_BLUE),
+            default => $text,
+        };
+    }
+
+    /**
+     * Show a simple spinner animation for an operation.
+     */
+    private function withSpinner(string $message, callable $operation): mixed
+    {
+        $frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+        if (!$this->supportsColors()) {
+            echo "  {$message}...";
+            $result = $operation();
+            echo " done!\n";
+            return $result;
+        }
+
+        // Show initial frame
+        echo "  " . $this->color($frames[0], self::CYAN) . " {$message}...";
+
+        // Run operation (synchronous, but gives visual feedback)
+        $start = microtime(true);
+        $result = $operation();
+        $elapsed = round((microtime(true) - $start) * 1000);
+
+        // Clear line and show completion
+        echo "\r\033[K";
+        echo "  " . $this->color('✓', self::GREEN) . " {$message} ";
+        echo $this->color("({$elapsed}ms)", self::DIM) . "\n";
+
+        return $result;
+    }
+
+    /**
+     * Draw a simple box around text.
+     */
+    private function box(string $text, string $type = 'info'): void
+    {
+        $lines = explode("\n", $text);
+        $maxLen = max(array_map('strlen', $lines));
+        $padding = 2;
+        $width = $maxLen + ($padding * 2);
+
+        $borderColor = match ($type) {
+            'success' => self::GREEN,
+            'error' => self::RED,
+            'warning' => self::YELLOW,
+            default => self::CYAN,
+        };
+
+        // Top border
+        echo $this->color('  ╭' . str_repeat('─', $width) . '╮', $borderColor) . "\n";
+
+        // Content
+        foreach ($lines as $line) {
+            $paddedLine = str_pad($line, $maxLen);
+            echo $this->color('  │', $borderColor);
+            echo str_repeat(' ', $padding) . $paddedLine . str_repeat(' ', $padding);
+            echo $this->color('│', $borderColor) . "\n";
+        }
+
+        // Bottom border
+        echo $this->color('  ╰' . str_repeat('─', $width) . '╯', $borderColor) . "\n";
+    }
+
+    /**
+     * Show a progress message.
+     */
+    private function progress(int $current, int $total, string $message = ''): void
+    {
+        if (!$this->supportsColors()) {
+            if ($current % 100 === 0 || $current === $total) {
+                echo "  {$current}/{$total} {$message}\n";
+            }
+            return;
+        }
+
+        $width = 30;
+        $percent = $total > 0 ? ($current / $total) : 0;
+        $filled = (int) round($width * $percent);
+        $empty = $width - $filled;
+
+        $bar = $this->color(str_repeat('█', $filled), self::GREEN);
+        $bar .= $this->color(str_repeat('░', $empty), self::DIM);
+
+        $percentText = str_pad((int) ($percent * 100) . '%', 4, ' ', STR_PAD_LEFT);
+
+        echo "\r  [{$bar}] {$percentText} {$message}   ";
+
+        if ($current === $total) {
+            echo "\n";
+        }
+    }
+
+    /**
+     * Show a table.
+     */
+    private function table(array $headers, array $rows): void
+    {
+        if (empty($rows)) {
+            return;
+        }
+
+        // Calculate column widths
+        $widths = [];
+        foreach ($headers as $i => $header) {
+            $widths[$i] = strlen($header);
+        }
+        foreach ($rows as $row) {
+            foreach ($row as $i => $cell) {
+                $widths[$i] = max($widths[$i] ?? 0, strlen((string) $cell));
+            }
+        }
+
+        // Header
+        $headerRow = '  ';
+        foreach ($headers as $i => $header) {
+            $headerRow .= $this->color(str_pad($header, $widths[$i] + 2), self::BOLD);
+        }
+        $this->writeln($headerRow);
+
+        // Separator
+        $sep = '  ';
+        foreach ($widths as $w) {
+            $sep .= $this->color(str_repeat('─', $w + 2), self::DIM);
+        }
+        $this->writeln($sep);
+
+        // Rows
+        foreach ($rows as $row) {
+            $rowText = '  ';
+            foreach ($row as $i => $cell) {
+                $rowText .= str_pad((string) $cell, ($widths[$i] ?? 0) + 2);
+            }
+            $this->writeln($rowText);
+        }
+    }
+
+    /**
+     * Show tip text.
+     */
+    private function tip(string $text): void
+    {
+        echo "  " . $this->color('💡 Tip:', self::YELLOW) . " " . $this->color($text, self::DIM) . "\n";
+    }
+
+    /**
+     * Show a hint for next steps.
+     */
+    private function nextStep(string $command, string $description = ''): void
+    {
+        echo "  " . $this->color('→', self::CYAN) . " ";
+        echo $this->color($command, self::BRIGHT_CYAN);
+        if ($description) {
+            echo $this->color(" — {$description}", self::DIM);
+        }
+        echo "\n";
+    }
+
+    private function showHelp(): void
+    {
+        $this->showBanner();
         $this->writeln('');
-        $this->writeln('Page Cache:');
-        $this->writeln('  pages:stats              Show page cache statistics');
-        $this->writeln('  pages:clear [pattern]    Clear cached pages (all or by URL pattern)');
+
+        $this->sectionHeader('Usage');
+        $this->writeln('  ' . $this->color('./ava', self::BRIGHT_CYAN) . ' <command> [options]');
+
+        $this->sectionHeader('Site Management');
+        $this->commandItem('status', 'Show site health and overview');
+        $this->commandItem('rebuild', 'Force rebuild all caches');
+        $this->commandItem('lint', 'Validate all content files');
+
+        $this->sectionHeader('Content');
+        $this->commandItem('make <type> "Title"', 'Create new content');
+        $this->commandItem('prefix <add|remove> [type]', 'Toggle date prefixes');
+
+        $this->sectionHeader('Page Cache');
+        $this->commandItem('pages:stats', 'View cache statistics');
+        $this->commandItem('pages:clear [pattern]', 'Clear cached pages');
+
+        $this->sectionHeader('Users');
+        $this->commandItem('user:add <email> <pass>', 'Create admin user');
+        $this->commandItem('user:password <email> <pass>', 'Update password');
+        $this->commandItem('user:remove <email>', 'Remove user');
+        $this->commandItem('user:list', 'List all users');
+
+        $this->sectionHeader('Updates');
+        $this->commandItem('update:check', 'Check for updates');
+        $this->commandItem('update:apply', 'Apply available update');
+
+        $this->sectionHeader('Testing');
+        $this->commandItem('stress:generate <type> <n>', 'Generate test content');
+        $this->commandItem('stress:clean <type>', 'Remove test content');
+
         $this->writeln('');
-        $this->writeln('Stress Testing:');
-        $this->writeln('  stress:generate <type> <count>  Generate dummy content for testing');
-        $this->writeln('  stress:clean <type>             Remove all generated dummy content');
+        echo $this->color('  Examples:', self::BOLD) . "\n";
         $this->writeln('');
-        $this->writeln('User Management:');
-        $this->writeln('  user:add <email> <password> [name]  Create admin user');
-        $this->writeln('  user:password <email> <password>    Update password');
-        $this->writeln('  user:remove <email>                 Remove user');
-        $this->writeln('  user:list                           List all users');
+        $this->writeln('    ' . $this->color('./ava status', self::BRIGHT_CYAN));
+        $this->writeln('    ' . $this->color('./ava make post "Hello World"', self::BRIGHT_CYAN));
+        $this->writeln('    ' . $this->color('./ava lint', self::BRIGHT_CYAN));
         $this->writeln('');
-        $this->writeln('Updates:');
-        $this->writeln('  update:check   Check for available updates');
-        $this->writeln('  update:apply   Download and apply the latest update');
-        $this->writeln('');
-        $this->writeln('Examples:');
-        $this->writeln('  php ava status');
-        $this->writeln('  php ava make post "Hello World"');
-        $this->writeln('  php ava update:check');
-        $this->writeln('');
+    }
+
+    private function commandItem(string $command, string $description): void
+    {
+        $paddedCmd = str_pad($command, 30);
+        echo '    ' . $this->color($paddedCmd, self::BRIGHT_CYAN);
+        echo $this->color($description, self::DIM) . "\n";
     }
 
     private function writeln(string $message): void
@@ -1205,17 +1607,17 @@ final class Application
 
     private function success(string $message): void
     {
-        echo "\033[32m✓ {$message}\033[0m\n";
+        echo "\n  " . $this->color('✓', self::GREEN, self::BOLD) . " " . $this->color($message, self::GREEN) . "\n";
     }
 
     private function error(string $message): void
     {
-        echo "\033[31m✗ {$message}\033[0m\n";
+        echo "\n  " . $this->color('✗', self::RED, self::BOLD) . " " . $this->color($message, self::RED) . "\n";
     }
 
     private function warning(string $message): void
     {
-        echo "\033[33m⚠ {$message}\033[0m\n";
+        echo "  " . $this->color('⚠', self::YELLOW) . " " . $this->color($message, self::YELLOW) . "\n";
     }
 
     private function formatBytes(int $bytes): string
