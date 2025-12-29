@@ -15,10 +15,3 @@
 **Maintainers**
 - [Releasing](releasing.md "Releasing | Ava CMS")
 - [AI Reference](ai-reference.md "AI Reference | Ava CMS")
-
----
-
-<div class="sidebar-star">
-	<div class="sidebar-star-label">Support Ava</div>
-	<a class="github-button" href="https://github.com/adamgreenough/ava" data-icon="octicon-star" data-show-count="true" aria-label="Star adamgreenough/ava on GitHub">Star</a>
-</div>

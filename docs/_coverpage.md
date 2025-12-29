@@ -54,7 +54,3 @@
 
 [Get Started](#main)
 [GitHub](https://github.com/adamgreenough/ava)
-
-<p class="cover-star">
-  <a class="github-button" href="https://github.com/adamgreenough/ava" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star adamgreenough/ava on GitHub">Star</a>
-</p>
