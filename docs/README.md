@@ -1,6 +1,6 @@
 # Addy's (very adaptable) CMS
 
-The friendly, flat-file CMS for bespoke websites.
+The friendly, flat-file CMS for bespoke personal websites, blogs and more.
 
 ## Philosophy
 
@@ -98,8 +98,34 @@ It won't be a good fit if you need a drag-and-drop page builder or a massive eco
 - [Themes](themes.md) — Creating templates
 - [Admin](admin.md) — Optional dashboard
 - [CLI](cli.md) — Command-line tools
+- [Showcase](showcase.md) — Community sites, themes, and plugins
 
 ## License
 
-Ava CMS is free and open-source software licensed under the [MIT License](https://github.com/addy/ava/blob/main/LICENSE). You are free to use it for personal and commercial projects.
+Ava CMS is free and open-source software licensed under the [MIT License](https://github.com/addy/ava/blob/main/LICENSE).
+
+In plain English, that means you can:
+
+- Use Ava for personal or commercial projects.
+- Modify it to fit your site (and keep your changes private if you want).
+- Share it, fork it, and redistribute it.
+
+The main thing the license asks is that you keep the MIT license text and copyright notice with the software.
+
+Also worth knowing: the MIT license comes with a standard “no warranty” clause. Ava is provided as-is, so you’re responsible for how you deploy and run it.
+
+## Contributing
+
+Ava is still fairly early and moving quickly, so I’m not looking for pull requests or additional contributors just yet.
+
+That said, I’d genuinely love your feedback:
+
+- If you run into a bug, get stuck, or have a “this could be nicer” moment, please [open an issue](https://github.com/adamgreenough/ava/issues).
+- Feature requests, ideas, and “what if Ava could…” suggestions are very welcome.
+
+If you prefer a more conversational place to ask questions and share ideas, join the Discord:
+
+https://discord.gg/Z7bF9YeK
+
+Even small notes help a lot at this stage.
 

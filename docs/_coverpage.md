@@ -1,5 +1,5 @@
 <div class="cover-logo">
-  <img src="char.png" alt="Ava CMS mascot">
+  <img src="images/char.avif" alt="Ava CMS mascot">
 </div>
 
 <div class="cover-content">

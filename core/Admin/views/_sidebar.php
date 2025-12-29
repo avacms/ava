@@ -14,6 +14,14 @@
  */
 $activePage = $activePage ?? '';
 ?>
+<script>
+    (function() {
+        const theme = document.cookie.split('; ').find(row => row.startsWith('theme='))?.split('=')[1];
+        if (theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+    })();
+</script>
 <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
 <aside class="sidebar" id="sidebar">
@@ -84,9 +92,33 @@ $activePage = $activePage ?? '';
             <span class="material-symbols-rounded">person</span>
             <?= htmlspecialchars($user ?? 'Admin') ?>
         </div>
+        <button onclick="toggleTheme()" class="theme-toggle">
+            <span class="material-symbols-rounded">contrast</span>
+            Toggle Theme
+        </button>
         <a href="<?= $admin_url ?>/logout">
             <span class="material-symbols-rounded">logout</span>
             Sign Out
         </a>
     </div>
 </aside>
+
+<script>
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    let next = 'light';
+    if (current === 'light') {
+        next = 'dark';
+    } else if (current === 'dark') {
+        next = 'light';
+    } else {
+        // No override set, use opposite of system
+        next = systemDark ? 'light' : 'dark';
+    }
+    
+    document.documentElement.setAttribute('data-theme', next);
+    document.cookie = `theme=${next}; path=/; max-age=31536000`;
+}
+</script>

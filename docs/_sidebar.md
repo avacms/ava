@@ -7,6 +7,7 @@
 - [Shortcodes](shortcodes.md "Shortcodes | Ava CMS")
 - [Creating Plugins](creating-plugins.md "Creating Plugins | Ava CMS")
 - [Bundled Plugins](bundled-plugins.md "Bundled Plugins | Ava CMS")
+- [Showcase](showcase.md "Showcase | Ava CMS")
 - [CLI](cli.md "CLI | Ava CMS")
 - [Updates](updates.md "Updates | Ava CMS")
 - [API](api.md "API | Ava CMS")

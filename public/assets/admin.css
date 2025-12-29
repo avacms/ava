@@ -7,21 +7,21 @@
    1. CSS Variables (Design Tokens)
    ============================================ */
 :root {
-    /* Colors */
-    --bg: #0a0a0b;
-    --bg-card: #141416;
-    --bg-surface: #1a1a1e;
-    --bg-hover: #222226;
-    --border: #2a2a2e;
-    --border-light: #333338;
+    /* Default Dark Theme (Classic with subtle purple hints) */
+    --bg: #111113;
+    --bg-card: #18181b;
+    --bg-surface: #1f1f23;
+    --bg-hover: #27272b;
+    --border: #2e2e33;
+    --border-light: #3a3a40;
     
     --text: #fafafa;
-    --text-secondary: #a0a0a8;
-    --text-tertiary: #606068;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
     
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --accent-subtle: rgba(59, 130, 246, 0.12);
+    --accent: #818cf8;
+    --accent-hover: #a5b4fc;
+    --accent-subtle: rgba(129, 140, 248, 0.12);
     
     --success: #22c55e;
     --success-subtle: rgba(34, 197, 94, 0.12);
@@ -62,26 +62,75 @@
     --sidebar-width: 240px;
 }
 
-/* Light mode */
+/* Light mode (Docs Match) */
 @media (prefers-color-scheme: light) {
     :root {
-        --bg: #f5f5f7;
+        --bg: #f9fafb;
         --bg-card: #ffffff;
         --bg-surface: #fafafa;
-        --bg-hover: #f0f0f2;
-        --border: #e5e5e8;
-        --border-light: #ebebee;
+        --bg-hover: #f3f4f6;
+        --border: #e5e7eb;
+        --border-light: #f3f4f6;
         
-        --text: #111111;
-        --text-secondary: #555560;
-        --text-tertiary: #888898;
+        --text: #0e1c31;
+        --text-secondary: #334155;
+        --text-tertiary: #64748b;
         
-        --accent-subtle: rgba(59, 130, 246, 0.08);
+        --accent: #3d52b8;
+        --accent-hover: #24398b;
+        --accent-subtle: rgba(61, 82, 184, 0.08);
+        
         --success-subtle: rgba(34, 197, 94, 0.08);
         --warning-subtle: rgba(245, 158, 11, 0.08);
         --danger-subtle: rgba(239, 68, 68, 0.08);
         --purple-subtle: rgba(168, 85, 247, 0.08);
     }
+}
+
+/* Force Light Theme */
+html[data-theme="light"] {
+    --bg: #f9fafb;
+    --bg-card: #ffffff;
+    --bg-surface: #fafafa;
+    --bg-hover: #f3f4f6;
+    --border: #e5e7eb;
+    --border-light: #f3f4f6;
+    
+    --text: #0e1c31;
+    --text-secondary: #334155;
+    --text-tertiary: #64748b;
+    
+    --accent: #3d52b8;
+    --accent-hover: #24398b;
+    --accent-subtle: rgba(61, 82, 184, 0.08);
+    
+    --success-subtle: rgba(34, 197, 94, 0.08);
+    --warning-subtle: rgba(245, 158, 11, 0.08);
+    --danger-subtle: rgba(239, 68, 68, 0.08);
+    --purple-subtle: rgba(168, 85, 247, 0.08);
+}
+
+/* Force Dark Theme */
+html[data-theme="dark"] {
+    --bg: #111113;
+    --bg-card: #18181b;
+    --bg-surface: #1f1f23;
+    --bg-hover: #27272b;
+    --border: #2e2e33;
+    --border-light: #3a3a40;
+    
+    --text: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    
+    --accent: #818cf8;
+    --accent-hover: #a5b4fc;
+    --accent-subtle: rgba(129, 140, 248, 0.12);
+    
+    --success-subtle: rgba(34, 197, 94, 0.12);
+    --warning-subtle: rgba(245, 158, 11, 0.12);
+    --danger-subtle: rgba(239, 68, 68, 0.12);
+    --purple-subtle: rgba(168, 85, 247, 0.12);
 }
 
 /* ============================================
@@ -292,6 +341,30 @@ code {
 
 .sidebar-footer > a:hover {
     color: var(--text);
+}
+
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    width: 100%;
+    padding: var(--sp-2) 0;
+    margin: var(--sp-1) 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.theme-toggle:hover {
+    color: var(--text);
+}
+
+.theme-toggle .material-symbols-rounded {
+    font-size: 18px;
 }
 
 /* ============================================

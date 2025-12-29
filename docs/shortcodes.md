@@ -53,9 +53,7 @@ This is a very important note!
 Want to learn more about customizing your site's look? Check out the [Themes guide](themes.md).
 
 This keeps your content clean and your design consistent.
-    ],
-],
-```
+
 
 ## Custom Shortcodes
 

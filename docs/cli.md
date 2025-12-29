@@ -45,15 +45,27 @@ You can create files manually, or let Ava do it for you:
 ```
 
 This creates a new file in `content/posts/` with the correct date and frontmatter already filled in.
-|-------|-------------|
-| YAML syntax | Valid frontmatter parsing |
-| Required fields | `title`, `slug`, `status` present |
+
+Tip: `make` is just a helper. You can always create files manually if you prefer.
+
+## Validating Content (lint)
+
+Before you commit content changes, it’s a good habit to run:
+
+```bash
+./ava lint
+```
+
+It checks for common problems like:
+
+| Check | What it means |
+|------|---------------|
+| YAML syntax | Frontmatter must parse correctly |
+| Required fields | `title`, `slug`, `status` are present |
 | Status values | Must be `draft`, `published`, or `private` |
 | Slug format | Lowercase, alphanumeric, hyphens only |
 | Duplicate slugs | Within the same content type |
 | Duplicate IDs | Across all content |
-
-Run this before committing content changes to catch errors early.
 
 ---
 

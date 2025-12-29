@@ -1,6 +1,8 @@
 # Admin Dashboard
 
-Ava includes a simple, optional dashboard to help you keep an eye on your site. It's not a full editor—remember, your files are the source of truth—but it's great for checking your site's health.
+Ava includes a simple, optional dashboard to help you keep an eye on your site. It's not a full editor—remember, your files are the source of truth—but it's great for discovering more about your setup, learning how to configure and customise Ava as well as checking your site's health.
+
+![Ava Admin dashboard screenshot](images/ava-dev.addy.zone_admin.png)
 
 ## What's it for?
 
@@ -148,6 +150,6 @@ Set your preview token in `ava.php`:
 
 ## Theming
 
-The admin dashboard has its own built-in UI that respects your system's light/dark mode preference. It uses CSS custom properties, so it adapts automatically.
+The admin dashboard has its own built-in UI and respects your system's light/dark mode preference by default.
 
-Currently, the admin theme is not customizable — it's designed to be consistent and stay out of your way.
+If you prefer to force a theme, you can use the theme toggle inside the admin — it saves your choice (so it sticks between visits) but will fall back to your system preference if you haven’t set anything yet.
