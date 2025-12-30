@@ -19,6 +19,8 @@ final class Repository
     private ?array $contentIndex = null;
     private ?array $taxIndex = null;
     private ?array $routes = null;
+    private ?array $recentCache = null;
+    private ?array $slugLookup = null;
 
     public function __construct(Application $app)
     {
@@ -49,8 +51,37 @@ final class Repository
 
     /**
      * Get a content item by type and slug.
+     * 
+     * Uses the lightweight slug lookup table to find the file path,
+     * then parses the file directly. This avoids loading the full
+     * content index (~45MB for 100k posts).
      */
     public function get(string $type, string $slug): ?Item
+    {
+        // Try fast path using slug lookup (parses single file, ~9MB lookup vs 45MB full index)
+        $lookup = $this->loadSlugLookup();
+        $entry = $lookup[$type][$slug] ?? null;
+
+        if ($entry === null) {
+            return null;
+        }
+
+        // Parse the file directly (path is relative to content directory)
+        $filePath = $this->app->configPath('content') . '/' . $entry['file'];
+        if (!file_exists($filePath)) {
+            return null;
+        }
+
+        return $this->parser->parseFile($filePath, $type);
+    }
+
+    /**
+     * Get a content item by type and slug with full index data.
+     * 
+     * This loads the full content index and returns the cached item data.
+     * Use this when you need access to all indexed metadata without re-parsing.
+     */
+    public function getFromIndex(string $type, string $slug): ?Item
     {
         $index = $this->loadContentIndex();
         $data = $index['by_type'][$type][$slug] ?? null;
@@ -375,6 +406,86 @@ final class Repository
             $this->routes = $this->loadCacheFile('routes');
         }
         return $this->routes;
+    }
+
+    private function loadRecentCache(): array
+    {
+        if ($this->recentCache === null) {
+            $this->recentCache = $this->loadCacheFile('recent_cache');
+        }
+        return $this->recentCache;
+    }
+
+    private function loadSlugLookup(): array
+    {
+        if ($this->slugLookup === null) {
+            $this->slugLookup = $this->loadCacheFile('slug_lookup');
+        }
+        return $this->slugLookup;
+    }
+
+    /**
+     * Get recent items from the lightweight cache.
+     * 
+     * This is much faster than loading the full content index for simple
+     * archive queries (no filters, first 20 pages).
+     * 
+     * @param string $type Content type
+     * @param int $page Page number (1-based)
+     * @param int $perPage Items per page
+     * @return array{items: array, total: int, from_cache: bool}
+     */
+    public function getRecentItems(string $type, int $page = 1, int $perPage = 10): array
+    {
+        $cache = $this->loadRecentCache();
+        $typeCache = $cache[$type] ?? null;
+        
+        if ($typeCache === null) {
+            return ['items' => [], 'total' => 0, 'from_cache' => false];
+        }
+        
+        $offset = ($page - 1) * $perPage;
+        $maxOffset = count($typeCache['items']);
+        
+        // Check if we can serve from cache (within cached range)
+        if ($offset + $perPage <= $maxOffset) {
+            $items = array_slice($typeCache['items'], $offset, $perPage);
+            return [
+                'items' => $items,
+                'total' => $typeCache['total'],
+                'from_cache' => true,
+            ];
+        }
+        
+        // Beyond cache range - caller needs to use full index
+        return [
+            'items' => [],
+            'total' => $typeCache['total'],
+            'from_cache' => false,
+        ];
+    }
+
+    /**
+     * Check if a query can be served from the recent cache.
+     */
+    public function canUseRecentCache(string $type, int $page, int $perPage, array $filters = []): bool
+    {
+        // Can't use cache if there are filters
+        if (!empty($filters)) {
+            return false;
+        }
+        
+        $cache = $this->loadRecentCache();
+        $typeCache = $cache[$type] ?? null;
+        
+        if ($typeCache === null) {
+            return false;
+        }
+        
+        $offset = ($page - 1) * $perPage;
+        $maxOffset = count($typeCache['items']);
+        
+        return $offset + $perPage <= $maxOffset;
     }
 
     /**

@@ -16,7 +16,9 @@ This directory contains generated runtime files:
 
 | File | Purpose |
 |------|---------|
-| `content_index.bin` | All content indexed by type, slug, ID |
+| `content_index.bin` | All content indexed by type, slug, ID (full index) |
+| `slug_lookup.bin` | Fast single-item lookups (type/slug → file path) |
+| `recent_cache.bin` | Top 200 items per type for fast archive queries |
 | `tax_index.bin` | Taxonomy terms with counts |
 | `routes.bin` | Compiled route map |
 | `fingerprint.json` | Change detection data |

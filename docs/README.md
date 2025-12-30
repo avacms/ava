@@ -33,18 +33,18 @@ Ava is designed for people who love the web. It sits in the sweet spot between a
 
 ## Performance
 
-Ava is built to scale. Here's what it can handle:
+Ava is built for speed. Most sites have under 1,000 posts—here's what you can expect:
 
-| Metric | 10,000 Posts |
-|--------|--------------|
-| Content index rebuild | ~2.4 seconds |
-| CLI status check | ~175ms |
-| Archive page query | ~70ms |
-| Content index load | ~45ms |
-| Memory usage | ~50MB |
-| Content index size | ~4MB |
+| Posts | Archive Page | Single Post | Cached Page |
+|-------|--------------|-------------|-------------|
+| 100 | 3ms | 5ms | <1ms |
+| 1,000 | 3ms | 8ms | <1ms |
 
-The content index uses optimized binary serialization (igbinary when available) for fast loading even with massive content libraries. There's no database—just lightning-fast PHP arrays loaded from disk.
+Archive pages stay fast regardless of content size thanks to tiered caching. **Cached pages serve in under 1 millisecond**—faster than most static site generators can serve pre-built files.
+
+Ava gives you the serving speed of static sites with the instant publishing of a dynamic CMS. Edit a file, refresh, see it live—no waiting for builds.
+
+[Full benchmarks, memory usage, and igbinary comparison →](caching.md#performance)
 
 
 ## Requirements

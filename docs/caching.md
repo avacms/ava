@@ -22,6 +22,8 @@ When you add or edit content, Ava doesn't read Markdown files on every request. 
 | File | Contents |
 |------|----------|
 | `content_index.bin` | All content items indexed by type, slug, and ID |
+| `slug_lookup.bin` | Lightweight type/slug → file path mapping for fast single-item loads |
+| `recent_cache.bin` | Top 200 items per type for fast archive queries (~51KB) |
 | `tax_index.bin` | Taxonomy terms with item counts |
 | `routes.bin` | Compiled URL → content mappings |
 | `fingerprint.json` | Hash of content files for change detection |
@@ -48,10 +50,58 @@ Set the rebuild mode in `app/config/ava.php`:
 
 Index files use binary serialization for fast loading:
 
-- **igbinary** (if installed): ~15x faster, ~90% smaller
+- **igbinary** (if installed): ~4-5× faster loading, ~10× smaller
 - **PHP serialize** (fallback): Works everywhere
 
 Files include a format marker (`IG:` or `SZ:`) for safe environment switching. Run `./ava rebuild` after changing PHP environments.
+
+### Tiered Caching
+
+Ava uses a three-tier caching strategy to optimize for different access patterns:
+
+| Cache | Size (100k posts) | Use Case |
+|-------|-------------------|----------|
+| `recent_cache.bin` | ~51KB | Archive pages 1-20, RSS, homepage |
+| `slug_lookup.bin` | ~8.7MB | Single post/page views |
+| `content_index.bin` | ~45MB | Deep pagination, search, filters |
+
+#### Recent Cache (Archives)
+
+For common queries like homepages, archives (pages 1-20), and RSS feeds:
+
+1. During index rebuild, Ava extracts the most recent 200 published items per content type
+2. This "recent cache" stores only essential fields (id, slug, title, date, excerpt, taxonomies)
+3. Queries that can be satisfied from recent cache load ~51KB instead of ~45MB
+4. Result: Archive pages load in **~3ms with ~2MB memory** instead of ~2400ms with ~323MB
+
+**When recent cache is used:**
+
+- Single content type queries
+- Published status filter only
+- Date descending order (default)
+- No taxonomy filters, field filters, or search
+- Requested page fits within cached items (200 items ÷ perPage)
+
+#### Slug Lookup (Single Items)
+
+For individual post/page views:
+
+1. The slug lookup maps `type/slug → file path` with minimal overhead (~8.7MB for 100k posts)
+2. Single-item lookups load this compact index, then parse just one Markdown file
+3. Result: Single posts load in **~130ms with ~82MB memory** instead of ~570ms with ~324MB
+
+**When slug lookup is used:**
+
+- Loading a single item by type and slug (e.g., viewing a blog post)
+
+#### Full Index (Complex Queries)
+
+The full content index is only loaded for:
+
+- Deep pagination (beyond page 20 with 10 per page)
+- Filtered queries (taxonomy, field, search)
+- Non-default sort order
+- Multiple content types
 
 ### Manual Rebuild
 
@@ -166,18 +216,63 @@ The dashboard shows both layers with quick actions:
 
 ## Performance
 
-Tested with 10,000 content items:
+Most Ava sites have fewer than 1,000 posts. Here's what you can expect at realistic scales:
 
-| Operation | Time |
-|-----------|------|
-| Content index rebuild | ~2.4s |
-| Content index load | ~45ms |
-| Page render (uncached) | ~70ms |
-| Page serve (cached) | ~0.1ms |
+### Quick Reference
 
-Sizes:
-- Content index: ~4MB (10k items with igbinary)
-- Page cache: ~1-5KB per page
+| Posts | Archive Page | Single Post | Index Rebuild |
+|-------|--------------|-------------|---------------|
+| 10 | 2ms | 6ms | instant |
+| 100 | 3ms | 5ms | ~40ms |
+| 1,000 | 3ms | 8ms | ~220ms |
+
+Archive pages stay fast regardless of content size thanks to the recent cache. Single posts load quickly via the slug lookup. **Cached pages serve in under 1ms.**
+
+### Full Benchmark Table
+
+For those pushing limits:
+
+| Posts | Rebuild | Archive | Single Post | Full Index | Slug Lookup | Recent Cache |
+|-------|---------|---------|-------------|------------|-------------|--------------|
+| 10 | ~15ms | 2ms | 6ms | 5.5KB | 1.1KB | 2.4KB |
+| 100 | ~40ms | 3ms | 5ms | 47KB | 8.8KB | 23KB |
+| 1,000 | ~220ms | 3ms | 8ms | 454KB | 87KB | 55KB |
+| 10,000 | ~2.6s | 3ms | 15ms | 4.4MB | 887KB | 52KB |
+| 100,000 | ~27s | 4ms | 180ms | 45MB | 8.7MB | 51KB |
+
+**Key observations:**
+
+- **Archive pages** stay constant (~3ms) because they use the compact recent cache (~51KB)
+- **Single posts** scale with slug lookup size, but remain fast
+- **Recent cache** stays tiny regardless of total content (only stores top 200 items)
+
+### Memory Usage
+
+| Query Type | 1,000 Posts | 10,000 Posts | 100,000 Posts |
+|------------|-------------|--------------|---------------|
+| Archive page (recent cache) | 2MB | 2MB | 2MB |
+| Single post (slug lookup) | 2MB | 10MB | 80MB |
+| Deep pagination (full index) | 4MB | 35MB | 323MB |
+
+### With vs Without igbinary
+
+The `igbinary` extension is recommended for better performance:
+
+| Metric | With igbinary | Without igbinary | Difference |
+|--------|---------------|------------------|------------|
+| Full index size (10k posts) | 4.4MB | 42MB | **10× larger** |
+| Full index load time | 61ms | 422ms | **7× slower** |
+| Memory usage | 35MB | 229MB | **6.5× more** |
+
+At 100,000 posts, the full index without igbinary is **415MB**—large enough to cause memory limit errors on typical servers. The tiered caching (recent cache and slug lookup) mitigates this, but `igbinary` is strongly recommended for sites with 10,000+ items.
+
+**Slug lookup and recent cache** are less affected because they're much smaller to begin with.
+
+<details>
+<summary>Benchmark environment</summary>
+
+Tested on Ava **v25.12.2** using a Hetzner Cloud VPS (4 shared vCPUs, 8GB RAM, Intel Xeon Skylake). PHP 8.3.29, single-threaded. The `igbinary` extension was enabled for primary benchmarks.
+</details>
 
 ---
 

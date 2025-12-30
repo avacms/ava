@@ -204,12 +204,8 @@ $activePage = 'dashboard';
                         <span class="list-value text-sm"><?= htmlspecialchars($cache['built_at'] ?? 'Never') ?></span>
                     </div>
                     <div class="list-item">
-                        <span class="list-label">Size</span>
+                        <span class="list-label">Total Size</span>
                         <span class="list-value"><?= $formatBytes($cache['size'] ?? 0) ?></span>
-                    </div>
-                    <div class="list-item">
-                        <span class="list-label">Files</span>
-                        <span class="list-value"><?= $cache['files'] ?? 0 ?></span>
                     </div>
                     <form method="POST" action="<?= $admin_url ?>/rebuild" style="margin-top: var(--sp-4);">
                         <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">

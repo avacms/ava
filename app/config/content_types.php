@@ -50,5 +50,9 @@ return [
             'enabled' => true,
             'fields' => ['title', 'excerpt', 'body'],
         ],
+        // Optional: Extra fields to include in the recent cache for archive listings.
+        // By default only id, slug, title, date, status, excerpt, and taxonomies are cached.
+        // Add frontmatter fields here to make them available without loading full content.
+        // 'cache_fields' => ['author', 'featured_image'],
     ],
 ];

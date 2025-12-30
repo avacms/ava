@@ -162,8 +162,30 @@ ASCII;
             $this->keyValue('Status', $status);
             $this->keyValue('Mode', $this->app->config('content_index.mode', 'auto'));
 
-            if (file_exists($cachePath . '/content_index.php')) {
-                $mtime = filemtime($cachePath . '/content_index.php');
+            // Show cache file sizes
+            $cacheFiles = [
+                'content_index.bin' => 'Full index',
+                'slug_lookup.bin' => 'Slug lookup',
+                'recent_cache.bin' => 'Recent cache',
+                'routes.bin' => 'Routes',
+                'tax_index.bin' => 'Taxonomies',
+            ];
+            
+            $sizes = [];
+            foreach ($cacheFiles as $file => $label) {
+                $path = $cachePath . '/' . $file;
+                if (file_exists($path)) {
+                    $sizes[] = $this->color($label, self::DIM) . ' ' . $this->formatBytes(filesize($path));
+                }
+            }
+            if (!empty($sizes)) {
+                $this->keyValue('Cache', implode(', ', $sizes));
+            }
+
+            // Show build time
+            $indexPath = $cachePath . '/content_index.bin';
+            if (file_exists($indexPath)) {
+                $mtime = filemtime($indexPath);
                 $this->keyValue('Built', $this->color(date('Y-m-d H:i:s', $mtime), self::DIM));
             }
         } else {
@@ -944,8 +966,8 @@ ASCII;
         $type = $args[0];
         $count = (int) $args[1];
 
-        if ($count < 1 || $count > 10000) {
-            $this->error('Count must be between 1 and 10,000');
+        if ($count < 1 || $count > 100000) {
+            $this->error('Count must be between 1 and 100,000');
             return 1;
         }
 

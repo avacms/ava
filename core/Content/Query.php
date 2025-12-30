@@ -278,6 +278,9 @@ final class Query
      * 
      * Optimized to work with raw arrays and only create Item objects
      * for the final paginated result.
+     * 
+     * Uses the recent cache for simple queries (published, sorted by date desc,
+     * no taxonomy filters, no search) to avoid loading the full content index.
      */
     private function execute(): void
     {
@@ -285,6 +288,84 @@ final class Query
             return;
         }
 
+        // Try to use recent cache for simple queries
+        if ($this->canUseRecentCache()) {
+            $this->executeFromRecentCache();
+            return;
+        }
+
+        // Fall back to full index for complex queries
+        $this->executeFromFullIndex();
+    }
+
+    /**
+     * Check if this query can be served from the recent cache.
+     */
+    private function canUseRecentCache(): bool
+    {
+        // Must have a single content type
+        if ($this->type === null) {
+            return false;
+        }
+        
+        // Must be querying published content (or no status filter)
+        if ($this->status !== null && $this->status !== 'published') {
+            return false;
+        }
+        
+        // Must be sorted by date descending (the default)
+        if ($this->orderBy !== 'date' || $this->order !== 'desc') {
+            return false;
+        }
+        
+        // Can't have taxonomy filters
+        if (!empty($this->taxonomyFilters)) {
+            return false;
+        }
+        
+        // Can't have field filters
+        if (!empty($this->fieldFilters)) {
+            return false;
+        }
+        
+        // Can't have search
+        if ($this->search !== null && $this->search !== '') {
+            return false;
+        }
+        
+        // Check if the page range is within the cache
+        return $this->repository->canUseRecentCache(
+            $this->type,
+            $this->page,
+            $this->perPage
+        );
+    }
+
+    /**
+     * Execute query from the lightweight recent cache.
+     */
+    private function executeFromRecentCache(): void
+    {
+        $result = $this->repository->getRecentItems(
+            $this->type,
+            $this->page,
+            $this->perPage
+        );
+        
+        $this->totalCount = $result['total'];
+        
+        // Convert cache items to Item objects
+        $this->results = array_map(
+            fn(array $data) => Item::fromArray($data, ''),
+            $result['items']
+        );
+    }
+
+    /**
+     * Execute query from the full content index.
+     */
+    private function executeFromFullIndex(): void
+    {
         // Get raw data (arrays, not Item objects)
         $rawItems = [];
         if ($this->type !== null) {

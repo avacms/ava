@@ -75,12 +75,16 @@ final class Indexer
         $contentIndex = $this->buildContentIndex($allItems);
         $taxIndex = $this->buildTaxonomyIndex($allItems, $taxonomies);
         $routes = $this->buildRoutes($allItems, $contentTypes, $taxonomies);
+        $recentCache = $this->buildRecentCache($allItems);
+        $slugLookup = $this->buildSlugLookup($allItems);
         $fingerprint = $this->computeFingerprint();
 
         // Write cache files atomically (binary format for speed)
         $this->writeBinaryCacheFile('content_index.bin', $contentIndex);
         $this->writeBinaryCacheFile('tax_index.bin', $taxIndex);
         $this->writeBinaryCacheFile('routes.bin', $routes);
+        $this->writeBinaryCacheFile('recent_cache.bin', $recentCache);
+        $this->writeBinaryCacheFile('slug_lookup.bin', $slugLookup);
         $this->writeJsonCacheFile('fingerprint.json', $fingerprint);
 
         // Clear page cache when content cache is rebuilt
@@ -238,6 +242,124 @@ final class Indexer
         }
 
         return $index;
+    }
+
+    /**
+     * Build the recent cache.
+     * 
+     * A lightweight index containing pre-sorted, minimal data for each content type.
+     * This enables fast archive queries without loading the full content index.
+     * 
+     * Structure: [
+     *     'post' => [
+     *         'total' => 1000,
+     *         'items' => [ {id, slug, title, date, status, excerpt, taxonomies}, ... ]
+     *     ],
+     *     ...
+     * ]
+     */
+    private function buildRecentCache(array $allItems): array
+    {
+        $cache = [];
+        $maxItems = 200; // Cache top 200 items per type (covers ~20 pages at 10/page)
+        $contentTypes = $this->loadContentTypes();
+
+        foreach ($allItems as $typeName => $items) {
+            // Get cache_fields config for this type
+            $cacheFields = $contentTypes[$typeName]['cache_fields'] ?? [];
+            
+            // Filter to published only and collect minimal data
+            $published = [];
+            foreach ($items as $item) {
+                if (!$item->isPublished()) {
+                    continue;
+                }
+                
+                // Extract taxonomy terms and custom cache fields from frontmatter
+                $taxonomies = [];
+                $extraFields = [];
+                $frontmatter = $item->toArray()['frontmatter'] ?? [];
+                
+                foreach ($frontmatter as $key => $value) {
+                    // Skip core fields
+                    if (in_array($key, ['id', 'title', 'slug', 'status', 'date', 'excerpt', 'template', 'updated'], true)) {
+                        continue;
+                    }
+                    // Capture taxonomy arrays
+                    if (is_array($value)) {
+                        $taxonomies[$key] = $value;
+                    }
+                    // Capture configured cache fields
+                    if (in_array($key, $cacheFields, true)) {
+                        $extraFields[$key] = $value;
+                    }
+                }
+                
+                $itemData = [
+                    'id' => $item->id(),
+                    'slug' => $item->slug(),
+                    'title' => $item->title(),
+                    'date' => $item->date()?->format('c'),
+                    'status' => $item->status(),
+                    'excerpt' => mb_substr($item->excerpt() ?? '', 0, 200),
+                    'taxonomies' => $taxonomies,
+                ];
+                
+                // Merge in any extra configured cache fields
+                if (!empty($extraFields)) {
+                    $itemData = array_merge($itemData, $extraFields);
+                }
+                
+                $published[] = $itemData;
+            }
+
+            // Sort by date descending
+            usort($published, function ($a, $b) {
+                $aDate = $a['date'] ?? '';
+                $bDate = $b['date'] ?? '';
+                return strcmp($bDate, $aDate);
+            });
+
+            $cache[$typeName] = [
+                'total' => count($published),
+                'items' => array_slice($published, 0, $maxItems),
+            ];
+        }
+
+        return $cache;
+    }
+
+    /**
+     * Build the slug lookup table.
+     * 
+     * A lightweight index mapping type/slug to file path and minimal metadata.
+     * Used for fast single-item lookups without loading the full content index.
+     * 
+     * Structure: [
+     *     'post' => [
+     *         'hello-world' => ['file' => 'content/posts/hello-world.md', 'id' => '...', 'status' => 'published'],
+     *         ...
+     *     ],
+     *     ...
+     * ]
+     */
+    private function buildSlugLookup(array $allItems): array
+    {
+        $lookup = [];
+
+        foreach ($allItems as $typeName => $items) {
+            $lookup[$typeName] = [];
+            
+            foreach ($items as $item) {
+                $lookup[$typeName][$item->slug()] = [
+                    'file' => $this->getRelativePath($item->filePath()),
+                    'id' => $item->id(),
+                    'status' => $item->status(),
+                ];
+            }
+        }
+
+        return $lookup;
     }
 
     /**

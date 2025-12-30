@@ -454,24 +454,38 @@ final class Controller
             'built_at' => null,
             'size' => 0,
             'files' => 0,
+            'cache_files' => [],
         ];
 
         if (file_exists($fingerprintPath)) {
             $status['fresh'] = $this->app->indexer()->isCacheFresh();
         }
 
-        if (file_exists($cachePath . '/content_index.php')) {
-            $status['built_at'] = date('Y-m-d H:i:s', filemtime($cachePath . '/content_index.php'));
+        if (file_exists($cachePath . '/content_index.bin')) {
+            $status['built_at'] = date('Y-m-d H:i:s', filemtime($cachePath . '/content_index.bin'));
         }
 
-        // Calculate cache directory size and file count
+        // Calculate cache directory size and individual file sizes
+        $cacheFileNames = [
+            'content_index.bin' => 'Full Index',
+            'slug_lookup.bin' => 'Slug Lookup',
+            'recent_cache.bin' => 'Recent Cache',
+            'routes.bin' => 'Routes',
+            'tax_index.bin' => 'Taxonomies',
+        ];
+
         if (is_dir($cachePath)) {
             $files = glob($cachePath . '/*');
             $status['files'] = count($files);
             $totalSize = 0;
             foreach ($files as $file) {
                 if (is_file($file)) {
-                    $totalSize += filesize($file);
+                    $size = filesize($file);
+                    $totalSize += $size;
+                    $basename = basename($file);
+                    if (isset($cacheFileNames[$basename])) {
+                        $status['cache_files'][$cacheFileNames[$basename]] = $size;
+                    }
                 }
             }
             $status['size'] = $totalSize;

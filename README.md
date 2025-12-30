@@ -8,7 +8,9 @@
 [![Code size](https://img.shields.io/github/languages/code-size/adamgreenough/ava)](https://github.com/adamgreenough/ava)
 [![Discord](https://img.shields.io/discord/1028357262189801563)](https://discord.gg/Z7bF9YeK)
 
-Ava is a friendly, flexible, flat-file, PHP-based CMS for bespoke personal websites, blogs and more. Content is Markdown files (with YAML frontmatter), and Ava builds a fast cache so pages render quickly—no database required. Thoroughly documented with beginners in mind and easy to customize, Ava gives you full control over your content and design without complexity.
+Ava is a friendly, flexible, flat-file, PHP-based CMS for bespoke personal websites, blogs and more. Content is Markdown files (with YAML frontmatter), and Ava builds a fast cache so pages render quickly—no database required. 
+
+Thoroughly [documented](https://ava.addy.zone/#/) with beginners in mind and easy to customize, Ava gives you full control over your content and design without complexity.
 
 **Perfect for:** personal sites, blogs, portfolios, documentation, and any project where you want simplicity without sacrificing power.
 
@@ -21,13 +23,13 @@ Content is just Markdown files. Back them up however you like—copy to a folder
 Edit a file, refresh your browser, see it live. There's no build step, no deploy queue, no waiting for static regeneration. Changes are immediate.
 
 ### 🔍 Dynamic Features Built-In
-Unlike static site generators, Ava is a real PHP application. You get search, contact forms, and dynamic content without third-party services. Add any PHP functionality you need.
+Unlike static site generators, Ava is a real PHP application. You get search, forms, and dynamic content without third-party services. Add any PHP functionality you need.
 
 ### 🎨 Your HTML, Your Way
-Templates are plain PHP files—no template language to learn. If you know HTML, CSS, and a little PHP, you can build any design.
+Templates are plain PHP files, so there's no template language to learn. If you know some HTML, CSS, and a little PHP, you can build any design.
 
 ### 🚀 Blazing Fast Performance
-Two-layer caching serves pages in ~0.1ms. You get the speed of static files with the flexibility of dynamic PHP.
+Two-layer caching serves pages in under 1ms. Even without caching, 10,000 posts render in ~160ms. You get the speed of static files with the flexibility of dynamic PHP. [See benchmarks →](https://ava.addy.zone/#/README?id=performance)
 
 ### 🧩 Flexible Content Modelling
 Define any content types, taxonomies, and URL patterns. Blogs, portfolios, recipes, documentation—structure content however you think.
@@ -88,11 +90,26 @@ Main docs: https://ava.addy.zone/
 
 - PHP 8.3+
 - Extensions: `mbstring`, `json`, `ctype`
-- Optional: `igbinary` (15× faster caching), `opcache`, `curl`
+- Optional: `igbinary` (faster index loading), `opcache`, `curl`
+
+## Performance
+
+Fast by default. Most sites have under 1,000 posts—here's what you can expect:
+
+| Posts | Cached Page | Archive Page | Single Post |
+|-------|-------------|--------------|-------------|
+| 100 | <1ms | 3ms | 5ms |
+| 1,000 | <1ms | 3ms | 8ms |
+
+**Cached pages serve in under 1 millisecond**—faster than most static site generators can serve pre-built files. Archive pages stay fast regardless of content size thanks to tiered caching.
+
+Need to scale further? Ava handles 100,000 posts without breaking a sweat.
+
+[Full benchmarks, memory usage, and igbinary comparison →](https://ava.addy.zone/#/caching?id=performance)
 
 ## Contributing
 
-Ava is moving quickly, so I'm not accepting pull requests right now. The best way to help:
+Ava is moving quickly, so I'm not accepting undiscussed pull requests right now. The best way to help:
 
 - [Open an issue](https://github.com/adamgreenough/ava/issues) — bugs, ideas, questions all welcome
 - [Join the Discord](https://discord.gg/Z7bF9YeK) — chat and support
@@ -100,3 +117,4 @@ Ava is moving quickly, so I'm not accepting pull requests right now. The best wa
 ## License
 
 MIT — free and open source. See [LICENSE](LICENSE).
+

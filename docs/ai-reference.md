@@ -77,7 +77,9 @@ plugins/<name>/
 
 storage/
   cache/                 # Generated caches
-    content_index.bin    # Content metadata
+    content_index.bin    # Content metadata (full index)
+    slug_lookup.bin      # Fast single-item lookups
+    recent_cache.bin     # Top 200 items per type
     tax_index.bin        # Taxonomy index
     routes.bin           # Route cache
     pages/*.html         # Cached HTML pages
@@ -103,22 +105,29 @@ Request → Router → RouteMatch → Renderer → Response
 
 ## Caching System
 
-Ava uses two-layer caching for performance:
+Ava uses a three-tier caching strategy for performance:
 
 ### Content Index Cache
 
 Binary serialized cache of all content metadata:
-- `storage/cache/content_index.bin` — Content items
+- `storage/cache/content_index.bin` — Full content items (~45MB for 100k posts)
+- `storage/cache/slug_lookup.bin` — Fast single-item lookups (~8.7MB for 100k posts)
+- `storage/cache/recent_cache.bin` — Top 200 items per type (~51KB)
 - `storage/cache/tax_index.bin` — Taxonomy terms
 - `storage/cache/routes.bin` — Route mappings
 - `storage/cache/fingerprint.json` — Change detection
+
+**Tiered loading:**
+- Archive pages 1-20: Uses recent_cache.bin (~3ms, ~2MB memory)
+- Single post views: Uses slug_lookup.bin (~130ms, ~82MB memory)  
+- Complex queries: Uses content_index.bin (~2.4s, ~323MB memory)
 
 **Rebuild modes** (`content_index.mode`):
 - `auto` (default) — Rebuild when fingerprint detects changes
 - `never` — Only rebuild via CLI (production)
 - `always` — Rebuild every request (debugging)
 
-**Binary format:** Uses igbinary if available (15× faster), falls back to PHP serialize. Files prefixed with `IG:` or `SZ:` marker for auto-detection.
+**Binary format:** Uses igbinary if available (~4-5× faster), falls back to PHP serialize. Files prefixed with `IG:` or `SZ:` marker for auto-detection.
 
 ### Page Cache
 
@@ -583,22 +592,6 @@ Optional read-only dashboard (disabled by default):
 - Log viewer
 
 **Not an editor:** Admin is a web wrapper around CLI commands. Content editing happens in your preferred text editor.
-
----
-
-## Performance Benchmarks
-
-Tested with 10,000 content items:
-
-| Operation | Time |
-|-----------|------|
-| Index rebuild | ~2.4s |
-| Index load | ~45ms |
-| Archive query | ~70ms |
-| Page serve (cache hit) | ~0.1ms |
-| CLI status | ~175ms |
-| Memory usage | ~50MB |
-| Index size | ~4MB |
 
 ---
 
