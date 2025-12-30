@@ -136,7 +136,7 @@ foreach ($posts as $post):
 - `->first()` — Get just the first result
 - `->count()` — Count matching items
 
-Check out the [API documentation](https://ava.addy.zone/api.html) for more!
+Check out the [API documentation](https://ava.addy.zone/#/api) for more!
 
 ## Using Shortcodes
 
@@ -248,9 +248,8 @@ Here are some ideas to explore:
 
 ## Need Help?
 
-- **Documentation**: [ava.addy.zone](https://ava.addy.zone) has comprehensive guides
-- **API Reference**: [ava.addy.zone/api.html](https://ava.addy.zone/api.html) for all template functions
-- **Source Code**: [github.com/addyosmani/ava](https://github.com/addyosmani/ava) if you want to see how it works
+- **Documentation**: [ava.addy.zone](https://ava.addy.zone/#/) has comprehensive guides
+- **Source Code**: [github.com/adamgreenough/ava](https://github.com/adamgreenough/ava) if you want to see how it works
 
 ---
 

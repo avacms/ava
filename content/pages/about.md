@@ -120,15 +120,15 @@ Ava's page cache is designed with security in mind:
 - **Admin bypass** — Logged-in users never see cached pages
 - **Safe defaults** — Cache disabled by default, opt-in only
 
-Full details in the [caching documentation](https://ava.addy.zone/caching.html).
+Full details in the [caching documentation](https://ava.addy.zone/#/caching).
 
 ## Get Involved
 
 Ava is open source and evolving! Here's how to learn more:
 
 - **Documentation**: [ava.addy.zone](https://ava.addy.zone)
-- **Source Code**: [github.com/addyosmani/ava](https://github.com/addyosmani/ava)
-- **Issues & Ideas**: [GitHub Issues](https://github.com/addyosmani/ava/issues)
+- **Source Code**: [github.com/adamgreenough/ava](https://github.com/adamgreenough/ava)
+- **Issues & Ideas**: [GitHub Issues](https://github.com/adamgreenough/ava/issues)
 
 We're building this for ourselves and people like us—developers who want simple, fast, file-based publishing without the weight of traditional CMSs.
 

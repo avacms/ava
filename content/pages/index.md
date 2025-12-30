@@ -88,7 +88,7 @@ The `$ava` object gives you access to everything:
 - `$ava->date()` — Publication date
 - `$ava->url()` — Current page URL
 
-**Pro tip:** Check out the [theming documentation](https://ava.addy.zone/themes.html) for the full list of template helpers!
+**Pro tip:** Check out the [theming documentation](https://ava.addy.zone/#/themes) for the full list of template helpers!
 
 ### 4. Use the CLI
 
@@ -131,8 +131,8 @@ Then use it: `[cta text="Get Started" url="/about"]`
 ## Need Help?
 
 - **Documentation**: [ava.addy.zone](https://ava.addy.zone)
-- **Code**: [github.com/addyosmani/ava](https://github.com/addyosmani/ava)
-- **Philosophy**: Read the [About](/about) page to understand Ava's approach
+- **Code**: [github.com/adamgreenough/ava](https://github.com/adamgreenough/ava)
+- **Philosophy**: Read the [About](https://ava.addy.zone/#/?id=main) page to understand Ava's approach
 
 ## What's Next?
 
