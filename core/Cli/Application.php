@@ -110,6 +110,7 @@ ASCII;
         $this->commands['pages:clear'] = [$this, 'cmdPagesClear'];
         $this->commands['pages:stats'] = [$this, 'cmdPagesStats'];
         $this->commands['benchmark'] = [$this, 'cmdBenchmark'];
+        $this->commands['test'] = [$this, 'cmdTest'];
         $this->commands['stress:generate'] = [$this, 'cmdStressGenerate'];
         $this->commands['stress:clean'] = [$this, 'cmdStressClean'];
         $this->commands['stress:benchmark'] = [$this, 'cmdBenchmark']; // Alias for benchmark
@@ -942,6 +943,45 @@ ASCII;
 
         $this->writeln('');
         return 0;
+    }
+
+    // =========================================================================
+    // Test Suite
+    // =========================================================================
+
+    /**
+     * Run the automated test suite.
+     */
+    private function cmdTest(array $args): int
+    {
+        // Parse arguments
+        $verbose = in_array('-v', $args, true) || in_array('--verbose', $args, true);
+        $filter = null;
+
+        // Get filter (first non-flag argument)
+        foreach ($args as $arg) {
+            if (!str_starts_with($arg, '-')) {
+                $filter = $arg;
+                break;
+            }
+        }
+
+        $testsPath = $this->app->path('tests');
+
+        if (!is_dir($testsPath)) {
+            $this->error("Tests directory not found: {$testsPath}");
+            $this->tip('Create the tests/ directory and add test files ending in Test.php');
+            return 1;
+        }
+
+        // Load test framework classes
+        require_once $this->app->path('core/Testing/AssertionFailedException.php');
+        require_once $this->app->path('core/Testing/SkippedException.php');
+        require_once $this->app->path('core/Testing/TestCase.php');
+        require_once $this->app->path('core/Testing/TestRunner.php');
+
+        $runner = new \Ava\Testing\TestRunner($verbose, $filter);
+        return $runner->run($testsPath);
     }
 
     // =========================================================================
@@ -1934,6 +1974,7 @@ ASCII;
         $this->commandItem('update:apply', 'Apply available update');
 
         $this->sectionHeader('Testing');
+        $this->commandItem('test [filter]', 'Run the test suite');
         $this->commandItem('stress:generate <type> <n>', 'Generate test content');
         $this->commandItem('stress:clean <type>', 'Remove test content');
         $this->commandItem('stress:benchmark', 'Benchmark index backends');

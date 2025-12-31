@@ -307,11 +307,11 @@ You can test performance on your own server using the built-in CLI command.
 
 ## Troubleshooting
 
-### What is `content_index.sqlite`?
+#### What is `content_index.sqlite`?
 
 This file appears in `storage/cache/` if you've set `backend: 'sqlite'` in your config. It's the SQLite index—a single file, not a database server. If you see this file but didn't enable SQLite, you can safely delete it.
 
-### SQLite backend not available
+#### SQLite backend not available
 
 If you set `backend: 'sqlite'` but get errors:
 
@@ -319,24 +319,25 @@ If you set `backend: 'sqlite'` but get errors:
 2. If not installed, ask your host or run `apt install php-sqlite3` (Linux)
 3. Or set `backend: 'array'` to use the default
 
-### Pages not being cached
+#### Pages not being cached
 
 1. Check if enabled: `./ava status`
 2. Log out of admin (admin users bypass cache)
 3. Check exclude patterns in `config/ava.php`
 4. Check for query parameters in the URL
 
-### Content changes not appearing
+#### Content changes not appearing
 
 1. If `mode` is `never`, run `./ava rebuild`
 2. Delete `storage/cache/fingerprint.json` to force a rebuild
 3. Run `./ava rebuild` to reset everything
 
-### Cache files not being created
+#### Cache files not being created
 1. Ensure `storage/cache/` is writable by the web server
 2. Check for errors in `storage/logs/ava.log`
 3. Verify page caching is enabled in `app/config/ava.php`
-### High memory usage with Array backend
+
+#### High memory usage with Array backend
 
 1. Check memory usage history with host or current with `./ava status`
 2. Consider switching to `backend: 'sqlite'` for large sites

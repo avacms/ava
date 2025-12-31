@@ -77,6 +77,7 @@ If you’re used to FTP, think of **SFTP** as the safer modern version. Popular 
 | `pages:clear` | Clear page cache |
 | `stress:generate` | Generate test content |
 | `stress:clean` | Remove test content |
+| `test [filter]` | Run the [test suite](testing.md) |
 
 ---
 
@@ -529,6 +530,41 @@ Remove all generated test content:
 
   <span class="t-green">✓</span> Rebuilding content index <span class="t-dim">(12ms)</span>
   <span class="t-green">✓ Done!</span></samp></pre>
+
+---
+
+## Testing
+
+### test
+
+Run the automated test suite:
+
+```bash
+./ava test
+```
+
+<pre><samp>  <span class="t-bold">Ava CMS Test Suite</span>
+  <span class="t-dim">──────────────────────────────────────────────────</span>
+
+  <span class="t-cyan">StrTest</span>
+
+    <span class="t-green">✓</span> slug converts to lowercase
+    <span class="t-green">✓</span> slug replaces spaces with separator
+    <span class="t-green">✓</span> starts with returns true for match
+    <span class="t-dim">...</span>
+
+  <span class="t-dim">──────────────────────────────────────────────────</span>
+  <span class="t-bold">Tests:</span> <span class="t-green">333 passed</span> <span class="t-dim">(70ms)</span></samp></pre>
+
+Filter tests by class name:
+
+```bash
+./ava test Str           # Run StrTest only
+./ava test Parser        # Run ParserTest only
+./ava test Request       # Run RequestTest only
+```
+
+See [Testing](testing.md) for details on writing tests and available assertions.
 
 ---
 

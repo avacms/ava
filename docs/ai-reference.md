@@ -303,6 +303,8 @@ tutorials:
 | `Rendering\TemplateHelpers` | Template helper methods (`$ava`) |
 | `Shortcodes\Engine` | Shortcode processing |
 | `Plugins\Hooks` | Filter/action hook system |
+| `Testing\TestRunner` | Lightweight test runner |
+| `Testing\TestCase` | Base class for test cases |
 
 ---
 
@@ -597,9 +599,90 @@ php bin/ava update:apply             # Apply available update
 
 **Testing:**
 ```bash
-php bin/ava stress:generate post 100  # Generate test content
-php bin/ava stress:clean post         # Remove test content
+php bin/ava test                     # Run the test suite
+php bin/ava test [filter]            # Run tests matching filter
+php bin/ava stress:generate post 100 # Generate test content
+php bin/ava stress:clean post        # Remove test content
 ```
+
+---
+
+## Test Suite
+
+Ava includes a lightweight, zero-dependency test framework:
+
+**Running tests:**
+```bash
+./ava test                  # Run all tests
+./ava test Str              # Filter by class name
+./ava test -v               # Verbose output
+```
+
+**Test structure:**
+```
+tests/
+  Config/
+    ConfigTest.php         # Configuration access patterns
+  Support/
+    StrTest.php            # String utilities
+    ArrTest.php            # Array utilities
+    UlidTest.php           # ULID generator
+    PathTest.php           # Path utilities
+  Content/
+    ParserTest.php         # Content parser
+    ItemTest.php           # Content item
+  Http/
+    RequestTest.php        # HTTP request
+    ResponseTest.php       # HTTP response
+  Plugins/
+    HooksTest.php          # Hook system
+  Rendering/
+    MarkdownTest.php       # Markdown rendering
+  Routing/
+    RouteMatchTest.php     # Route match value object
+  Shortcodes/
+    EngineTest.php         # Shortcode engine
+```
+
+**Writing tests:**
+```php
+namespace Ava\Tests\MyFeature;
+
+use Ava\Testing\TestCase;
+
+final class MyTest extends TestCase
+{
+    public function setUp(): void
+    {
+        // Runs before each test
+    }
+
+    public function testSomething(): void
+    {
+        $this->assertEquals('expected', 'actual');
+        $this->assertTrue(condition);
+        $this->assertThrows(Exception::class, fn() => throw new Exception());
+    }
+}
+```
+
+**Available assertions:**
+- `assertTrue($value)`, `assertFalse($value)`
+- `assertEquals($expected, $actual)`, `assertNotEquals()`
+- `assertSame($expected, $actual)`, `assertNotSame()`
+- `assertNull($value)`, `assertNotNull($value)`
+- `assertCount($expected, $array)`
+- `assertEmpty($value)`, `assertNotEmpty($value)`
+- `assertContains($needle, $haystack)`
+- `assertArrayHasKey($key, $array)`
+- `assertStringContains($needle, $haystack)`
+- `assertStringStartsWith($prefix, $string)`
+- `assertStringEndsWith($suffix, $string)`
+- `assertMatchesRegex($pattern, $string)`
+- `assertInstanceOf($class, $object)`
+- `assertThrows($exceptionClass, $callable)`
+- `assertGreaterThan($expected, $actual)`
+- `assertLessThan($expected, $actual)`
 
 ---
 

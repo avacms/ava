@@ -15,5 +15,6 @@
 - [Showcase](showcase.md "Showcase | Ava CMS")
 
 **Maintainers**
+- [Testing](testing.md "Testing | Ava CMS")
 - [Releasing](releasing.md "Releasing | Ava CMS")
 - [AI Reference](ai-reference.md "AI Reference | Ava CMS")
