@@ -95,9 +95,11 @@ Run `./ava` or `./ava --help` to see all available commands:
 ```
 
 <div class="beginner-box">
-<strong>Why do commands start with <code>./</code>?</strong><br>
-<br>
-<code>./ava</code> means “run the ava script in this folder.” The <code>./</code> tells your computer to look for the command right here, not somewhere else on your system. This is common for project tools in PHP, Node, Python, and more. If you just type <code>ava</code>, it only works if you’ve installed it globally (which is not recommended for project scripts).
+
+### Why do commands start with <code>./</code>?
+
+`./ava` means “run the ava script in this folder.” The `./` tells your computer to look for the command right here, not somewhere else on your system. This is common for project tools in PHP, Node, Python, and more. If you just type `ava`, it only works if you’ve installed it globally (which is not recommended for project scripts).
+
 </div>
 
 **Shortcuts:** Several commands have convenient aliases:
