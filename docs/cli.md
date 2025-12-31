@@ -10,7 +10,6 @@ Ava includes a friendly command-line interface for managing your site. Run comma
 ./ava <command> [options]
 ```
 
-
 The CLI has been thoughtfully designed for a simple and delightful experience. Most output includes helpful tips and next steps.
 
 <div class="beginner-box">
@@ -94,6 +93,12 @@ Run `./ava` or `./ava --help` to see all available commands:
 ```bash
 ./ava --help
 ```
+
+<div class="beginner-box">
+<strong>Why do commands start with <code>./</code>?</strong><br>
+<br>
+<code>./ava</code> means “run the ava script in this folder.” The <code>./</code> tells your computer to look for the command right here, not somewhere else on your system. This is common for project tools in PHP, Node, Python, and more. If you just type <code>ava</code>, it only works if you’ve installed it globally (which is not recommended for project scripts).
+</div>
 
 **Shortcuts:** Several commands have convenient aliases:
 - `./ava pages` → `pages:stats`

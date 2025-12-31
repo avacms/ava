@@ -2,8 +2,8 @@
 /**
  * Redirects Plugin Admin View - Content Only
  * 
- * This file contains ONLY the main content for the redirects admin page.
- * The admin layout (header, sidebar, footer) is provided by the core.
+ * Redirects are managed via CLI for security. This view shows
+ * existing redirects and CLI documentation.
  * 
  * Available variables:
  * - $redirects: Array of redirect entries
@@ -31,55 +31,44 @@
     <div class="card">
         <div class="card-header">
             <span class="card-title">
-                <span class="material-symbols-rounded">add</span>
-                Add Entry
+                <span class="material-symbols-rounded">terminal</span>
+                Managing Redirects
             </span>
         </div>
         <div class="card-body">
-            <form method="POST" action="<?= $admin_url ?>/redirects" id="redirectForm">
-                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
-                <input type="hidden" name="action" value="add">
-                
-                <div style="margin-bottom: var(--sp-4);">
-                    <label class="text-sm text-secondary" style="display: block; margin-bottom: var(--sp-2);">From URL</label>
-                    <input type="text" name="from" placeholder="/old-path" required
-                           style="width: 100%; padding: var(--sp-2) var(--sp-3); background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); font-size: var(--text-sm);">
-                    <span class="text-xs text-tertiary">Path relative to site root (e.g., /old-page)</span>
-                </div>
-
-                <div style="margin-bottom: var(--sp-4);">
-                    <label class="text-sm text-secondary" style="display: block; margin-bottom: var(--sp-2);">Response Type</label>
-                    <select name="code" id="codeSelect" onchange="toggleDestination()" style="width: 100%; padding: var(--sp-2) var(--sp-3); background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); font-size: var(--text-sm);">
-                        <optgroup label="Redirects (require destination)">
-                            <?php foreach ($statusCodes as $code => $info): ?>
-                                <?php if ($info['redirect']): ?>
-                                <option value="<?= $code ?>" data-redirect="1"><?= $code ?> - <?= htmlspecialchars($info['label']) ?></option>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </optgroup>
-                        <optgroup label="Status Responses (no destination)">
-                            <?php foreach ($statusCodes as $code => $info): ?>
-                                <?php if (!$info['redirect']): ?>
-                                <option value="<?= $code ?>" data-redirect="0"><?= $code ?> - <?= htmlspecialchars($info['label']) ?></option>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </optgroup>
-                    </select>
-                    <span class="text-xs text-tertiary" id="codeDescription"><?= htmlspecialchars($statusCodes[301]['description']) ?></span>
-                </div>
-
-                <div style="margin-bottom: var(--sp-4);" id="destinationField">
-                    <label class="text-sm text-secondary" style="display: block; margin-bottom: var(--sp-2);">To URL</label>
-                    <input type="text" name="to" id="toInput" placeholder="/new-path or https://..."
-                           style="width: 100%; padding: var(--sp-2) var(--sp-3); background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); font-size: var(--text-sm);">
-                    <span class="text-xs text-tertiary">Internal path or full URL</span>
-                </div>
-
-                <button type="submit" class="btn btn-primary">
-                    <span class="material-symbols-rounded">add</span>
-                    Add Entry
-                </button>
-            </form>
+            <p class="text-secondary text-sm" style="margin-bottom: var(--sp-4);">
+                Redirects are managed via the command line for security. Use these commands:
+            </p>
+            
+            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
+                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Add a redirect:</p>
+                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:add /old-path /new-path</code>
+            </div>
+            
+            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
+                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Add with status code:</p>
+                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:add /old-path /new-path 302</code>
+            </div>
+            
+            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
+                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Mark page as gone (410):</p>
+                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:add /deleted-page "" 410</code>
+            </div>
+            
+            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
+                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">List all redirects:</p>
+                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:list</code>
+            </div>
+            
+            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3);">
+                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Remove a redirect:</p>
+                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:remove /old-path</code>
+            </div>
+            
+            <p class="text-tertiary text-xs" style="margin-top: var(--sp-4);">
+                <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">info</span>
+                You can also edit <code>storage/redirects.json</code> directly, or use <code>redirect_from</code> in content frontmatter.
+            </p>
         </div>
     </div>
 
@@ -87,7 +76,7 @@
         <div class="card-header">
             <span class="card-title">
                 <span class="material-symbols-rounded">info</span>
-                About
+                Status Codes
             </span>
         </div>
         <div class="card-body">
@@ -97,7 +86,7 @@
             </div>
             
             <p class="text-secondary text-sm" style="margin-top: var(--sp-4); margin-bottom: var(--sp-3);">
-                <strong>Status Codes:</strong>
+                <strong>Supported codes:</strong>
             </p>
             
             <?php foreach ($statusCodes as $code => $info): ?>
@@ -111,10 +100,6 @@
                 </span>
             </div>
             <?php endforeach; ?>
-            
-            <p class="text-secondary text-sm" style="margin-top: var(--sp-4);">
-                <strong>Tip:</strong> You can also edit the JSON file directly. Use <code>redirect_from</code> in content frontmatter for content-level redirects.
-            </p>
         </div>
     </div>
 </div>
@@ -188,36 +173,7 @@
     <div class="empty-state">
         <span class="material-symbols-rounded">swap_horiz</span>
         <p>No entries configured</p>
-        <span class="text-sm text-tertiary">Add your first redirect or status response above</span>
+        <span class="text-sm text-tertiary">Use <code>./ava redirects:add</code> to add redirects</span>
     </div>
 </div>
 <?php endif; ?>
-
-<script>
-const statusDescriptions = <?= json_encode(array_map(fn($c) => $c['description'], $statusCodes)) ?>;
-const statusRedirects = <?= json_encode(array_map(fn($c) => $c['redirect'], $statusCodes)) ?>;
-
-function toggleDestination() {
-    const select = document.getElementById('codeSelect');
-    const code = select.value;
-    const destField = document.getElementById('destinationField');
-    const toInput = document.getElementById('toInput');
-    const descEl = document.getElementById('codeDescription');
-    
-    const isRedirect = statusRedirects[code] ?? true;
-    
-    destField.style.display = isRedirect ? 'block' : 'none';
-    toInput.required = isRedirect;
-    
-    if (!isRedirect) {
-        toInput.value = '';
-    }
-    
-    if (statusDescriptions[code]) {
-        descEl.textContent = statusDescriptions[code];
-    }
-}
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', toggleDestination);
-</script>

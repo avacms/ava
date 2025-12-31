@@ -351,6 +351,7 @@ final class Controller
             'taxonomies' => $this->getTaxonomyStats(),
             'taxonomyConfig' => $this->getTaxonomyConfig(),
             'cache' => $this->getCacheStatus(),
+            'cacheFiles' => $this->getCacheFilesInfo(),
             'plugins' => $this->getActivePlugins(),
             'theme' => $this->app->config('theme', 'default'),
             'routes' => $repository->routes(),
@@ -876,6 +877,90 @@ JS;
     }
 
     /**
+     * Get cache files information.
+     */
+    private function getCacheFilesInfo(): array
+    {
+        $cachePath = $this->app->configPath('storage') . '/cache';
+        $formatBytes = function($bytes) {
+            if ($bytes === 0) return '0 B';
+            $units = ['B', 'KB', 'MB', 'GB'];
+            $i = 0;
+            while ($bytes >= 1024 && $i < count($units) - 1) {
+                $bytes /= 1024;
+                $i++;
+            }
+            return round($bytes, 2) . ' ' . $units[$i];
+        };
+
+        $files = [
+            'content_index.bin' => ['description' => 'Full content index', 'backend' => 'array'],
+            'content_index.sqlite' => ['description' => 'SQLite content index', 'backend' => 'sqlite'],
+            'slug_lookup.bin' => ['description' => 'Fast single-item lookups'],
+            'recent_cache.bin' => ['description' => 'Top 200 items per type'],
+            'tax_index.bin' => ['description' => 'Taxonomy terms index'],
+            'routes.bin' => ['description' => 'Compiled route mappings'],
+            'fingerprint.json' => ['description' => 'Content change detection'],
+        ];
+
+        $result = [];
+        foreach ($files as $filename => $info) {
+            $path = $cachePath . '/' . $filename;
+            $exists = file_exists($path);
+            
+            $entry = [
+                'filename' => $filename,
+                'description' => $info['description'],
+                'exists' => $exists,
+                'size' => $exists ? filesize($path) : 0,
+                'size_formatted' => $exists ? $formatBytes(filesize($path)) : '—',
+                'modified' => $exists ? date('Y-m-d H:i:s', filemtime($path)) : null,
+                'backend' => $info['backend'] ?? null,
+            ];
+
+            // For binary files, detect serialization format
+            if ($exists && str_ends_with($filename, '.bin')) {
+                $fp = @fopen($path, 'r');
+                if ($fp) {
+                    $prefix = fread($fp, 3);
+                    fclose($fp);
+                    $entry['format'] = match($prefix) {
+                        'IG:' => 'igbinary',
+                        'SZ:' => 'serialize',
+                        default => 'unknown',
+                    };
+                }
+            }
+
+            $result[$filename] = $entry;
+        }
+
+        // Count page cache files
+        $pagesCachePath = $cachePath . '/pages';
+        $pageCount = 0;
+        $pagesSize = 0;
+        if (is_dir($pagesCachePath)) {
+            $files = glob($pagesCachePath . '/*.html');
+            $pageCount = count($files);
+            foreach ($files as $file) {
+                $pagesSize += filesize($file);
+            }
+        }
+
+        $result['pages'] = [
+            'filename' => 'pages/',
+            'description' => 'Cached HTML pages',
+            'exists' => $pageCount > 0,
+            'count' => $pageCount,
+            'size' => $pagesSize,
+            'size_formatted' => $formatBytes($pagesSize),
+            'modified' => null,
+        ];
+
+        return $result;
+    }
+
+    /**
      * Get directory status information with permissions.
      */
     private function getDirectoryStatus(): array
@@ -945,8 +1030,8 @@ JS;
             ],
             'app/config' => [
                 'path' => 'app/config',
-                'description' => 'Configuration files',
-                'recommended' => '0755',
+                'description' => 'Configuration files (contains credentials)',
+                'recommended' => '0750',
                 'writable_needed' => false,
             ],
         ];
@@ -1055,40 +1140,48 @@ JS;
         if (file_exists($errorLogPath)) {
             $errorLogSize = filesize($errorLogPath);
             
-            // Read last 20 lines of error log
-            $lines = [];
+            // Read last portion of error log
             $fp = @fopen($errorLogPath, 'r');
             if ($fp) {
-                // Seek to end and read backwards
-                fseek($fp, -min($errorLogSize, 8192), SEEK_END);
-                $chunk = fread($fp, 8192);
+                fseek($fp, -min($errorLogSize, 16384), SEEK_END);
+                $chunk = fread($fp, 16384);
                 fclose($fp);
                 
                 $lines = explode("\n", trim($chunk));
-                $lines = array_slice($lines, -20);
                 $errorLogLines = count(file($errorLogPath));
                 
-                foreach (array_reverse($lines) as $line) {
+                // Parse in forward order to attach traces to their parent errors
+                $allErrors = [];
+                $currentError = null;
+                
+                foreach ($lines as $line) {
                     if (empty(trim($line))) continue;
                     
                     // Parse log line: [timestamp] LEVEL: message
                     if (preg_match('/^\[([^\]]+)\]\s+(\w+):\s*(.*)$/', $line, $m)) {
-                        $recentErrors[] = [
+                        // Save previous error if exists
+                        if ($currentError !== null) {
+                            $allErrors[] = $currentError;
+                        }
+                        $currentError = [
                             'time' => $m[1],
                             'level' => $m[2],
                             'message' => $m[3],
                         ];
-                    } else {
-                        // Stack trace line or other
-                        $recentErrors[] = [
-                            'time' => '',
-                            'level' => 'TRACE',
-                            'message' => $line,
-                        ];
+                    } elseif ($currentError !== null && str_starts_with(trim($line), '#')) {
+                        // Stack trace line - append to current error message
+                        $currentError['message'] .= "\n" . $line;
                     }
-                    
-                    if (count($recentErrors) >= 15) break;
+                    // Skip other continuation lines (Stack trace: header, etc.)
                 }
+                
+                // Don't forget the last error
+                if ($currentError !== null) {
+                    $allErrors[] = $currentError;
+                }
+                
+                // Take the last 15 errors (most recent)
+                $recentErrors = array_slice(array_reverse($allErrors), 0, 15);
             }
         }
 

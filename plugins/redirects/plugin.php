@@ -129,7 +129,7 @@ return [
                         $redirects = $redirectsData;
                     }
 
-                    // Handle form submissions
+                    // Handle delete only (add is via CLI for security)
                     if ($request->isMethod('POST')) {
                         $csrf = $request->post('_csrf', '');
                         $auth = $controller->auth();
@@ -139,51 +139,7 @@ return [
                         } else {
                             $action = $request->post('action', '');
 
-                            if ($action === 'add') {
-                                $from = '/' . trim($request->post('from', ''), '/');
-                                $to = trim($request->post('to', ''));
-                                $code = (int) $request->post('code', 301);
-                                $codeInfo = REDIRECT_STATUS_CODES[$code] ?? ['redirect' => true];
-                                $isRedirect = $codeInfo['redirect'];
-
-                                if (empty($from) || $from === '/') {
-                                    $error = 'Source URL is required and cannot be root.';
-                                } elseif ($isRedirect && empty($to)) {
-                                    $error = 'Destination URL is required for redirect codes.';
-                                } else {
-                                    // Check for duplicates
-                                    $exists = false;
-                                    foreach ($redirects as $r) {
-                                        if ($r['from'] === $from) {
-                                            $exists = true;
-                                            break;
-                                        }
-                                    }
-
-                                    if ($exists) {
-                                        $error = 'A redirect for this URL already exists.';
-                                    } else {
-                                        $newRedirect = [
-                                            'from' => $from,
-                                            'code' => $code,
-                                            'created' => date('Y-m-d H:i:s'),
-                                        ];
-                                        
-                                        // Only include 'to' for actual redirects
-                                        if ($isRedirect) {
-                                            $newRedirect['to'] = $to;
-                                        }
-                                        
-                                        $redirects[] = $newRedirect;
-                                        $saveRedirects($redirects);
-                                        
-                                        $codeLabel = $codeInfo['label'] ?? $code;
-                                        $message = $isRedirect 
-                                            ? "Redirect added: {$from} → {$to}" 
-                                            : "Status response added: {$from} → {$code} {$codeLabel}";
-                                    }
-                                }
-                            } elseif ($action === 'delete') {
+                            if ($action === 'delete') {
                                 $from = $request->post('from', '');
                                 $redirects = array_filter($redirects, fn($r) => $r['from'] !== $from);
                                 $redirects = array_values($redirects);

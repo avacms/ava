@@ -236,6 +236,78 @@ $activePage = 'system';
             </div>
         </div>
 
+        <!-- Cache Files -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <span class="card-title"><span class="material-symbols-rounded">database</span> Cache Files</span>
+                <?php 
+                $activeBackend = $cacheFiles['content_index.sqlite']['exists'] ? 'sqlite' : 'array';
+                $totalCacheSize = array_sum(array_column($cacheFiles, 'size'));
+                ?>
+                <span class="badge badge-muted"><?= $formatBytes($totalCacheSize) ?> total</span>
+            </div>
+            <div class="table-wrap">
+                <table class="dir-table">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Description</th>
+                            <th>Size</th>
+                            <th>Format</th>
+                            <th>Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($cacheFiles as $file): 
+                            // Skip SQLite if using array backend, and vice versa
+                            if (isset($file['backend'])) {
+                                if ($file['backend'] === 'sqlite' && $activeBackend === 'array' && !$file['exists']) continue;
+                                if ($file['backend'] === 'array' && $activeBackend === 'sqlite' && !$file['exists']) continue;
+                            }
+                        ?>
+                        <tr>
+                            <td>
+                                <code class="text-sm"><?= htmlspecialchars($file['filename']) ?></code>
+                            </td>
+                            <td class="text-dim text-sm"><?= htmlspecialchars($file['description']) ?></td>
+                            <td>
+                                <?php if ($file['exists']): ?>
+                                    <?php if (isset($file['count'])): ?>
+                                        <span class="text-sm"><?= number_format($file['count']) ?> files (<?= $file['size_formatted'] ?>)</span>
+                                    <?php else: ?>
+                                        <span class="text-sm"><?= $file['size_formatted'] ?></span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-tertiary">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if (isset($file['format'])): ?>
+                                    <span class="badge <?= $file['format'] === 'igbinary' ? 'badge-success' : 'badge-muted' ?>"><?= $file['format'] ?></span>
+                                <?php elseif (str_ends_with($file['filename'], '.json')): ?>
+                                    <span class="badge badge-muted">json</span>
+                                <?php elseif (str_ends_with($file['filename'], '.sqlite')): ?>
+                                    <span class="badge badge-accent">sqlite</span>
+                                <?php elseif (str_ends_with($file['filename'], '/')): ?>
+                                    <span class="badge badge-muted">html</span>
+                                <?php else: ?>
+                                    <span class="text-tertiary">—</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ($file['modified']): ?>
+                                    <span class="text-xs text-tertiary"><?= $file['modified'] ?></span>
+                                <?php else: ?>
+                                    <span class="text-tertiary">—</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- PHP Extensions Checklist -->
         <div class="card mt-4">
             <div class="card-header">
@@ -433,7 +505,11 @@ $activePage = 'system';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($debugInfo['recent_errors'] as $error): ?>
+                        <?php foreach ($debugInfo['recent_errors'] as $error): 
+                            $hasTrace = str_contains($error['message'], "\n");
+                            $mainMessage = $hasTrace ? explode("\n", $error['message'])[0] : $error['message'];
+                            $trace = $hasTrace ? implode("\n", array_slice(explode("\n", $error['message']), 1)) : '';
+                        ?>
                         <tr>
                             <td><code class="text-xs"><?= htmlspecialchars($error['time']) ?></code></td>
                             <td>
@@ -444,7 +520,15 @@ $activePage = 'system';
                                     default => 'badge-muted',
                                 } ?>"><?= htmlspecialchars($error['level']) ?></span>
                             </td>
-                            <td><code class="text-xs" style="word-break: break-all;"><?= htmlspecialchars($error['message']) ?></code></td>
+                            <td>
+                                <code class="text-xs" style="word-break: break-all;"><?= htmlspecialchars($mainMessage) ?></code>
+                                <?php if ($hasTrace): ?>
+                                <details style="margin-top: var(--sp-2);">
+                                    <summary class="text-xs text-tertiary" style="cursor: pointer;">Stack trace</summary>
+                                    <pre class="text-xs text-tertiary" style="margin-top: var(--sp-1); white-space: pre-wrap; font-size: 10px;"><?= htmlspecialchars($trace) ?></pre>
+                                </details>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>

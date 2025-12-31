@@ -211,9 +211,7 @@ The core admin dashboard is primarily **read-only** for safety:
 - ✅ Lint content files for errors
 - ✅ View logs and diagnostics
 
-**Important:** Plugins can extend admin functionality. For example:
-- The bundled **redirects plugin** adds a management interface to create/edit redirects
-- Third-party plugins may add their own admin panels with various capabilities
+**Important:** Plugins can extend admin functionality that may include create/update/delete capabilities (like managing config, content and routes). Always review plugin code and permissions before enabling them.
 
 **What core admin does not do:**
 - ❌ Edit content files directly (your Markdown files remain the source of truth)
