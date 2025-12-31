@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 
 // Ava version (CalVer: YY.0M.MICRO - e.g., 25.12.1 = first release of Dec 2025)
-define('AVA_VERSION', '25.12.2');
+define('AVA_VERSION', '25.12.3');
 
 // Ensure we have a root constant
 if (!defined('AVA_ROOT')) {
