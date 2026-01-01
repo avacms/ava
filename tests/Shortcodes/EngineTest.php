@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace Ava\Tests\Shortcodes;
 
-use Ava\Application;
 use Ava\Shortcodes\Engine;
 use Ava\Testing\TestCase;
 
 /**
  * Tests for the Shortcode Engine.
- *
- * Note: These tests require the Application to be initialized.
- * They test the shortcode engine using the actual application context.
  */
 final class EngineTest extends TestCase
 {
@@ -20,8 +16,7 @@ final class EngineTest extends TestCase
 
     public function setUp(): void
     {
-        // Get the already-initialized application
-        $this->engine = Application::getInstance()->shortcodes();
+        $this->engine = $this->app->shortcodes();
     }
 
     // =========================================================================
@@ -74,14 +69,14 @@ final class EngineTest extends TestCase
     public function testSiteNameShortcodeReturnsSiteName(): void
     {
         $result = $this->engine->process('[site_name]');
-        $expected = Application::getInstance()->config('site.name', '');
+        $expected = $this->app->config('site.name', '');
         $this->assertEquals($expected, $result);
     }
 
     public function testSiteUrlShortcodeReturnsSiteUrl(): void
     {
         $result = $this->engine->process('[site_url]');
-        $expected = Application::getInstance()->config('site.base_url', '');
+        $expected = $this->app->config('site.base_url', '');
         $this->assertEquals($expected, $result);
     }
 

@@ -19,12 +19,12 @@ When you run [`./ava rebuild`](cli.md?id=rebuild) (or when Ava auto-detects chan
 
 1. **Scans** all your Markdown files
 2. **Parses** frontmatter and extracts metadata
-3. **Builds** an optimized index for fast lookups
+3. **Builds** an optimised index for fast lookups
 4. **Stores** the index in your chosen backend format
 
 ### Index Files
 
-Ava generates several files in `storage/cache/` to optimize different types of queries:
+Ava generates several files in `storage/cache/` to optimise different types of queries:
 
 | File | Contents | Purpose |
 |------|----------|---------|
@@ -141,7 +141,7 @@ Benchmarks were run using the built-in Ava CLI tools.
 
 ### Analysis
 
-- **Homepage:** Array backends are instant because they use the "Recent Cache" optimization. SQLite is slightly slower as it must query the database.
+- **Homepage:** Array backends are instant because they use the "Recent Cache" optimisation. SQLite is slightly slower as it must query the database.
 - **Counts:** SQLite is the clear winner for counting items (e.g. `{{ count('post') }}`).
 - **Single Item:** SQLite is extremely fast (~1ms) for looking up a post by slug, whereas Array backends must load the lookup table into memory.
 - **Deep Archives:** Array + igbinary remains faster than SQLite even at 100k posts, *provided you have enough RAM* to load the 54MB index.
@@ -149,7 +149,7 @@ Benchmarks were run using the built-in Ava CLI tools.
 
 ### Why isn't SQLite faster?
 
-You might expect a database to be faster than a file-based array, but PHP's arrays are incredibly optimized in-memory structures.
+You might expect a database to be faster than a file-based array, but PHP's arrays are incredibly optimised in-memory structures.
 
 - **Array Backend:** Loads the *entire* dataset into RAM. Sorting and filtering happen instantly in memory.
 - **SQLite:** Must read from disk (or OS cache) and parse records.
@@ -219,7 +219,7 @@ Configure your index and caching in `app/config/ava.php`:
 
 #### Mode Comparison
 
-| Mode | Use Case | Behavior |
+| Mode | Use Case | Behaviour |
 |------|----------|----------|
 | `auto` | Most sites | Automatically rebuilds index when files change. Slight latency on first request after changes. |
 | `never` | Production / High traffic | Manual rebuild via CLI only. Fastest requests. Best for scheduled deployments. |

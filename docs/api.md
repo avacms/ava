@@ -19,8 +19,8 @@ return [
         $router = $app->router();
         
         // Endpoint: /api/posts
-        $router->addRoute('/api/posts', function() {
-            $repo = \Ava\Application::getInstance()->repository();
+        $router->addRoute('/api/posts', function() use ($app) {
+            $repo = $app->repository();
             $posts = $repo->published('post');
             
             // Return JSON response
@@ -58,11 +58,11 @@ $router->addRoute('/api/custom', function($request, $params) {
 ### Route with Parameters
 
 ```php
-$router->addRoute('/api/content/{type}/{slug}', function($request, $params) {
+$router->addRoute('/api/content/{type}/{slug}', function($request, $params) use ($app) {
     $type = $params['type'];
     $slug = $params['slug'];
     
-    $repo = \Ava\Application::getInstance()->repository();
+    $repo = $app->repository();
     $item = $repo->get($type, $slug);
     
     // Return JSON...
@@ -96,31 +96,34 @@ $router->addPrefixRoute('/api/v2/', function($request, $params) {
 ### API Key Authentication
 
 ```php
-function authenticateApiRequest($request): bool {
-    $apiKey = $request->header('X-API-Key') 
-           ?? $request->query('api_key');
+// In your plugin's boot function:
+'boot' => function($app) {
+    $router = $app->router();
     
-    $validKeys = \Ava\Application::getInstance()
-        ->config('api.keys', []);
-    
-    return in_array($apiKey, $validKeys, true);
-}
+    $authenticateRequest = function($request) use ($app): bool {
+        $apiKey = $request->header('X-API-Key') 
+               ?? $request->query('api_key');
+        
+        $validKeys = $app->config('api.keys', []);
+        
+        return in_array($apiKey, $validKeys, true);
+    };
 
-// In your route:
-$router->addRoute('/api/private', function($request) {
-    if (!authenticateApiRequest($request)) {
-        return new \Ava\Routing\RouteMatch(
-            type: 'api',
-            template: '__raw__',
-            params: ['response' => \Ava\Http\Response::json(
-                ['error' => 'Unauthorized'],
-                401
-            )]
-        );
-    }
-    
-    // Handle authenticated request...
-});
+    $router->addRoute('/api/private', function($request) use ($authenticateRequest) {
+        if (!$authenticateRequest($request)) {
+            return new \Ava\Routing\RouteMatch(
+                type: 'api',
+                template: '__raw__',
+                params: ['response' => \Ava\Http\Response::json(
+                    ['error' => 'Unauthorized'],
+                    401
+                )]
+            );
+        }
+        
+        // Handle authenticated request...
+    });
+};
 ```
 
 ### Config for API Keys
@@ -140,11 +143,11 @@ return [
 ## Pagination
 
 ```php
-$router->addRoute('/api/posts', function($request) {
+$router->addRoute('/api/posts', function($request) use ($app) {
     $page = max(1, (int) $request->query('page', 1));
     $perPage = min(100, max(1, (int) $request->query('per_page', 10)));
     
-    $repo = \Ava\Application::getInstance()->repository();
+    $repo = $app->repository();
     $allPosts = $repo->published('post');
     
     // Sort by date
@@ -177,8 +180,8 @@ $router->addRoute('/api/posts', function($request) {
 
 ```php
 // List all categories
-$router->addRoute('/api/categories', function($request) {
-    $repo = \Ava\Application::getInstance()->repository();
+$router->addRoute('/api/categories', function($request) use ($app) {
+    $repo = $app->repository();
     $terms = $repo->terms('category');
     
     return jsonResponse(array_map(fn($term) => [
@@ -189,11 +192,11 @@ $router->addRoute('/api/categories', function($request) {
 });
 
 // Posts by category
-$router->addRoute('/api/categories/{slug}/posts', function($request, $params) {
-    $repo = \Ava\Application::getInstance()->repository();
-    $posts = $repo->query('post')
+$router->addRoute('/api/categories/{slug}/posts', function($request, $params) use ($app) {
+    $posts = $app->query()
+        ->type('post')
         ->published()
-        ->whereTerm('category', $params['slug'])
+        ->whereTax('category', $params['slug'])
         ->get();
     
     return jsonResponse(array_map(fn($p) => [
@@ -208,7 +211,7 @@ $router->addRoute('/api/categories/{slug}/posts', function($request, $params) {
 The Query class has built-in search with relevance scoring:
 
 ```php
-$router->addRoute('/api/search', function($request) {
+$router->addRoute('/api/search', function($request) use ($app) {
     $query = trim($request->query('q', ''));
     
     if (strlen($query) < 2) {
@@ -217,8 +220,6 @@ $router->addRoute('/api/search', function($request) {
             'message' => 'Query too short',
         ]);
     }
-    
-    $app = \Ava\Application::getInstance();
     
     // Search posts with built-in relevance scoring
     $searchQuery = $app->query()

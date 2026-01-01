@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ava\Testing;
 
+use Ava\Application;
+
 /**
  * Lightweight Test Runner
  *
@@ -23,6 +25,7 @@ final class TestRunner
     private const DIM = "\033[90m";
     private const BOLD = "\033[1m";
 
+    private Application $app;
     private int $passed = 0;
     private int $failed = 0;
     private int $skipped = 0;
@@ -31,8 +34,9 @@ final class TestRunner
     private bool $quiet = false;
     private ?string $filter = null;
 
-    public function __construct(bool $verbose = false, ?string $filter = null, bool $quiet = false)
+    public function __construct(Application $app, bool $verbose = false, ?string $filter = null, bool $quiet = false)
     {
+        $this->app = $app;
         $this->verbose = $verbose;
         $this->filter = $filter;
         $this->quiet = $quiet;
@@ -175,6 +179,11 @@ final class TestRunner
             }
 
             $instance = $reflection->newInstance();
+            
+            // Inject app if this is a TestCase
+            if ($instance instanceof TestCase) {
+                $instance->setApp($this->app);
+            }
         } catch (\Throwable $e) {
             $this->failures[] = [
                 'test' => $className,

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ava\Testing;
 
+use Ava\Application;
+
 /**
  * Base Test Case
  *
@@ -12,6 +14,16 @@ namespace Ava\Testing;
  */
 abstract class TestCase
 {
+    protected Application $app;
+
+    /**
+     * Inject the application instance.
+     */
+    public function setApp(Application $app): void
+    {
+        $this->app = $app;
+    }
+
     /**
      * Set up before each test method.
      */
@@ -263,6 +275,46 @@ abstract class TestCase
     }
 
     /**
+     * Assert that a value is greater than or equal to another.
+     */
+    protected function assertGreaterThanOrEqual(mixed $expected, mixed $actual, string $message = ''): void
+    {
+        if ($actual < $expected) {
+            $this->fail($message ?: "Expected value >= {$expected}, got {$actual}");
+        }
+    }
+
+    /**
+     * Assert that a value is less than or equal to another.
+     */
+    protected function assertLessThanOrEqual(mixed $expected, mixed $actual, string $message = ''): void
+    {
+        if ($actual > $expected) {
+            $this->fail($message ?: "Expected value <= {$expected}, got {$actual}");
+        }
+    }
+
+    /**
+     * Assert that a value is an integer.
+     */
+    protected function assertIsInt(mixed $actual, string $message = ''): void
+    {
+        if (!is_int($actual)) {
+            $this->fail($message ?: "Expected integer, got " . gettype($actual));
+        }
+    }
+
+    /**
+     * Assert that a value is a boolean.
+     */
+    protected function assertIsBool(mixed $actual, string $message = ''): void
+    {
+        if (!is_bool($actual)) {
+            $this->fail($message ?: "Expected boolean, got " . gettype($actual));
+        }
+    }
+
+    /**
      * Assert that a callable throws an exception.
      */
     protected function assertThrows(string $exceptionClass, callable $callback, string $message = ''): void
@@ -299,6 +351,16 @@ abstract class TestCase
     protected function skip(string $reason = ''): void
     {
         throw new SkippedException($reason ?: 'Test skipped');
+    }
+
+    /**
+     * Mark the current test as skipped.
+     * 
+     * Alias for skip() with more descriptive name.
+     */
+    protected function markSkipped(string $reason = ''): void
+    {
+        $this->skip($reason);
     }
 
     /**

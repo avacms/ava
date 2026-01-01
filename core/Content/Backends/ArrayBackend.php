@@ -549,7 +549,7 @@ final class ArrayBackend implements BackendInterface
             $unserialize = 'igbinary_unserialize';
             $data = @$unserialize($payload);
         } elseif ($prefix === 'SZ:') {
-            $data = @unserialize($payload);
+            $data = @unserialize($payload, ['allowed_classes' => false]);
         } else {
             // Invalid format - cache needs rebuild
             return [];

@@ -138,6 +138,19 @@ final class Response
             $this->headers['Content-Type'] = 'text/html; charset=utf-8';
         }
 
+        // Add security headers if not already set
+        $securityHeaders = [
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'SAMEORIGIN',
+            'Referrer-Policy' => 'strict-origin-when-cross-origin',
+        ];
+
+        foreach ($securityHeaders as $name => $value) {
+            if (!isset($this->headers[$name])) {
+                $this->headers[$name] = $value;
+            }
+        }
+
         // Send headers
         foreach ($this->headers as $name => $value) {
             header("{$name}: {$value}");

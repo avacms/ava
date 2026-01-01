@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Ava\Routing;
 
 use Ava\Application;
-use Ava\Content\Query;
 use Ava\Http\Request;
 use Ava\Http\Response;
 use Ava\Plugins\Hooks;
@@ -16,13 +15,15 @@ use Ava\Plugins\Hooks;
  * Matches incoming requests to routes.
  *
  * Matching order:
- * 1. Redirects (from redirect_from)
- * 2. Exact routes
- * 3. System routes (registered by plugins/app)
- * 4. Prefix routes
- * 5. Type pattern routes
- * 6. Taxonomy archive routes
- * 7. 404
+ * 1. Hook interception (router.before_match filter)
+ * 2. Trailing slash redirect (canonical URL enforcement)
+ * 3. Redirects (from redirect_from frontmatter)
+ * 4. System routes (registered at runtime via addRoute)
+ * 5. Exact routes (from content cache)
+ * 6. Preview mode (for draft content with valid token)
+ * 7. Prefix routes (registered via addPrefixRoute)
+ * 8. Taxonomy routes (archive and term pages)
+ * 9. 404 (no match)
  */
 final class Router
 {
@@ -245,7 +246,7 @@ final class Router
         }
 
         if ($type === 'archive') {
-            $query = (new Query($this->app))
+            $query = $this->app->query()
                 ->type($routeData['content_type'])
                 ->published()
                 ->fromParams($request->query());
@@ -296,7 +297,7 @@ final class Router
         $config = $repository->taxonomyConfig($taxonomy);
 
         // Build query for items with this term
-        $query = (new Query($this->app))
+        $query = $this->app->query()
             ->published()
             ->whereTax($taxonomy, $termPath)
             ->fromParams($request->query());

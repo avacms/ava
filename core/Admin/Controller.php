@@ -883,7 +883,7 @@ JS;
         $logLine = "[{$timestamp}] {$level}: {$message}";
         
         if ($includeClientInfo) {
-            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             // Take first IP if comma-separated (X-Forwarded-For)
             if (str_contains($ip, ',')) {
                 $ip = trim(explode(',', $ip)[0]);

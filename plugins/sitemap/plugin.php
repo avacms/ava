@@ -210,8 +210,7 @@ return [
         [
             'name' => 'sitemap:stats',
             'description' => 'Show sitemap statistics',
-            'handler' => function (array $args, $cli) {
-                $app = \Ava\Application::getInstance();
+            'handler' => function (array $args, $cli, \Ava\Application $app) {
                 $repository = $app->repository();
                 $types = $repository->types();
                 $baseUrl = rtrim($app->config('site.base_url', ''), '/');

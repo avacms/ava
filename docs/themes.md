@@ -52,7 +52,7 @@ You decide how much custom PHP to use: none for simple pages, or more for dynami
 
 It’s called a **short echo tag** and is **always enabled in modern PHP**.
 
-⚠️ It does **not** escape output automatically, use `htmlspecialchars()` or `$ava->e()` for user-provided data.
+⚠️ It does **not** escape output automatically. Use `htmlspecialchars()` or `$ava->e()` when outputting user-provided data to prevent XSS attacks.
 
 **Don’t confuse it with `<? ?>`:**  
 That older shorthand (without the `=`) is discouraged and disabled by default.  As long as you include the `=`, you’re using the correct syntax.
@@ -622,7 +622,7 @@ For archives and taxonomy pages:
 
 ## Theme Bootstrap
 
-`theme.php` runs when your theme loads. Use it for hooks, shortcodes, and custom routes:
+`theme.php` runs when your theme loads. It should return a function that receives the application instance. Use it for hooks, shortcodes, and custom routes:
 
 ```php
 <?php
@@ -631,37 +631,52 @@ For archives and taxonomy pages:
 use Ava\Application;
 use Ava\Plugins\Hooks;
 
-$app = Application::getInstance();
+return function (Application $app): void {
+    // Register shortcodes
+    $app->shortcodes()->register('theme_version', fn() => '1.0.0');
 
-// Register shortcodes
-$app->shortcodes()->register('theme_version', fn() => '1.0.0');
+    // Add data to all templates
+    Hooks::addFilter('render.context', function (array $context) {
+        $context['social_links'] = [
+            'twitter' => 'https://twitter.com/yoursite',
+            'github' => 'https://github.com/yoursite',
+        ];
+        return $context;
+    });
 
-// Add data to all templates
-Hooks::addFilter('render.context', function (array $context) {
-    $context['social_links'] = [
-        'twitter' => 'https://twitter.com/yoursite',
-        'github' => 'https://github.com/yoursite',
-    ];
-    return $context;
-});
-
-// Custom route
-$app->router()->addRoute('/search', function ($request) use ($app) {
-    // Handle search...
-});
+    // Custom route
+    $app->router()->addRoute('/search', function ($request) use ($app) {
+        // Handle search...
+    });
+};
 ```
 
-### Organizing Larger Themes
+### Organising Larger Themes
 
-If your `theme.php` grows unwieldy, split it into multiple files:
+If your `theme.php` grows unwieldy, split it into multiple files. Pass `$app` to each include:
 
 ```php
 <?php
 // themes/yourtheme/theme.php
 
-require __DIR__ . '/inc/shortcodes.php';
-require __DIR__ . '/inc/hooks.php';
-require __DIR__ . '/inc/routes.php';
+return function (\Ava\Application $app): void {
+    (require __DIR__ . '/inc/shortcodes.php')($app);
+    (require __DIR__ . '/inc/hooks.php')($app);
+    (require __DIR__ . '/inc/routes.php')($app);
+};
 ```
 
-This keeps your theme organized while maintaining portability—everything travels with your theme folder.
+Each included file follows the same pattern:
+
+```php
+<?php
+// themes/yourtheme/inc/shortcodes.php
+
+return function (\Ava\Application $app): void {
+    $app->shortcodes()->register('button', function (array $attrs, ?string $content) {
+        // ...
+    });
+};
+```
+
+This keeps your theme organised while maintaining portability—everything travels with your theme folder.

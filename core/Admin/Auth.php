@@ -251,23 +251,15 @@ final class Auth
 
     /**
      * Get the client IP address.
+     * 
+     * Only uses REMOTE_ADDR for security - proxy headers can be spoofed.
      */
     private function getClientIp(): string
     {
-        // Check common proxy headers
-        $headers = ['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'];
-
-        foreach ($headers as $header) {
-            if (!empty($_SERVER[$header])) {
-                // X-Forwarded-For may contain multiple IPs, take the first one
-                $ip = explode(',', $_SERVER[$header])[0];
-                $ip = trim($ip);
-
-                // Validate IP
-                if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                    return $ip;
-                }
-            }
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return $ip;
         }
 
         return '0.0.0.0';

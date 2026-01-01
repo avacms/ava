@@ -60,7 +60,7 @@ Useful for CI/CD pipelines or when you just want to know if tests pass.
 
 ## Test Structure
 
-Tests live in the `tests/` directory, organized by component:
+Tests live in the `tests/` directory, organised by component:
 
 ```
 tests/
@@ -127,7 +127,7 @@ final class StrTest extends TestCase
 - Test files must end with `Test.php`
 - Test classes must extend `TestCase`
 - Test methods must be `public` and start with `test`
-- Use `setUp()` for per-test initialization
+- Use `setUp()` for per-test initialisation
 - Use `tearDown()` for cleanup
 
 ### Available Assertions
@@ -185,7 +185,7 @@ The test suite focuses on **unit testing core utilities** that have no external 
 - **Parsing** (`Parser`) - Frontmatter/Markdown extraction
 - **Hooks system** - Filter/action registration and execution
 - **Shortcodes** - Tag parsing and callback execution
-- **Markdown** - CommonMark rendering behavior
+- **Markdown** - CommonMark rendering behaviour
 - **Config access** - Dot-notation array access patterns
 
 Classes that require `Application` context (like `Query`, `Repository`, `PageCache`) are tested through the CLI commands and manual verification rather than unit tests.

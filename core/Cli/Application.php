@@ -54,9 +54,9 @@ final class Application
   ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀
 ASCII;
 
-    public function __construct()
+    public function __construct(AvaApp $app)
     {
-        $this->app = AvaApp::getInstance();
+        $this->app = $app;
         $this->registerCommands();
         $this->registerPluginCommands();
     }
@@ -137,16 +137,17 @@ ASCII;
      * plugin.php return array. Each command should be an array with:
      * - 'name': Command name (e.g., 'sitemap:stats')
      * - 'description': Command description for help
-     * - 'handler': Callable that receives $args array and returns exit code
+     * - 'handler': Callable that receives ($args, $cli, $app) and returns exit code
      * 
      * @example
      * return [
      *     'name' => 'My Plugin',
      *     'commands' => [
-     *         'myplugin:status' => [
+     *         [
+     *             'name' => 'myplugin:status',
      *             'description' => 'Show plugin status',
-     *             'handler' => function($args) use ($app) {
-     *                 echo "Plugin is running!\n";
+     *             'handler' => function($args, $cli, $app) {
+     *                 $cli->info("Plugin is running!");
      *                 return 0;
      *             },
      *         ],
@@ -175,9 +176,9 @@ ASCII;
                     continue;
                 }
 
-                // Store the command with plugin context
+                // Store the command with plugin context - pass $app as third argument
                 $this->commands[$cmdName] = function ($args) use ($cmdConfig) {
-                    return $cmdConfig['handler']($args, $this);
+                    return $cmdConfig['handler']($args, $this, $this->app);
                 };
 
                 // Store command metadata for help display
@@ -1052,7 +1053,7 @@ ASCII;
         require_once $this->app->path('core/Testing/TestCase.php');
         require_once $this->app->path('core/Testing/TestRunner.php');
 
-        $runner = new \Ava\Testing\TestRunner($verbose, $filter, $quiet);
+        $runner = new \Ava\Testing\TestRunner($this->app, $verbose, $filter, $quiet);
         return $runner->run($testsPath);
     }
 

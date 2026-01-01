@@ -134,14 +134,23 @@ final class Item
     }
 
     /**
-     * Get or set the HTML content (set after Markdown rendering).
+     * Get the HTML content.
      */
-    public function html(?string $html = null): ?string
+    public function html(): ?string
     {
-        if ($html !== null) {
-            $this->htmlContent = $html;
-        }
         return $this->htmlContent;
+    }
+
+    /**
+     * Return a new Item with the HTML content set.
+     * 
+     * This maintains immutability - the original item is unchanged.
+     */
+    public function withHtml(string $html): self
+    {
+        $clone = clone $this;
+        $clone->htmlContent = $html;
+        return $clone;
     }
 
     // === Metadata ===

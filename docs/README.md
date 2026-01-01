@@ -24,11 +24,11 @@ Ava is designed for people who love the web. It sits in the sweet spot between a
 
 | Feature | What it does for you |
 |---------|-------------|
-| **Content&nbsp;Types** | [Define](content_types.md) exactly what you're publishing (Pages, Posts, Projects, etc.). |
-| **Taxonomies** | [Organize](taxonomies.md) content your way with custom categories, tags, or collections. |
+| **Content&nbsp;Types** | [Define](configuration.md?id=content-types-content_typesphp) exactly what you're publishing (Pages, Posts, Projects, etc.). |
+| **Taxonomies** | [Organise](configuration.md?id=taxonomies-taxonomiesphp) content your way with custom categories, tags, or collections. |
 | **Smart&nbsp;Routing** | URLs are generated [automatically](routing.md) based on your content structure. |
 | **Themes** | Write standard HTML and CSS however you prefer, use PHP and Ava's [helpers](themes.md) only where you need dynamic data. |
-| **Plugins** | Add [functionality](plugins.md) like sitemaps and feeds without bloat. |
+| **Plugins** | Add [functionality](creating-plugins.md) like sitemaps and feeds without bloat. |
 | **Speed** | Built-in page [caching](performance.md) makes your site load instantly, even on cheap hosting. |
 | **Search** | Full-text search across your content with [configurable](configuration.md?id=search-configuration) weights. |
 | **CLI Tool** | Manage your site from the [command line](cli.md): clear caches, create users, run tests, and more. |

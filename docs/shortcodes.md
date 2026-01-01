@@ -36,19 +36,21 @@ Register shortcodes in your `theme.php`:
 
 use Ava\Application;
 
-$shortcodes = Application::getInstance()->shortcodes();
+return function (Application $app): void {
+    $shortcodes = $app->shortcodes();
 
-// Self-closing shortcode
-$shortcodes->register('greeting', function (array $attrs) {
-    $name = $attrs['name'] ?? 'friend';
-    return "Hello, " . htmlspecialchars($name) . "!";
-});
+    // Self-closing shortcode
+    $shortcodes->register('greeting', function (array $attrs) {
+        $name = $attrs['name'] ?? 'friend';
+        return "Hello, " . htmlspecialchars($name) . "!";
+    });
 
-// Paired shortcode (receives content)
-$shortcodes->register('highlight', function (array $attrs, ?string $content) {
-    $color = $attrs['color'] ?? 'yellow';
-    return '<mark style="background:' . htmlspecialchars($color) . '">' . $content . '</mark>';
-});
+    // Paired shortcode (receives content)
+    $shortcodes->register('highlight', function (array $attrs, ?string $content) {
+        $color = $attrs['color'] ?? 'yellow';
+        return '<mark style="background:' . htmlspecialchars($color) . '">' . $content . '</mark>';
+    });
+};
 ```
 
 Usage:
@@ -68,7 +70,7 @@ Usage:
 
 ### Best Practices
 
-- **Escape output** — Use `htmlspecialchars()` or `$ava->e()` for user-provided values
+- **Escape output** — Always use `htmlspecialchars()` or `$ava->e()` for user-provided values to prevent XSS attacks
 - **Return strings** — Shortcodes must return a string (the replacement HTML)
 - **Keep it simple** — Complex shortcodes are better as snippets (see below)
 - **Name carefully** — Shortcode names are case-insensitive, use underscores for multi-word names
@@ -90,11 +92,16 @@ For more complex components, use snippets. A snippet is a PHP file in your `snip
 
 ```php
 <?php // snippets/cta.php ?>
+<?php
+$heading = $params['heading'] ?? 'Ready to get started?';
+$button = $params['button'] ?? 'Learn More';
+$url = $params['url'] ?? '/contact';
+?>
 <div class="cta-box">
-    <h3><?= htmlspecialchars($heading ?? 'Ready to get started?') ?></h3>
+    <h3><?= htmlspecialchars($heading) ?></h3>
     <p><?= $content ?></p>
-    <a href="<?= htmlspecialchars($url ?? '/contact') ?>" class="button">
-        <?= htmlspecialchars($button ?? 'Learn More') ?>
+    <a href="<?= htmlspecialchars($url) ?>" class="button">
+        <?= htmlspecialchars($button) ?>
     </a>
 </div>
 ```
@@ -112,18 +119,18 @@ Get weekly tips delivered to your inbox.
 | Variable | Description |
 |----------|-------------|
 | `$content` | Text between opening/closing tags |
-| `$name` | The snippet name |
-| `$attrs` | Array of all attributes |
-| `$heading`, `$url`, etc. | Individual attributes as variables |
+| `$params` | Array of all attributes (e.g., `$params['heading']`) |
 | `$ava` | TemplateHelpers instance (for `$ava->e()`, `$ava->url()`, etc.) |
+| `$app` | Application instance |
 
 ### Example Snippets
 
 **YouTube Embed:**
 ```php
 <?php // snippets/youtube.php ?>
+<?php $id = $params['id'] ?? ''; ?>
 <div class="video-embed" style="aspect-ratio: 16/9;">
-    <iframe src="https://www.youtube.com/embed/<?= $ava->e($id ?? '') ?>" 
+    <iframe src="https://www.youtube.com/embed/<?= $ava->e($id) ?>" 
             frameborder="0" allowfullscreen style="width:100%;height:100%;"></iframe>
 </div>
 ```
@@ -134,10 +141,11 @@ Usage: `[snippet name="youtube" id="dQw4w9WgXcQ"]`
 ```php
 <?php // snippets/notice.php ?>
 <?php
+$type = $params['type'] ?? 'info';
 $icons = ['info' => '💡', 'warning' => '⚠️', 'success' => '✅', 'error' => '❌'];
-$icon = $icons[$type ?? 'info'] ?? '💡';
+$icon = $icons[$type] ?? '💡';
 ?>
-<div class="notice notice-<?= $ava->e($type ?? 'info') ?>">
+<div class="notice notice-<?= $ava->e($type) ?>">
     <span><?= $icon ?></span>
     <div><?= $content ?></div>
 </div>
@@ -153,15 +161,21 @@ This feature is experimental.
 **Pricing Card:**
 ```php
 <?php // snippets/pricing.php ?>
+<?php
+$plan = $params['plan'] ?? 'Plan';
+$price = $params['price'] ?? '$0';
+$features = $params['features'] ?? '';
+$url = $params['url'] ?? '#';
+?>
 <div class="pricing-card">
-    <h3><?= $ava->e($plan ?? 'Plan') ?></h3>
-    <div class="price"><?= $ava->e($price ?? '$0') ?><span>/month</span></div>
+    <h3><?= $ava->e($plan) ?></h3>
+    <div class="price"><?= $ava->e($price) ?><span>/month</span></div>
     <ul>
-        <?php foreach (explode(',', $features ?? '') as $feature): ?>
+        <?php foreach (explode(',', $features) as $feature): ?>
             <li><?= $ava->e(trim($feature)) ?></li>
         <?php endforeach; ?>
     </ul>
-    <a href="<?= $ava->e($url ?? '#') ?>" class="button">Get Started</a>
+    <a href="<?= $ava->e($url) ?>" class="button">Get Started</a>
 </div>
 ```
 
@@ -175,7 +189,7 @@ Usage: `[snippet name="pricing" plan="Pro" price="$29" features="Unlimited proje
 
 Since shortcodes run after Markdown processing, they can safely output raw HTML.
 
-## Organizing Your Theme
+## Organising Your Theme
 
 If your `theme.php` grows large, split it up:
 
@@ -183,21 +197,23 @@ If your `theme.php` grows large, split it up:
 <?php
 // themes/yourtheme/theme.php
 
-require __DIR__ . '/inc/shortcodes.php';
-require __DIR__ . '/inc/hooks.php';
+return function (\Ava\Application $app): void {
+    (require __DIR__ . '/inc/shortcodes.php')($app);
+    (require __DIR__ . '/inc/hooks.php')($app);
+};
 ```
 
 ```php
 <?php
 // themes/yourtheme/inc/shortcodes.php
 
-use Ava\Application;
+return function (\Ava\Application $app): void {
+    $shortcodes = $app->shortcodes();
 
-$shortcodes = Application::getInstance()->shortcodes();
-
-$shortcodes->register('button', function (array $attrs, ?string $content) {
-    // ...
-});
+    $shortcodes->register('button', function (array $attrs, ?string $content) {
+        // ...
+    });
+};
 ```
 
 ## Security

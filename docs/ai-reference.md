@@ -193,13 +193,15 @@ Debug configuration in `app/config/ava.php`:
 
 Routes are resolved in this order:
 
-1. Trailing slash redirect (if enabled)
-2. `redirect_from` frontmatter redirects (301)
-3. System routes (runtime-registered by core/plugins)
-4. Exact routes (from content)
-5. Prefix routes (e.g., `/blog/*`)
-6. Taxonomy routes (e.g., `/tag/php`)
-7. 404 handler
+1. Hook interception (`router.before_match` filter)
+2. Trailing slash redirect (canonical URL enforcement)
+3. `redirect_from` frontmatter redirects (301)
+4. System routes (runtime-registered via `addRoute()`)
+5. Exact routes (from content cache)
+6. Preview mode (draft content with valid token)
+7. Prefix routes (runtime-registered via `addPrefixRoute()`)
+8. Taxonomy routes (e.g., `/category/php`)
+9. 404 handler
 
 **Route caching:** All routes are compiled and cached in `storage/cache/routes.bin`
 
@@ -248,7 +250,7 @@ Markdown content here. **Bold**, *italic*, [links](/url).
 - `tag` / `tags` — Additional taxonomy (singular or array)
 - Custom taxonomies defined in config
 
-**Custom fields:** Any YAML key not recognized as core field is stored as custom metadata
+**Custom fields:** Any YAML key not recognised as core field is stored as custom metadata
 
 ---
 
@@ -374,19 +376,18 @@ tutorials:
 The Query class provides a fluent interface for retrieving content:
 
 ```php
-use Ava\Content\Query;
-
-$query = (new Query($app))
+// Via Application (recommended in plugins/routes)
+$query = $app->query()
     ->type('post')                        // Content type
     ->published()                         // Only published items
-    ->whereTax('categories', 'tutorials') // Taxonomy filter
+    ->whereTax('category', 'tutorials')   // Taxonomy filter
     ->orderBy('date', 'desc')             // Sort by date
     ->perPage(10)                         // Results per page
     ->page(1);                            // Current page
 
 // Execute and get results
-$items = $query->get();      // Array of Item objects
-$count = $query->count();    // Total matching items (before pagination)
+$items = $query->get();       // Array of Item objects
+$count = $query->count();     // Total matching items (before pagination)
 $hasMore = $query->hasMore(); // Has more pages?
 ```
 
@@ -455,7 +456,8 @@ $item->updated()      // Last modified (falls back to date)
 
 // Content
 $item->rawContent()   // Raw Markdown body
-$item->html()         // Rendered HTML (after processing)
+$item->html()         // Rendered HTML (if set via withHtml)
+$item->withHtml($html) // Return new Item with HTML set (immutable)
 $item->excerpt()      // Short description
 
 // Taxonomies
@@ -530,15 +532,19 @@ $ava->partial($name, $vars)     // Include partial
 $ava->url($type, $slug)         // URL for content item
 $ava->termUrl($tax, $slug)      // URL for taxonomy term
 $ava->asset($path)              // Theme asset with cache-busting
+$ava->fullUrl($path)            // Full absolute URL
+$ava->baseUrl()                 // Site base URL
 ```
 
 **Utilities:**
 ```php
 $ava->metaTags($item)           // SEO meta tags HTML
+$ava->itemAssets($item)         // Per-item CSS/JS tags
 $ava->pagination($query)        // Pagination HTML
 $ava->recent($type, $limit)     // Recent items
 $ava->e($string)                // HTML escape
 $ava->date($date, $format)      // Format date
+$ava->ago($date)                // Relative time ("2 days ago")
 $ava->config($key, $default)    // Config value
 $ava->expand($path)             // Expand path alias
 ```
@@ -559,20 +565,22 @@ Shortcodes are processed **after** Markdown rendering. They allow dynamic conten
 [site_url]                # Site URL
 ```
 
-**Custom shortcodes** in `theme.php`:
+**Custom shortcodes** in `theme.php` (receives `$app`):
 
 ```php
 use Ava\Application;
 
-$shortcodes = Application::getInstance()->shortcodes();
+return function (Application $app): void {
+    $shortcodes = $app->shortcodes();
 
-// Self-closing shortcode
-$shortcodes->register('year', fn() => date('Y'));
+    // Self-closing shortcode
+    $shortcodes->register('year', fn() => date('Y'));
 
-// Paired shortcode
-$shortcodes->register('highlight', fn($attrs, $content) => "<mark>{$content}</mark>");
+    // Paired shortcode
+    $shortcodes->register('highlight', fn($attrs, $content) => "<mark>{$content}</mark>");
 
-// Usage: [highlight]Important text[/highlight]
+    // Usage: [highlight]Important text[/highlight]
+};
 ```
 
 **Snippet shortcodes:**
@@ -799,7 +807,7 @@ final class MyTest extends TestCase
 Optional read-only dashboard (disabled by default):
 
 - Enable via `admin.enabled: true` in config
-- Access at `/admin` (customizable)
+- Access at `/admin` (customisable)
 - Bcrypt-hashed passwords in `app/config/users.php`
 - Session-based authentication
 

@@ -17,7 +17,7 @@ Automatically generates an XML sitemap for search engines like Google.
 
 - **What it does:** Creates `sitemap.xml` so search engines can find all your pages.
 - **How to use:** Just enable it in `app/config/ava.php`.
-- **Customization:** You can exclude pages by adding `noindex: true` to their frontmatter.
+- **Customisation:** You can exclude pages by adding `noindex: true` to their frontmatter.
 
 ### CLI Commands
 
@@ -53,7 +53,7 @@ Lets people subscribe to your blog using an RSS reader.
 
 - **What it does:** Creates `feed.xml` with your latest posts.
 - **How to use:** Enable it in `app/config/ava.php`.
-- **Customization:** You can choose which content types to include (like just posts, or everything).
+- **Customisation:** You can choose which content types to include (like just posts, or everything).
 
 ```php
 'feed' => [

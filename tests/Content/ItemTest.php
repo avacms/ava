@@ -165,14 +165,19 @@ final class ItemTest extends TestCase
         $this->assertNull($item->excerpt());
     }
 
-    public function testHtmlCanBeSetAndRetrieved(): void
+    public function testWithHtmlReturnsNewItemWithHtml(): void
     {
         $item = $this->createItem([]);
 
         $this->assertNull($item->html());
 
-        $item->html('<p>Rendered HTML</p>');
-        $this->assertEquals('<p>Rendered HTML</p>', $item->html());
+        $itemWithHtml = $item->withHtml('<p>Rendered HTML</p>');
+        
+        // Original item unchanged (immutable)
+        $this->assertNull($item->html());
+        
+        // New item has HTML
+        $this->assertEquals('<p>Rendered HTML</p>', $itemWithHtml->html());
     }
 
     // =========================================================================

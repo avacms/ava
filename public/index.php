@@ -12,10 +12,9 @@ declare(strict_types=1);
 define('AVA_START', microtime(true));
 define('AVA_ROOT', dirname(__DIR__));
 
-require AVA_ROOT . '/bootstrap.php';
+$app = require AVA_ROOT . '/bootstrap.php';
 
 // Boot the application
-$app = Ava\Application::getInstance();
 $app->boot();
 
 // Handle the request

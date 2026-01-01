@@ -133,7 +133,7 @@ When you create a user with `./ava user:add`, your password goes through these s
 
 1. **Hashing with bcrypt** - Uses PHP's `password_hash()` with bcrypt and a cost factor of 12 (current security recommendation)
 2. **Only the hash is stored** - Your actual password never touches the disk; only the irreversible hash is saved to `app/config/users.php`
-3. **Future-proof** - Uses `PASSWORD_BCRYPT` explicitly, ensuring consistent behavior across PHP versions
+3. **Future-proof** - Uses `PASSWORD_BCRYPT` explicitly, ensuring consistent behaviour across PHP versions
 
 **What this means for you:** Even if someone gains access to your `users.php` file, they cannot recover your actual password. Bcrypt is specifically designed to be slow (intentionally) to prevent brute-force attacks.
 
@@ -185,15 +185,15 @@ The admin allows HTTP on localhost (127.0.0.1 and ::1) because traffic stays on 
 
 ### Login & Session Security
 
-**Brute-force protection:** Login attempts are rate-limited per IP address. After 5 failed attempts, the IP is locked out for 15 minutes. This prevents automated password guessing attacks while allowing legitimate users to recover from typos.
+**Brute-force protection:** Login attempts are rate-limited by IP address. After 5 failed attempts, the IP is locked out for 15 minutes. This prevents automated password guessing while allowing legitimate users to recover from typos.
 
-**Timing attack prevention:** When you try to log in with an email that doesn't exist, Ava still performs a password verification against a dummy hash. This prevents attackers from using response times to determine which email addresses are valid.
+**Timing attack prevention:** When you try to log in with an email that doesn't exist, Ava still performs a password verification against a dummy hash. This ensures response times don't reveal which email addresses are valid.
 
 **Session security:**
-- **Session fixation protection** - Session ID is regenerated on both login and logout
-- **HTTP-only cookies** - JavaScript cannot access your session cookie (prevents XSS attacks)
-- **SameSite protection** - Cookies include `SameSite=Lax` to prevent CSRF attacks
-- **Secure flag (in production)** - When served over HTTPS, cookies are marked as secure
+- **Session fixation protection** — Session ID is regenerated on both login and logout
+- **HTTP-only cookies** — JavaScript cannot access your session cookie (prevents XSS attacks)
+- **SameSite protection** — Cookies include `SameSite=Lax` to prevent CSRF attacks
+- **Secure flag** — When served over HTTPS, cookies are marked as secure-only
 
 ### CSRF Protection
 
@@ -235,7 +235,7 @@ The admin dashboard provides access to sensitive information and, with plugins e
 | **Monitor admin logs** | Check `storage/logs/admin.log` periodically for suspicious login attempts. |
 | **Change the admin path** | Setting `'path' => '/_secret-admin'` doesn't add real security, but reduces log spam from bots. |
 
-## Customizing the Path
+## Customising the Path
 
 If you want the admin at a different URL:
 

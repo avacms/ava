@@ -68,7 +68,7 @@ Then use them in your content Markdown:
 [Download](@media:files/guide.pdf)
 ```
 
-At render time, `@media:` expands to `/media/`. This makes it easy to reorganize assets or switch to a CDN later without updating every content file.
+At render time, `@media:` expands to `/media/`. This makes it easy to reorganise assets or switch to a CDN later without updating every content file.
 
 **See:** [Writing Content - Path Aliases](content.md#path-aliases) for usage examples.
 ### Content Index
@@ -89,7 +89,7 @@ The content index is a binary snapshot of all your content metadata—used to av
 
 **Mode options:**
 
-| Mode | Behavior |
+| Mode | Behaviour |
 |------|----------|
 | `auto` | Rebuilds when content files change. Best for development. |
 | `never` | Only rebuilds via [`./ava rebuild`](cli.md?id=rebuild). Best for production. |
@@ -97,7 +97,7 @@ The content index is a binary snapshot of all your content metadata—used to av
 
 **Backend options:**
 
-| Backend | Behavior |
+| Backend | Behaviour |
 |---------|----------|
 | `array` | Binary serialized PHP arrays. Works everywhere. **This is the default.** |
 | `sqlite` | SQLite database file. Opt-in for large sites (10k+ items). Requires `pdo_sqlite`. |
@@ -222,6 +222,8 @@ For details, see [Performance](performance.md).
 | `shortcodes.allow_php_snippets` | bool | `true` | Enable `[snippet]` shortcode for PHP includes |
 | `preview_token` | string\|null | `null` | Secret token for previewing draft content via `?preview=1&token=xxx` |
 
+?> **Tip:** Set `preview_token` to a long, random string if you want to preview drafts without logging in. Keep it secret—anyone with the token can view unpublished content.
+
 ### Admin
 
 ```php
@@ -287,6 +289,8 @@ Control error visibility and logging for development and troubleshooting.
 ```
 
 !> **Security Warning**: Never enable `display_errors` in production—it can expose sensitive information like file paths, database details, and stack traces.
+
+?> **Security headers**: Ava automatically adds security headers to all responses (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) to protect against common attacks like clickjacking and MIME-sniffing.
 
 The admin System page shows debug status, performance metrics, and recent error log entries when enabled.
 
@@ -474,7 +478,7 @@ $results = $ava->query()
 
 ## Taxonomies: `taxonomies.php`
 
-Define ways to categorize content.
+Define ways to categorise content.
 
 ```php
 <?php
@@ -483,7 +487,7 @@ return [
         'label' => 'Categories',
         'plural' => 'Categories',
         'hierarchical' => true,
-        'url' => [
+        'rewrite' => [
             'base' => '/category',
         ],
     ],
@@ -492,7 +496,7 @@ return [
         'label' => 'Tag',
         'plural' => 'Tags',
         'hierarchical' => false,
-        'url' => [
+        'rewrite' => [
             'base' => '/tag',
         ],
     ],
@@ -506,7 +510,7 @@ return [
 | `label` | string | required | Singular name |
 | `plural` | string | label + 's' | Plural name for UI |
 | `hierarchical` | bool | `false` | Support parent/child relationships |
-| `url.base` | string | `'/{name}'` | URL prefix for term archives |
+| `rewrite.base` | string | `'/{name}'` | URL prefix for term archives |
 
 ### Using Taxonomies in Content
 

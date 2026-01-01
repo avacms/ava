@@ -105,7 +105,9 @@ return [
                 }
 
                 // Content - either full or excerpt
-                $content = $config['full_content'] ? $item->html() : $item->excerpt();
+                $content = $config['full_content'] 
+                    ? $app->renderer()->renderItem($item) 
+                    : $item->excerpt();
                 if ($content) {
                     $xml .= "    <description><![CDATA[" . $content . "]]></description>\n";
                 }
@@ -248,8 +250,7 @@ return [
         [
             'name' => 'feed:stats',
             'description' => 'Show RSS feed statistics',
-            'handler' => function (array $args, $cli) {
-                $app = \Ava\Application::getInstance();
+            'handler' => function (array $args, $cli, \Ava\Application $app) {
                 $repository = $app->repository();
                 $types = $repository->types();
                 $baseUrl = rtrim($app->config('site.base_url', ''), '/');

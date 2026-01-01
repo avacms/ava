@@ -87,12 +87,17 @@ The cache contains:
 | `exact` | Direct URL → content mappings |
 | `taxonomy` | Taxonomy archive configurations |
 
-**How routing works:**
-1. First, check for trailing slash redirects
-2. Check `redirect_from` redirects
-3. Try exact route match
-4. Try taxonomy routes (`/category/tutorials`)
-5. 404 if nothing matches
+**Route matching order:**
+
+1. **Hook interception** — `router.before_match` filter can intercept early
+2. **Trailing slash redirect** — Enforces canonical URL style
+3. **Redirects** — 301 redirects from `redirect_from` frontmatter
+4. **System routes** — Custom routes registered via `addRoute()`
+5. **Exact routes** — Content URLs from cache (e.g., `/blog/my-post`)
+6. **Preview mode** — Allows draft access with valid token
+7. **Prefix routes** — Custom routes registered via `addPrefixRoute()`
+8. **Taxonomy routes** — Archives like `/category/tutorials`
+9. **404** — No match found
 
 Routes are rebuilt automatically when content changes (with `content_index.mode = 'auto'`) or manually via [`./ava rebuild`](cli.md?id=rebuild).
 
@@ -116,20 +121,34 @@ Configure token in `ava.php`:
 
 ## Adding Custom Routes
 
-In `theme.php` or a plugin:
+In `theme.php` (where `$app` is available):
 
 ```php
 use Ava\Application;
 
-$router = Application::getInstance()->router();
+return function (Application $app): void {
+    $router = $app->router();
 
-// Exact route
-$router->addRoute('/api/search', function ($request) {
-    // Return RouteMatch or handle directly
-});
+    // Exact route
+    $router->addRoute('/api/search', function ($request) use ($app) {
+        // Return RouteMatch or handle directly
+    });
 
-// Prefix route
-$router->addPrefixRoute('/api/', function ($request) {
-    // Handles all /api/* requests
-});
+    // Prefix route
+    $router->addPrefixRoute('/api/', function ($request) use ($app) {
+        // Handles all /api/* requests
+    });
+};
+```
+
+In a plugin's `boot` function:
+
+```php
+'boot' => function($app) {
+    $router = $app->router();
+    
+    $router->addRoute('/api/search', function ($request) use ($app) {
+        // ...
+    });
+}
 ```

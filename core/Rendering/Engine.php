@@ -64,6 +64,9 @@ final class Engine
 
     /**
      * Render a content item (process its Markdown body).
+     * 
+     * Returns the rendered HTML. The Item's html() is checked for cached content.
+     * Use withHtml() on the item if you need to cache the result.
      */
     public function renderItem(Item $item): string
     {
@@ -72,10 +75,7 @@ final class Engine
             return $item->html();
         }
 
-        $html = $this->renderMarkdown($item->rawContent());
-        $item->html($html);
-
-        return $html;
+        return $this->renderMarkdown($item->rawContent());
     }
 
     /**

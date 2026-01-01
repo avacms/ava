@@ -125,5 +125,5 @@ if ($debugEnabled || $logErrors) {
     });
 }
 
-// Initialize the application
-Ava\Application::init($config);
+// Initialize the application and return it
+return new Ava\Application($config);

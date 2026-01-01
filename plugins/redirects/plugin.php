@@ -179,8 +179,7 @@ return [
         [
             'name' => 'redirects:list',
             'description' => 'List all redirects',
-            'handler' => function (array $args, $cli) {
-                $app = \Ava\Application::getInstance();
+            'handler' => function (array $args, $cli, \Ava\Application $app) {
                 $storagePath = $app->configPath('storage');
                 $redirectsFile = $storagePath . '/redirects.json';
 
@@ -234,8 +233,7 @@ return [
         [
             'name' => 'redirects:add',
             'description' => 'Add a redirect',
-            'handler' => function (array $args, $cli) {
-                $app = \Ava\Application::getInstance();
+            'handler' => function (array $args, $cli, \Ava\Application $app) {
                 $storagePath = $app->configPath('storage');
                 $redirectsFile = $storagePath . '/redirects.json';
 
@@ -322,8 +320,7 @@ return [
         [
             'name' => 'redirects:remove',
             'description' => 'Remove a redirect',
-            'handler' => function (array $args, $cli) {
-                $app = \Ava\Application::getInstance();
+            'handler' => function (array $args, $cli, \Ava\Application $app) {
                 $storagePath = $app->configPath('storage');
                 $redirectsFile = $storagePath . '/redirects.json';
 

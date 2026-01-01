@@ -11,7 +11,7 @@ Yes! For many sites, `theme.php` is all you need. But plugins are better when:
 | Use theme.php | Use a Plugin |
 |---------------|--------------|
 | Theme-specific features | Features that work with any theme |
-| Site customizations | Code you want to share with others |
+| Site customisations | Code you want to share with others |
 | Simple hooks and shortcodes | Admin dashboard pages |
 | Quick, one-off additions | CLI commands |
 
@@ -617,11 +617,10 @@ Use a prefix based on your plugin name to avoid conflicts:
 
 ### Accessing the Application
 
-Your command handler can access the main application:
+Your command handler receives the application as its third argument:
 
 ```php
-'handler' => function (array $args, $cli) {
-    $app = \Ava\Application::getInstance();
+'handler' => function (array $args, $cli, \Ava\Application $app) {
     $repository = $app->repository();
     
     $posts = $repository->published('post');

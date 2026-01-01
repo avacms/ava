@@ -17,54 +17,19 @@ use Ava\Shortcodes\Engine as ShortcodeEngine;
  * Ava CMS Application
  *
  * Central application container and service locator.
- * Implements singleton pattern for global access.
+ * Created once at bootstrap and passed explicitly to all components.
  */
 final class Application
 {
-    private static ?self $instance = null;
-
     private array $config;
     private bool $booted = false;
 
     /** @var array<string, object> */
     private array $services = [];
 
-    private function __construct(array $config)
+    public function __construct(array $config)
     {
         $this->config = $config;
-    }
-
-    /**
-     * Initialize the application with configuration.
-     */
-    public static function init(array $config): self
-    {
-        if (self::$instance !== null) {
-            throw new \RuntimeException('Application already initialized');
-        }
-
-        self::$instance = new self($config);
-        return self::$instance;
-    }
-
-    /**
-     * Get the application instance.
-     */
-    public static function getInstance(): self
-    {
-        if (self::$instance === null) {
-            throw new \RuntimeException('Application not initialized');
-        }
-
-        return self::$instance;
-    }
-
-    /**
-     * Reset the application (for testing).
-     */
-    public static function reset(): void
-    {
-        self::$instance = null;
     }
 
     /**
@@ -226,6 +191,17 @@ final class Application
     }
 
     /**
+     * Create a new content query.
+     * 
+     * Unlike other services, this returns a new instance each time
+     * since queries are single-use and immutable.
+     */
+    public function query(): Content\Query
+    {
+        return new Content\Query($this);
+    }
+
+    /**
      * Get or create a service.
      */
     private function service(string $name, callable $factory): object
@@ -288,7 +264,10 @@ final class Application
         $themePath = $this->configPath('themes') . '/' . $theme . '/theme.php';
 
         if (file_exists($themePath)) {
-            require $themePath;
+            $themeBootstrap = require $themePath;
+            if (is_callable($themeBootstrap)) {
+                $themeBootstrap($this);
+            }
         }
 
         // Register theme assets route

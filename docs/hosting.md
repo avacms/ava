@@ -111,7 +111,7 @@ Shared hosts typically give you a structure like this:
 └── logs/                 ← Server logs (usually auto-created)
 ```
 
-**Key insight:** Only the `public/` folder contents should be web-accessible. Everything else stays above the web root for security.
+**Key insight:** Only the `public/` folder contents should be web-accessible. Everything else stays above the web root for security—this means your config files, content, and storage are never directly downloadable by visitors.
 
 ### Setting Up on Shared Hosting
 
@@ -350,8 +350,9 @@ Before going live, make sure:
 - [ ] Required extensions are enabled (`./ava status` will tell you)
 - [ ] Content index is built (`./ava rebuild`)
 - [ ] Your domain points to the right folder
-- [ ] HTTPS is enabled (free with Let's Encrypt)
+- [ ] **HTTPS is enabled** (free with Let's Encrypt—required for admin access)
 - [ ] Page cache is enabled in config (for performance)
+- [ ] Debug mode is disabled (`display_errors => false`)
 
 ---
 

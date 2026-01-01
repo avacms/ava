@@ -143,9 +143,9 @@ Create a `.md` file in the appropriate directory:
 
 Add frontmatter and content, then save. If cache mode is `auto`, the site updates immediately.
 
-## Organizing Your Files
+## Organising Your Files
 
-Content lives in the `content/` folder. You can organize it however you like, but typically it looks like this:
+Content lives in the `content/` folder. You can organise it however you like, but typically it looks like this:
 
 ```
 content/
@@ -185,7 +185,7 @@ category:
   - php
 tag:
   - beginner
-meta_title: SEO-Optimized Title
+meta_title: SEO-Optimised Title
 meta_description: Description for search engines.
 og_image: "@media:2024/social-card.jpg"
 noindex: false
