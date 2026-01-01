@@ -26,10 +26,11 @@
  * - $version: Ava version
  * - $user: Current user email
  * - $site: Site config array
+ * - $adminTheme: Admin color theme (cyan, pink, purple, green, blue, amber)
  */
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-accent="<?= htmlspecialchars($adminTheme ?? 'cyan') ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,6 +38,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
     <link rel="stylesheet" href="/assets/admin.css">
+    <?php include __DIR__ . '/_theme.php'; ?>
 </head>
 <body>
 <?php include __DIR__ . '/_sidebar.php'; ?>

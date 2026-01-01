@@ -23,6 +23,7 @@ It's disabled by default. To turn it on, edit `app/config/ava.php`:
 'admin' => [
     'enabled' => true,
     'path' => '/admin',   // You can change this to /dashboard or anything else!
+    'theme' => 'cyan',    // Accent color: cyan, pink, purple, green, blue, amber
 ],
 ```
 

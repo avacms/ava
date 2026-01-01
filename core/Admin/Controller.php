@@ -58,6 +58,7 @@ final class Controller
                 'loginUrl' => $this->adminUrl() . '/login',
                 'hasUsers' => $this->auth->hasUsers(),
                 'isLockedOut' => true,
+                'adminTheme' => $this->app->config('admin.theme', 'cyan'),
             ]));
         }
 
@@ -95,6 +96,7 @@ final class Controller
             'loginUrl' => $this->adminUrl() . '/login',
             'hasUsers' => $this->auth->hasUsers(),
             'isLockedOut' => false,
+            'adminTheme' => $this->app->config('admin.theme', 'cyan'),
         ]));
     }
 
@@ -162,7 +164,14 @@ final class Controller
             'recentErrorCount' => $recentErrorCount,
         ];
 
-        return Response::html($this->render('dashboard', $data));
+        $layout = [
+            'title' => 'Dashboard',
+            'icon' => 'dashboard',
+            'activePage' => 'dashboard',
+            'headerActions' => $this->defaultHeaderActions(),
+        ];
+
+        return Response::html($this->render('content/dashboard', $data, $layout));
     }
 
     /**
@@ -282,7 +291,21 @@ final class Controller
             'user' => $this->auth->user(),
         ];
 
-        return Response::html($this->render('content-list', $data));
+        $archiveUrl = $typeConfig['url']['archive'] ?? null;
+        $headerActions = '';
+        if ($archiveUrl) {
+            $headerActions .= '<a href="' . htmlspecialchars($this->app->config('site.base_url') . $archiveUrl) . '" target="_blank" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">list</span>Archive</a>';
+        }
+        $headerActions .= $this->defaultHeaderActions();
+
+        $layout = [
+            'title' => $typeConfig['label'] ?? ucfirst($type),
+            'icon' => $type === 'page' ? 'description' : 'article',
+            'activePage' => 'content-' . $type,
+            'headerActions' => $headerActions,
+        ];
+
+        return Response::html($this->render('content/content-list', $data, $layout));
     }
 
     /**
@@ -332,7 +355,20 @@ final class Controller
             'user' => $this->auth->user(),
         ];
 
-        return Response::html($this->render('taxonomy', $data));
+        $taxBase = rtrim($this->app->config('site.base_url'), '/') . ($taxonomyConfig[$taxonomy]['rewrite']['base'] ?? '/' . $taxonomy);
+        $isHierarchical = $taxonomyConfig[$taxonomy]['hierarchical'] ?? false;
+
+        $headerActions = '<a href="' . htmlspecialchars($taxBase) . '" target="_blank" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">visibility</span>View Archive</a>';
+        $headerActions .= $this->defaultHeaderActions();
+
+        $layout = [
+            'title' => $taxonomyConfig[$taxonomy]['label'] ?? ucfirst($taxonomy),
+            'icon' => $isHierarchical ? 'folder' : 'sell',
+            'activePage' => 'taxonomy-' . $taxonomy,
+            'headerActions' => $headerActions,
+        ];
+
+        return Response::html($this->render('content/taxonomy', $data, $layout));
     }
 
     /**
@@ -396,7 +432,41 @@ final class Controller
             'user' => $this->auth->user(),
         ];
 
-        return Response::html($this->render('system', $data));
+        $layout = [
+            'title' => 'System Info',
+            'icon' => 'dns',
+            'activePage' => 'system',
+            'headerActions' => $this->defaultHeaderActions(),
+            'scripts' => <<<'JS'
+function clearErrorLog() {
+    if (!confirm('Clear error log?')) return;
+    var btn = document.getElementById('clearBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-rounded">hourglass_empty</span> Clearing...';
+    fetch(document.querySelector('[data-admin-url]')?.dataset.adminUrl + '/clear-errors' || '/admin/clear-errors', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: '_csrf=' + document.querySelector('[name=_csrf]')?.value
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) location.reload();
+        else {
+            alert('Failed: ' + (d.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-rounded">delete_sweep</span> Clear';
+        }
+    })
+    .catch(function(e) {
+        alert('Error: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-rounded">delete_sweep</span> Clear';
+    });
+}
+JS
+        ];
+
+        return Response::html($this->render('content/system', $data, $layout));
     }
 
     /**
@@ -472,7 +542,14 @@ JS;
             'user' => $this->auth->user(),
         ];
 
-        return Response::html($this->render('themes', $data));
+        $layout = [
+            'title' => 'Themes',
+            'icon' => 'palette',
+            'activePage' => 'themes',
+            'headerActions' => $this->defaultHeaderActions(),
+        ];
+
+        return Response::html($this->render('content/themes', $data, $layout));
     }
 
     /**
@@ -496,7 +573,14 @@ JS;
             'user' => $this->auth->user(),
         ];
 
-        return Response::html($this->render('logs', $data));
+        $layout = [
+            'title' => 'Admin Logs',
+            'icon' => 'history',
+            'activePage' => 'logs',
+            'headerActions' => $this->defaultHeaderActions(),
+        ];
+
+        return Response::html($this->render('content/logs', $data, $layout));
     }
 
     // -------------------------------------------------------------------------
@@ -1348,6 +1432,7 @@ JS;
                 'url' => $this->app->config('site.base_url'),
                 'timezone' => $this->app->config('site.timezone', 'UTC'),
             ],
+            'adminTheme' => $this->app->config('admin.theme', 'cyan'),
         ];
     }
 

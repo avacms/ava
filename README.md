@@ -23,6 +23,7 @@ Thoughtfully [documented](https://ava.addy.zone/#/) and designed to be approacha
 ## Screenshots
 
 ![Ava CMS Screenshots](https://addy.zip/ava/ava-screenshots.webp)
+<sup>Configurable CLI and admin colour themes available! Default theme is a minimal responsive theme for you to build on.</sup>
 
 ## Why Ava?
 

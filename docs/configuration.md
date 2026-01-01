@@ -230,6 +230,7 @@ For details, see [Performance](performance.md).
 'admin' => [
     'enabled' => false,
     'path' => '/admin',
+    'theme' => 'cyan',
 ],
 ```
 
@@ -237,6 +238,18 @@ For details, see [Performance](performance.md).
 |--------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable the admin dashboard |
 | `path` | string | `'/admin'` | URL path for admin (e.g., `/admin`, `/dashboard`, `/_ava`) |
+| `theme` | string | `'cyan'` | Accent color theme for the admin interface |
+
+**Available themes:**
+
+| Theme | Description |
+|-------|-------------|
+| `cyan` | Cool cyan/aqua (default) |
+| `pink` | Vibrant pink |
+| `purple` | Classic purple |
+| `green` | Matrix green |
+| `blue` | Standard blue |
+| `amber` | Warm amber/orange |
 
 !> **Important**: Create admin users with `./ava user:add` before enabling.
 

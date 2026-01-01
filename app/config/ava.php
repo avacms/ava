@@ -49,11 +49,13 @@ return [
     |───────────────────────────────────────────────────────────────────────────
     | Web-based dashboard for site overview and content browsing.
     | Create users first with: ./ava user:add
+    | theme: cyan, pink, purple, green, blue, amber
     */
 
     'admin' => [
         'enabled' => true,
-        'path'    => '/admin',              // URL path (e.g., /admin, /dashboard)
+        'path'    => '/admin',
+        'theme'   => 'cyan',
     ],
 
     /*

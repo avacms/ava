@@ -265,7 +265,7 @@ final class DebugTest extends TestCase
      */
     public function testAdminSystemViewDebugDisplay(): void
     {
-        $view = file_get_contents(AVA_ROOT . '/core/Admin/views/system.php');
+        $view = file_get_contents(AVA_ROOT . '/core/Admin/views/content/system.php');
         
         // Should display debug info
         $this->assertStringContains('Debug Mode', $view);
