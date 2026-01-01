@@ -1,8 +1,8 @@
 # CLI Reference
 
-<pre><samp><span class="t-magenta">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
+<pre><samp><span class="t-cyan">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
   ██▀██ ██▄██ ██▀██   ██▀▀▀ ██▀▄▀██ ███▄▄
-  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span></samp></pre>
+  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span>   <span class="t-dim">v25.12</span></samp></pre>
 
 Ava includes a friendly command-line interface for managing your site. Run commands from your project root:
 
@@ -58,7 +58,29 @@ For a deeper dive into SSH, hosting options, and getting Ava live on the interne
 If you’re used to FTP, think of **SFTP** as the safer modern version. Popular clients include FileZilla, WinSCP, Cyberduck, and Transmit.
 
 </div>
+## Color Theme
 
+The CLI uses a configurable color theme for the banner, section headers, and highlights. Set your preferred theme in `app/config/ava.php`:
+
+```php
+'cli' => [
+    'theme' => 'cyan',  // cyan, pink, purple, green, blue, amber, disabled
+],
+```
+
+| Theme | Description |
+|-------|-------------|
+| `cyan` | Cool cyan/aqua (default) |
+| `pink` | Vibrant pink |
+| `purple` | Classic purple |
+| `green` | Matrix green |
+| `blue` | Standard blue |
+| `amber` | Warm amber/orange |
+| `disabled` | No colors (plain text output) |
+
+Use `disabled` for CI/CD pipelines or terminals that don't support ANSI colors.
+
+---
 ## Quick Reference
 
 | Command | Description |
@@ -100,23 +122,23 @@ Run `./ava` or `./ava --help` to see all available commands:
 - `./ava user` → `user:list`
 - `./ava update` → `update:check`
 
-<pre><samp><span class="t-magenta">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
+<pre><samp><span class="t-cyan">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
   ██▀██ ██▄██ ██▀██   ██▀▀▀ ██▀▄▀██ ███▄▄
-  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span>
+  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span>   <span class="t-dim">v25.12</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Usage</span> <span class="t-dim">─────────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Usage</span> <span class="t-dim">─────────────────────────────────────────────</span>
 
-  ./ava &lt;command&gt; [options]
+  <span class="t-cyan">./ava</span> <span class="t-white">&lt;command&gt;</span> <span class="t-dim">[options]</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Site Management</span> <span class="t-dim">───────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Site Management</span> <span class="t-dim">───────────────────────────────────</span>
 
-    <span class="t-cyan">status</span>                        Show site health and overview
-    <span class="t-cyan">rebuild</span>                       Rebuild the content index
-    <span class="t-cyan">lint</span>                          Validate all content files
+    <span class="t-white">status</span>                        <span class="t-dim">Show site health and overview</span>
+    <span class="t-white">rebuild</span>                       <span class="t-dim">Rebuild the content index</span>
+    <span class="t-white">lint</span>                          <span class="t-dim">Validate all content files</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Content</span> <span class="t-dim">───────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Content</span> <span class="t-dim">───────────────────────────────────────────</span>
 
-    <span class="t-cyan">make &lt;type&gt; "Title"</span>           Create new content
+    <span class="t-white">make &lt;type&gt; "Title"</span>           <span class="t-dim">Create new content</span>
     ...</samp></pre>
 
 <div class="beginner-box">
@@ -139,41 +161,42 @@ Shows a quick overview of your site's health:
 ./ava status
 ```
 
-<pre><samp><span class="t-magenta">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
+<pre><samp><span class="t-cyan">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
   ██▀██ ██▄██ ██▀██   ██▀▀▀ ██▀▄▀██ ███▄▄
-  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span>
+  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span>   <span class="t-dim">v25.12</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Site</span> <span class="t-dim">──────────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Site</span> <span class="t-dim">──────────────────────────────────────────────</span>
 
   <span class="t-dim">Name:</span>       <span class="t-white">My Site</span>
   <span class="t-dim">URL:</span>        <span class="t-cyan">https://example.com</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Environment</span> <span class="t-dim">───────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Environment</span> <span class="t-dim">───────────────────────────────────────</span>
 
   <span class="t-dim">PHP:</span>        <span class="t-white">8.3.29</span>
-  <span class="t-dim">Extensions:</span> <span class="t-white">igbinary, pdo_sqlite, opcache</span>
+  <span class="t-dim">Extensions:</span> <span class="t-green">igbinary</span>, <span class="t-green">opcache</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Content Index</span> <span class="t-dim">─────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Content Index</span> <span class="t-dim">─────────────────────────────────────</span>
 
   <span class="t-dim">Status:</span>     <span class="t-green">● Fresh</span>
   <span class="t-dim">Mode:</span>       <span class="t-white">auto</span>
-  <span class="t-dim">Backend:</span>    <span class="t-white">sqlite</span>
-  <span class="t-dim">Built:</span>      <span class="t-white">2024-12-28 14:30:00</span>
+  <span class="t-dim">Backend:</span>    <span class="t-cyan">Sqlite</span> <span class="t-dim">(auto-detected)</span>
+  <span class="t-dim">Cache:</span>      <span class="t-dim">SQLite</span> 892 KB
+  <span class="t-dim">Built:</span>      <span class="t-dim">2024-12-28 14:30:00</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Content</span> <span class="t-dim">───────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Content</span> <span class="t-dim">───────────────────────────────────────────</span>
 
-  <span class="t-cyan">◆ Page:</span> <span class="t-white">5 published</span>
-  <span class="t-cyan">◆ Post:</span> <span class="t-white">38 published</span> <span class="t-yellow">(4 drafts)</span>
+  <span class="t-dim">◆ Page:</span> <span class="t-white">5 published</span>
+  <span class="t-dim">◆ Post:</span> <span class="t-white">38 published</span> <span class="t-yellow">(4 drafts)</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Taxonomies</span> <span class="t-dim">────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Taxonomies</span> <span class="t-dim">────────────────────────────────────────</span>
 
-  <span class="t-cyan">◆ Category:</span> <span class="t-white">8 terms</span>
-  <span class="t-cyan">◆ Tag:</span> <span class="t-white">23 terms</span>
+  <span class="t-dim">◆ Category:</span> <span class="t-white">8 terms</span>
+  <span class="t-dim">◆ Tag:</span> <span class="t-white">23 terms</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Webpage Cache</span> <span class="t-dim">────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Webpage Cache</span> <span class="t-dim">────────────────────────────────────────</span>
 
   <span class="t-dim">Status:</span>     <span class="t-green">● Enabled</span>
-  <span class="t-dim">TTL:</span>        <span class="t-white">Forever</span>
+  <span class="t-dim">TTL:</span>        <span class="t-white">Forever (until cleared)</span>
   <span class="t-dim">Cached:</span>     <span class="t-white">42 webpages</span>
   <span class="t-dim">Size:</span>       <span class="t-white">1.2 MB</span></samp></pre>
 
@@ -355,7 +378,7 @@ List all configured users:
 ./ava user:list
 ```
 
-<pre><samp>  <span class="t-dim">───</span> <span class="t-bold">Users</span> <span class="t-dim">─────────────────────────────────────────────</span>
+<pre><samp>  <span class="t-dim">───</span> <span class="t-cyan t-bold">Users</span> <span class="t-dim">─────────────────────────────────────────────</span>
 
     <span class="t-cyan">◆ admin@example.com</span>
       <span class="t-dim">Name:</span> <span class="t-white">Admin User</span>
@@ -395,7 +418,7 @@ Results are cached for 1 hour. Force a fresh check:
   <span class="t-dim">Release:</span>    <span class="t-white">v25.12.1</span>
   <span class="t-dim">Published:</span>  <span class="t-white">2024-12-28</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Changelog</span> <span class="t-dim">──────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Changelog</span> <span class="t-dim">──────────────────────────────────────────</span>
 
   <span class="t-dim">-</span> Fixed page cache invalidation
   <span class="t-dim">-</span> Improved CLI output formatting
@@ -417,7 +440,7 @@ Download and apply the latest update:
 ./ava update:apply
 ```
 
-<pre><samp>  <span class="t-dim">───</span> <span class="t-bold">Update Available</span> <span class="t-dim">───────────────────────────────────</span>
+<pre><samp>  <span class="t-dim">───</span> <span class="t-cyan t-bold">Update Available</span> <span class="t-dim">───────────────────────────────────</span>
 
   <span class="t-dim">From:</span>       <span class="t-white">25.12.0</span>
   <span class="t-dim">To:</span>         <span class="t-green">25.12.1</span>
@@ -468,7 +491,7 @@ View webpage cache statistics:
 ./ava cache:stats
 ```
 
-<pre><samp>  <span class="t-dim">───</span> <span class="t-bold">Webpage Cache</span> <span class="t-dim">─────────────────────────────────────────</span>
+<pre><samp>  <span class="t-dim">───</span> <span class="t-cyan t-bold">Webpage Cache</span> <span class="t-dim">─────────────────────────────────────</span>
 
   <span class="t-dim">Status:</span>     <span class="t-green">● Enabled</span>
   <span class="t-dim">TTL:</span>        <span class="t-white">Forever (until cleared)</span>
@@ -520,7 +543,7 @@ View log file statistics:
 ./ava logs:stats
 ```
 
-<pre><samp>  <span class="t-dim">───</span> <span class="t-bold">Logs</span> <span class="t-dim">───────────────────────────────────────────────</span>
+<pre><samp>  <span class="t-dim">───</span> <span class="t-cyan t-bold">Logs</span> <span class="t-dim">───────────────────────────────────────────────</span>
 
   <span class="t-dim">indexer.log:</span>  <span class="t-white">245.3 KB</span> <span class="t-dim">(2 files) · 1,847 lines</span>
   <span class="t-dim">admin.log:</span>    <span class="t-white">12.1 KB</span> <span class="t-dim">· 89 lines</span>
@@ -545,7 +568,7 @@ Show the last lines of a log file:
 ./ava logs:tail indexer -n 50
 ```
 
-<pre><samp>  <span class="t-dim">───</span> <span class="t-bold">indexer.log (last 20 lines)</span> <span class="t-dim">─────────────────────</span>
+<pre><samp>  <span class="t-dim">───</span> <span class="t-cyan t-bold">indexer.log (last 20 lines)</span> <span class="t-dim">─────────────────────</span>
 
   <span class="t-dim">[2024-12-28T14:30:00+00:00]</span> Indexer errors:
     - Missing required field "slug" in posts/draft-post.md
@@ -702,12 +725,11 @@ Test the performance of your content index:
 ./ava benchmark
 ```
 
-<pre><samp><span class="t-magenta">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
+<pre><samp><span class="t-cyan">   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄
   ██▀██ ██▄██ ██▀██   ██▀▀▀ ██▀▄▀██ ███▄▄
-  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span>
-  <span class="t-dim">v25.12.2</span>
+  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀</span>   <span class="t-dim">v25.12</span>
 
-  <span class="t-dim">───</span> <span class="t-bold">Performance Benchmark</span> <span class="t-dim">───────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Performance Benchmark</span> <span class="t-dim">───────────────────────────────</span>
 
   <span class="t-dim">Content:</span>    <span class="t-cyan">1,003</span> items
               page: 2
@@ -719,7 +741,7 @@ Test the performance of your content index:
 
   Testing array + igbinary...
 
-  <span class="t-dim">───</span> <span class="t-bold">Results</span> <span class="t-dim">──────────────────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Results</span> <span class="t-dim">──────────────────────────────────────────────</span>
 
   <span class="t-bold">Test                array + igbinary</span>
   <span class="t-dim">──────────────────────────────────────</span>
@@ -735,7 +757,7 @@ Test the performance of your content index:
   Memory              124 KB
   Cache size          592.2 KB
 
-  <span class="t-dim">───</span> <span class="t-bold">Webpage Rendering</span> <span class="t-dim">─────────────────────────────────</span>
+  <span class="t-dim">───</span> <span class="t-cyan t-bold">Webpage Rendering</span> <span class="t-dim">─────────────────────────────────</span>
 
   <span class="t-bold">Operation                     Time</span>
   <span class="t-dim">─────────────────────────────────────────────</span>

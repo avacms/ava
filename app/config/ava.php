@@ -193,10 +193,11 @@ return [
     |───────────────────────────────────────────────────────────────────────────
     | CLI OPTIONS
     |───────────────────────────────────────────────────────────────────────────
+    | theme: cyan, pink, purple, green, blue, amber, disabled
     */
 
     'cli' => [
-        'colors' => true,                   // Colored terminal output
+        'theme' => 'cyan',
     ],
 
     /*

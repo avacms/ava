@@ -18,47 +18,58 @@ final class Application
     private AvaApp $app;
     private array $commands = [];
 
-    // ANSI color codes
+    // Theme colors (set dynamically based on config)
+    private string $themeColor;
+
+    // ANSI formatting
     private const RESET = "\033[0m";
-    private const PRIMARY = "\033[38;2;142;88;243m";
     private const BOLD = "\033[1m";
     private const DIM = "\033[90m";
     private const ITALIC = "\033[3m";
 
-    // Colors
+    // Theme placeholder (will be replaced with actual theme color)
+    private const PRIMARY = '__THEME__';
+
+    // Standard colors (always available)
     private const BLACK = "\033[30m";
-    private const RED = "\033[31m";
-    private const GREEN = "\033[32m";
-    private const YELLOW = "\033[33m";
-    private const BLUE = "\033[34m";
-    private const MAGENTA = "\033[35m";
-    private const CYAN = "\033[36m";
+    private const RED = "\033[38;2;248;113;113m";
+    private const GREEN = "\033[38;2;52;211;153m";
+    private const YELLOW = "\033[38;2;251;191;36m";
     private const WHITE = "\033[37m";
 
-    // Bright colors
-    private const BRIGHT_BLACK = "\033[90m";
-    private const BRIGHT_GREEN = "\033[92m";
-    private const BRIGHT_CYAN = "\033[96m";
+    // Color themes (monochrome - single accent color)
+    private const THEMES = [
+        'cyan'     => "\033[38;2;34;211;238m",    // Cyan-400
+        'pink'     => "\033[38;2;244;114;182m",   // Pink-400
+        'purple'   => "\033[38;2;167;139;250m",   // Violet-400
+        'green'    => "\033[38;2;74;222;128m",    // Green-400
+        'blue'     => "\033[38;2;96;165;250m",    // Blue-400
+        'amber'    => "\033[38;2;251;191;36m",    // Amber-400
+        'disabled' => "\033[37m",                 // White (no color)
+    ];
 
-    // Background colors
-    private const BG_GREEN = "\033[42m";
-    private const BG_RED = "\033[41m";
-    private const BG_BLUE = "\033[44m";
-    private const BG_YELLOW = "\033[43m";
-
-    // ASCII Art banner
-    private const BANNER = <<<'ASCII'
-
-   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄ 
-  ██▀██ ██▄██ ██▀██   ██▀▀▀ ██▀▄▀██ ███▄▄ 
-  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀
-ASCII;
+    // ASCII Art banner (3 lines)
+    private const BANNER_LINES = [
+        '   ▄▄▄  ▄▄ ▄▄  ▄▄▄     ▄▄▄▄ ▄▄   ▄▄  ▄▄▄▄ ',
+        '  ██▀██ ██▄██ ██▀██   ██▀▀▀ ██▀▄▀██ ███▄▄ ',
+        '  ██▀██  ▀█▀  ██▀██   ▀████ ██   ██ ▄▄██▀',
+    ];
 
     public function __construct(AvaApp $app)
     {
         $this->app = $app;
+        $this->loadTheme();
         $this->registerCommands();
         $this->registerPluginCommands();
+    }
+
+    /**
+     * Load the CLI color theme from config.
+     */
+    private function loadTheme(): void
+    {
+        $themeName = $this->app->config('cli.theme', 'cyan');
+        $this->themeColor = self::THEMES[$themeName] ?? self::THEMES['cyan'];
     }
 
     /**
@@ -77,8 +88,7 @@ ASCII;
 
         // Handle version
         if ($command === 'version' || $command === '--version' || $command === '-v') {
-            $this->showBanner();
-            echo $this->color('  v' . AVA_VERSION, self::DIM) . "\n";
+            $this->showBanner(showVersion: true);
             $this->writeln('');
             return 0;
         }
@@ -203,8 +213,7 @@ ASCII;
      */
     private function cmdStatus(array $args): int
     {
-        $this->showBanner();
-        echo $this->color('  v' . AVA_VERSION, self::DIM) . "\n";
+        $this->showBanner(showVersion: true);
 
         // Site info
         $this->sectionHeader('Site');
@@ -2236,15 +2245,34 @@ ASCII;
         if (!$this->supportsColors()) {
             return $text;
         }
+        
+        // Replace theme placeholder with actual theme color
+        $codes = array_map(
+            fn($code) => $code === self::PRIMARY ? $this->themeColor : $code,
+            $codes
+        );
+        
         return implode('', $codes) . $text . self::RESET;
     }
 
     /**
-     * Show the banner.
+     * Show the banner with optional version on the last line.
      */
-    private function showBanner(): void
+    private function showBanner(bool $showVersion = false): void
     {
-        echo $this->color(self::BANNER, self::PRIMARY, self::BOLD);
+        $this->writeln('');
+        
+        // Display banner in primary brand color
+        foreach (self::BANNER_LINES as $i => $line) {
+            $coloredLine = $this->color($line, self::PRIMARY, self::BOLD);
+            
+            // Add version after the last line if requested
+            if ($showVersion && $i === count(self::BANNER_LINES) - 1) {
+                echo $coloredLine . '   ' . $this->color('v' . AVA_VERSION, self::DIM) . "\n";
+            } else {
+                echo $coloredLine . "\n";
+            }
+        }
     }
 
     /**
@@ -2253,8 +2281,9 @@ ASCII;
     private function sectionHeader(string $title): void
     {
         $this->writeln('');
-        echo $this->color("  ─── {$title} ", self::PRIMARY, self::BOLD);
-        echo $this->color(str_repeat('─', max(0, 50 - strlen($title))), self::PRIMARY, self::BOLD);
+        echo $this->color("  ─── ", self::DIM);
+        echo $this->color($title, self::PRIMARY, self::BOLD);
+        echo $this->color(" " . str_repeat('─', max(0, 50 - strlen($title))), self::DIM);
         $this->writeln('');
         $this->writeln('');
     }
@@ -2406,11 +2435,10 @@ ASCII;
 
     private function showHelp(): void
     {
-        $this->showBanner();
-        $this->writeln('');
+        $this->showBanner(showVersion: true);
 
         $this->sectionHeader('Usage');
-        $this->writeln('  ' . $this->color('./ava', self::PRIMARY) . ' <command> [options]');
+        $this->writeln('    ' . $this->color('./ava', self::PRIMARY) . ' ' . $this->color('<command>', self::WHITE) . ' ' . $this->color('[options]', self::DIM));
 
         $this->sectionHeader('Site Management');
         $this->commandItem('status', 'Show site health and overview');
@@ -2454,19 +2482,17 @@ ASCII;
             }
         }
 
-        $this->writeln('');
-        echo $this->color('  Examples:', self::BOLD) . "\n";
-        $this->writeln('');
-        $this->writeln('    ' . $this->color('./ava status', self::PRIMARY));
-        $this->writeln('    ' . $this->color('./ava make post "Hello World"', self::PRIMARY));
-        $this->writeln('    ' . $this->color('./ava lint', self::PRIMARY));
+        $this->sectionHeader('Examples');
+        $this->writeln('    ' . $this->color('./ava status', self::WHITE));
+        $this->writeln('    ' . $this->color('./ava make post "Hello World"', self::WHITE));
+        $this->writeln('    ' . $this->color('./ava lint', self::WHITE));
         $this->writeln('');
     }
 
     private function commandItem(string $command, string $description): void
     {
         $paddedCmd = str_pad($command, 30);
-        echo '    ' . $this->color($paddedCmd, self::PRIMARY);
+        echo '    ' . $this->color($paddedCmd, self::WHITE);
         echo $this->color($description, self::DIM) . "\n";
     }
 
@@ -2488,8 +2514,8 @@ ASCII;
     public function header(string $title): void
     {
         $this->writeln('');
-        echo '  ' . $this->color($title, self::BOLD) . "\n";
-        echo '  ' . $this->color(str_repeat('─', strlen($title)), self::DIM) . "\n";
+        echo '  ' . $this->color($title, self::PRIMARY, self::BOLD) . "\n";
+        echo '  ' . $this->color(str_repeat('─', strlen($title)), self::PRIMARY) . "\n";
     }
 
     /**
@@ -2573,11 +2599,27 @@ ASCII;
     }
 
     /**
-     * Format text with cyan color.
+     * Format text with cyan color (accent).
      */
     public function cyan(string $text): string
     {
-        return $this->color($text, self::CYAN);
+        return $this->color($text, self::PRIMARY);
+    }
+
+    /**
+     * Format text with accent color (neon cyan).
+     */
+    public function accent(string $text): string
+    {
+        return $this->color($text, self::PRIMARY);
+    }
+
+    /**
+     * Format text with highlight color (cyberpunk pink).
+     */
+    public function highlight(string $text): string
+    {
+        return $this->color($text, self::PRIMARY);
     }
 
     /**

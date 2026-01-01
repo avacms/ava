@@ -16,13 +16,15 @@ use Ava\Application;
  */
 final class TestRunner
 {
-    // ANSI colors
+    // ANSI colors (matching CLI palette)
     private const RESET = "\033[0m";
-    private const RED = "\033[31m";
-    private const GREEN = "\033[32m";
-    private const YELLOW = "\033[33m";
-    private const MAGENTA = "\033[35m";
+    private const PRIMARY = "\033[38;2;55;235;243m";     // Electric Blue
+    private const ACCENT = "\033[38;2;228;85;174m";      // Frostbite pink
+    private const RED = "\033[38;2;248;113;113m";
+    private const GREEN = "\033[38;2;52;211;153m";
+    private const YELLOW = "\033[38;2;251;191;36m";
     private const DIM = "\033[90m";
+    private const WHITE = "\033[37m";
     private const BOLD = "\033[1m";
 
     private Application $app;
@@ -49,8 +51,8 @@ final class TestRunner
     {
         $startTime = microtime(true);
 
-        echo $this->color("\n  Ava CMS Test Suite\n", self::MAGENTA, self::BOLD);
-        echo $this->color("  " . str_repeat('─', 50) . "\n", self::DIM);
+        echo $this->color("\n  Ava CMS Test Suite\n", self::PRIMARY, self::BOLD);
+        echo $this->color("  " . str_repeat('─', 50) . "\n", self::PRIMARY);
         
         if (!$this->quiet) {
             echo "\n";
@@ -93,7 +95,7 @@ final class TestRunner
 
         if (!$this->quiet) {
             echo "\n";
-            echo $this->color("  " . str_repeat('─', 50) . "\n", self::DIM);
+            echo $this->color("  " . str_repeat('─', 50) . "\n", self::PRIMARY);
         }
 
         $summary = "  Tests: ";
@@ -204,7 +206,7 @@ final class TestRunner
         // Show class name (unless quiet mode)
         if (!$this->quiet) {
             $shortName = $reflection->getShortName();
-            echo $this->color("  {$shortName}\n", self::BOLD);
+            echo $this->color("  {$shortName}\n", self::WHITE, self::BOLD);
             echo "\n";
         }
 

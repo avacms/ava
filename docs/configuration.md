@@ -340,6 +340,28 @@ indexer.log.3     ← oldest (deleted when .4 would be created)
 
 See [CLI - Logs](cli.md?id=logs) for more details.
 
+### CLI
+
+Customize the command-line interface appearance.
+
+```php
+'cli' => [
+    'theme' => 'cyan',
+],
+```
+
+| Theme | Description |
+|-------|-------------|
+| `cyan` | Cool cyan/aqua (default) |
+| `pink` | Vibrant pink |
+| `purple` | Classic purple |
+| `green` | Matrix green |
+| `blue` | Standard blue |
+| `amber` | Warm amber/orange |
+| `disabled` | No colors (plain text) |
+
+Use `disabled` for CI/CD pipelines or terminals that don't support ANSI colors.
+
 ### Plugins
 
 ```php

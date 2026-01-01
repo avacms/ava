@@ -20,6 +20,8 @@ Thoughtfully [documented](https://ava.addy.zone/#/) and designed to be approacha
 
 **Perfect for:** personal sites, blogs, portfolios, documentation, directories, and any project where you want simplicity without giving up power.
 
+![Ava CMS Screenshots](https://addy.zip/ava/ava-screenshots.webp)
+
 ## Why Ava?
 
 ### ✍️ Bring Your Own Editor
@@ -41,7 +43,7 @@ Templates are plain PHP files, so there’s no template language to learn. If yo
 [Two-layer caching](https://ava.addy.zone/#/performance) keeps PHP page generation extremely fast. Even without page caching, posts compile quickly, and large content updates can be indexed almost immediately for responsive search and sorting.
 
 ### 🧩 Flexible Content Modelling
-Define any [content types](https://ava.addy.zone/#/content), taxonomies, and URL patterns you like. Blogs, portfolios, recipes, documentation — structure content however it makes sense to you.
+Define any [content types](https://ava.addy.zone/#/content), taxonomies, and URL patterns you like. Blogs, portfolios, recipes, documentation. Structure content however it makes sense to you.
 
 ### 🔌 Simple Extensibility
 Hooks, shortcodes, and a straightforward [plugin system](https://ava.addy.zone/#/creating-plugins) let you extend Ava without fighting it or working around hidden abstractions.
