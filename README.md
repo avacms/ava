@@ -8,47 +8,49 @@
 [![Code size](https://img.shields.io/github/languages/code-size/adamgreenough/ava)](https://github.com/adamgreenough/ava)
 [![Discord](https://img.shields.io/discord/1028357262189801563)](https://discord.gg/Z7bF9YeK)
 
-Ava is a friendly, flexible, flat-file, PHP-based CMS for bespoke personal websites, blogs and more. 
+Ava is a friendly, flexible, flat-file CMS built in PHP for bespoke personal websites, blogs, and more.
 
-Content is Markdown files with YAML frontmatter, HTML support and extensible PHP shortcodes. Back them up however you like—copy to a folder, sync to the cloud, or use Git. Your data is always portable and yours to control. 
+Content lives in plain Markdown files with YAML frontmatter, optional HTML, and extensible PHP shortcodes. Back it up however you like — copy a folder, sync to the cloud, or commit to Git. Your content stays portable, transparent, and fully under your control.
 
-Ava automatically builds a fast cache so pages render quickly. There's no build step, no deploy queue, no waiting for static regeneration. Changes are immediate.
+An intuitive [command-line interface](https://ava.addy.zone/#/cli) lets you view statistics, manage cache, create content boilerplates, automate updates, inspect logs, and benchmark your setup — all without leaving your terminal.
 
-Thoughtfully [documented](https://ava.addy.zone/#/) with beginners in mind and easy to customise, Ava gives you full control over your content and design without complexity.
+Ava automatically builds a lightweight [cache](https://ava.addy.zone/#/performance) so pages render quickly. There’s no build step, no deploy queue, and no waiting for static regeneration. Edit a file, refresh the browser, and see your changes immediately.
 
-**Perfect for:** personal sites, blogs, portfolios, documentation, directories, and any project where you want simplicity without sacrificing power.
+Thoughtfully [documented](https://ava.addy.zone/#/) and designed to be approachable for beginners while remaining easy to customise, Ava gives you full control over your content and presentation without unnecessary complexity.
+
+**Perfect for:** personal sites, blogs, portfolios, documentation, directories, and any project where you want simplicity without giving up power.
 
 ## Why Ava?
 
-### ✍️ Bring Your Own Editor. 
-No clunky WYSIWYG editors here. Write flexible Markdown/HTML (with easily extensible PHP shortcodes) in your favourite text editor, IDE or terminal. Focus on writing, not wrestling with a web interface.
+### ✍️ Bring Your Own Editor
+No clunky WYSIWYG editors here. Write [flexible Markdown or HTML](https://ava.addy.zone/#/content) (with easily extensible PHP shortcodes) in your favourite editor, IDE, or terminal. Focus on writing, not wrestling with a web interface.
 
 ### 📁 No Database, No Problem
-No database required, but [SQLite is seamlessly available](https://ava.addy.zone/#/performance?id=backend-options) as a lightweight local file to scale massive content collections while keeping memory usage low. 
+No database is required, but [SQLite is seamlessly available](https://ava.addy.zone/#/performance?id=backend-options) as a lightweight local file to support large content collections while keeping memory usage low.
 
 ### ⚡ Truly Instant Updates
-Edit a file, refresh your browser, see it live. There's no build step, no deploy queue, no waiting for static regeneration. Changes are immediate.
+Edit a file, refresh your browser, see it live. There’s no build step, no deploy queue, and no waiting for static regeneration. Changes are immediate.
 
-### 🔍 Dynamic Features Built-In
-Unlike static site generators, Ava is a real PHP application. You get search, forms, and dynamic content without third-party services. Easily add any PHP functionality you need.
+### 🔍 Dynamic Features Built In
+Unlike static site generators, Ava is a real PHP application. You get [searching, sorting, filtering and dynamic content](https://ava.addy.zone/#/api?id=search-endpoint) out of the box — without relying on third-party services. Add any PHP functionality you need.
 
 ### 🎨 Your HTML, Your Way
-Templates are plain PHP files, so there's no template language to learn. If you know a little HTML & CSS, you can build a theme.
+Templates are plain PHP files, so there’s no template language to learn. If you know a little HTML and CSS, you already know how to [build a theme](https://ava.addy.zone/#/themes).
 
 ### 🚀 Blazing Fast Performance
-Two-layer caching serves pages in under 1ms. Even without caching, 10,000 posts render in ~15ms. Optional SQLite backend scales to 100k+ posts with constant memory. [See benchmarks →](https://ava.addy.zone/#/performance)
+[Two-layer caching](https://ava.addy.zone/#/performance) keeps PHP page generation extremely fast. Even without page caching, posts compile quickly, and large content updates can be indexed almost immediately for responsive search and sorting.
 
 ### 🧩 Flexible Content Modelling
-Define any content types, taxonomies, and URL patterns. Blogs, portfolios, recipes, documentation—structure content however you think.
+Define any [content types](https://ava.addy.zone/#/content), taxonomies, and URL patterns you like. Blogs, portfolios, recipes, documentation — structure content however it makes sense to you.
 
 ### 🔌 Simple Extensibility
-Hooks, shortcodes, and a straightforward plugin system. Extend Ava without fighting it.
+Hooks, shortcodes, and a straightforward [plugin system](https://ava.addy.zone/#/creating-plugins) let you extend Ava without fighting it or working around hidden abstractions.
 
 ### 💻 Works Anywhere PHP Runs
-Cheap shared hosting, a VPS, your laptop—if it runs PHP 8.3, it runs Ava. No special server requirements.
+Cheap shared hosting, a VPS, or your laptop — if it can run modern PHP and you can use the shell, it can run Ava. No special [server setup](https://ava.addy.zone/#/hosting) required.
 
 ### 🤖 AI Friendly
-The clean file-based structure, thorough integrated documentation and straightforward CLI makes it easy for AI assistants to read your content, understand your config and test your setup to help you build themes and extensions.
+A clean file-based structure, clear configuration, thorough documentation, and a straightforward CLI make it easy for [AI assistants](https://ava.addy.zone/#/ai-reference) to read your content, understand your setup, and help you build themes and extensions.
 
 ## Quick Start
 
