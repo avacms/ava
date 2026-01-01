@@ -4,11 +4,11 @@ Plugins created by the Ava community. These extend Ava with additional functiona
 
 ## Available Plugins
 
-| Plugin | Description | Author | Link |
-|--------|-------------|--------|------|
-| **Sitemap** | Automatic XML sitemap generation for search engines | Adam Greenough | *Bundled* |
-| **Feed** | RSS/Atom feeds for blog subscriptions | Adam Greenough | *Bundled* |
-| **Redirects** | Manage URL redirects from the admin panel | Adam Greenough | *Bundled* |
+| Plugin | Description | Author |
+|--------|-------------|--------|
+| **Sitemap** (bundled) | Automatic XML sitemap generation for search engines | [Adam Greenough](https://github.com/adamgreenough) |
+| **Feed** (bundled) | RSS/Atom feeds for blog subscriptions | [Adam Greenough](https://github.com/adamgreenough) |
+| **Redirects** (bundled) | Manage URL redirects from the admin panel | [Adam Greenough](https://github.com/adamgreenough) |
 
 ---
 

@@ -6,7 +6,7 @@ A gallery of websites built with Ava CMS. Get inspired by what others are creati
 
 | Site | Description | Author |
 |------|-------------|--------|
-| [addy.zone](https://addy.zone) | Personal website and blog | Adam Greenough |
+| [addy.zone](https://addy.zone) | Personal website and blog | [Adam Greenough](https://github.com/adamgreenough) |
 
 ---
 

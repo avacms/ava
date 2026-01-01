@@ -4,9 +4,9 @@ Themes created by the Ava community. Drop these into your `themes/` folder and s
 
 ## Available Themes
 
-| Theme | Description | Author | Link |
-|-------|-------------|--------|------|
-| **Default** | Clean, modern theme focused on readability. Great starting point for customisation. | Adam Greenough | *Bundled* |
+| Theme | Description | Author |
+|-------|-------------|--------|
+| **Default** (bundled) | Clean, modern theme focused on readability. Great starting point for customisation. | [Adam Greenough](https://github.com/adamgreenough) |
 
 ---
 
