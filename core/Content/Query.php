@@ -478,7 +478,11 @@ final class Query
 
             // Taxonomy filters
             foreach ($this->taxonomyFilters as $taxonomy => $term) {
-                $terms = $data['taxonomies'][$taxonomy] ?? [];
+                // Check both locations: top-level 'taxonomies' (recent_cache format)
+                // and frontmatter (content_index format)
+                $terms = $data['taxonomies'][$taxonomy] 
+                    ?? $data['frontmatter'][$taxonomy] 
+                    ?? [];
                 if (!in_array($term, $terms, true)) {
                     return false;
                 }

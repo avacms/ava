@@ -353,6 +353,15 @@ ASCII;
             return true;
         });
 
+        // Reset OPcache if available (clears cached PHP bytecode)
+        if (function_exists('opcache_reset')) {
+            try {
+                @opcache_reset();
+            } catch (\Throwable $e) {
+                // OPcache reset may fail in CLI mode, ignore silently
+            }
+        }
+
         $this->success('Content index rebuilt!');
         $this->writeln('');
         return 0;

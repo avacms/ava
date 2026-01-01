@@ -1,71 +1,74 @@
 ---
 id: 01JGMK0000ABOUT00000000001
-title: About Ava
+title: About
 slug: about
 status: published
 ---
 
 # About Ava CMS
 
-Ava is a **flat-file content management system** for people who love working with files and clean code. It's built for personal sites, blogs, portfolios, and small content sites where simplicity matters.
+Ava is a **flat-file content management system** built for developers and writers who value simplicity, speed, and control. It's designed for personal sites, blogs, portfolios, and documentation—anywhere you want power without complexity.
+
+---
 
 ## Philosophy
 
-### Your Files Are the Source of Truth
+### Files Are the Source of Truth
 
-Your content lives in Markdown files. Back them up however you like—copy to a folder, sync to the cloud, or use version control. Your data is always portable and yours to control.
+Your content lives in Markdown files on your filesystem. There's no database to maintain, no export to worry about, no vendor lock-in. Back up your content however you like—copy a folder, sync to the cloud, or commit to Git.
 
-### The Filesystem is Trusted
+### Instant Feedback
 
-Files are files. Folders are folders. Save `hello.md` in `content/posts/`, and it becomes `/blog/hello` on your site.
+Edit a file, save it, refresh your browser—and see your changes immediately. No build step, no deploy queue, no cache invalidation dance. Ava gets out of your way so you can focus on your content.
 
-### The CMS Gets Out of Your Way
+### Developer-Friendly
 
-No WYSIWYG fighting your HTML. No media library when your OS has a file browser. Ava assumes you know what you're doing and trusts you to do it.
+Templates are plain PHP. Configuration is PHP arrays. The entire core is under 3,000 lines of readable code. If you want to understand how something works, you can read it in an afternoon.
 
-### Performance is a Feature
+### Performance by Default
 
-Ava uses **two-layer caching** that makes most requests complete in under a millisecond:
+Ava uses two-layer caching to serve pages in under a millisecond:
 
-1. **Page cache** — Full HTML pages cached as files
-2. **Content index** — Parsed metadata cached as binary data
+1. **Page cache** — Full HTML pages stored as static files
+2. **Content index** — Parsed metadata in a fast binary format
 
-Your site is fast without CDNs or optimization plugins.
+Your site is fast without CDNs, optimization plugins, or tuning.
+
+---
 
 ## Who is Ava For?
 
 Ava is perfect if you:
 
 - Write content in **Markdown** with your favorite editor
-- Want full control over your **PHP templates** and HTML
+- Want full control over your **HTML and CSS**
 - Need a site that's **fast by default**
-- Want something **simple** you can understand in an afternoon
-- Value **clarity** over complexity
+- Value **clarity and simplicity** over feature bloat
+- Want to **understand** the tools you use
 
-## Who is Ava NOT For?
-
-Ava might not be right if you:
-
-- Need a visual page builder or drag-and-drop editor
-- Want a WordPress-like admin for non-technical users
-- Need complex user management or memberships
-- Require e-commerce out of the box
-
-## Technical Stack
-
-- **PHP 8.3+** — Modern PHP with typed properties
-- **League CommonMark** — Standards-compliant Markdown
-- **Symfony YAML** — Configuration and frontmatter
-- **igbinary** (optional) — Fast binary serialization
-
-No frameworks. The entire core is under 3,000 lines of readable code.
-
-## Get Involved
-
-- **Documentation**: [ava.addy.zone](https://ava.addy.zone)
-- **Source Code**: [github.com/adamgreenough/ava](https://github.com/adamgreenough/ava)
-- **Discord**: [discord.gg/Z7bF9YeK](https://discord.gg/Z7bF9YeK)
+Ava might not be right if you need a visual page builder, a WordPress-like admin for non-technical users, or complex e-commerce out of the box.
 
 ---
 
-**Now go build something!** Start by editing this page or check out the [homepage](/) for next steps. 🚀
+## The Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Language | PHP 8.3+ |
+| Markdown | League CommonMark |
+| Config | Symfony YAML |
+| Caching | Binary index + static HTML |
+
+No frameworks. No JavaScript build tools. Just PHP.
+
+---
+
+## Get Involved
+
+- 📚 **[Documentation](https://ava.addy.zone)** — Learn everything about Ava
+- 💻 **[GitHub](https://github.com/adamgreenough/ava)** — Source code and issues
+- 💬 **[Discord](https://discord.gg/Z7bF9YeK)** — Join the community
+
+---
+
+**Ready to start?** Head back to the [homepage](/) and follow the quick start guide. 🚀

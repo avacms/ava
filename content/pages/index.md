@@ -6,74 +6,88 @@ status: published
 template: page.php
 ---
 
-# Welcome to Ava! 👋
+# Welcome to Ava 👋
 
-You did it! Ava is up and running. This is your homepage, rendered from a simple Markdown file at `content/pages/index.md`.
+Congratulations! Your site is up and running. This is your homepage, rendered from a simple Markdown file at `content/pages/index.md`.
+
+---
 
 ## What is Ava?
 
-Ava is a **flat-file CMS** for people who love the web. No databases, no build steps—just Markdown files, PHP templates, and fast caching.
+Ava is a **flat-file CMS** built for developers and writers who love working with files. No databases, no build steps—just Markdown files, PHP templates, and blazing-fast caching.
 
-**Why you'll love it:**
+### Why you'll love it
 
-- **📝 Write in Markdown** — Your content lives in `content/` as plain `.md` files
-- **🚀 Blazingly Fast** — Two-layer caching means sub-millisecond page loads
-- **🎨 Your HTML** — Templates are plain PHP, no templating language to learn
-- **📦 Portable** — Back up with a folder copy, sync to the cloud, or use version control
-- **🛠️ Zero Complexity** — No npm, no webpack, no build pipeline
+- **📝 Your Editor, Your Way** — Write in any editor. Content is just Markdown.
+- **⚡ Instant Publishing** — Edit, save, refresh. No build queues.
+- **🎨 Full HTML Control** — Templates are PHP. No framework to fight.
+- **🔍 Built-in Search** — Dynamic search works out of the box.
+- **📦 Truly Portable** — Back up with `cp -r`. Version with Git.
 
-## Quick Start
+---
 
-### Create a Page
+## Quick Start Guide
 
-Add a new file at `content/pages/about.md`:
+### 1. Create Your First Page
+
+Add a new file at `content/pages/contact.md`:
 
 ```markdown
 ---
-title: About Us
-slug: about
+title: Contact
+slug: contact
 status: published
 ---
 
-# About Us
+# Get in Touch
 
-Welcome to our site!
+Drop us a line at hello@example.com
 ```
 
-Save it and visit `/about`. That's it!
+Save it and visit `/contact`. That's all it takes!
 
-### Create a Blog Post
+### 2. Write a Blog Post
 
-Add a file at `content/posts/my-post.md`:
+Create `content/posts/my-first-post.md`:
 
 ```markdown
 ---
 title: My First Post
 slug: my-first-post
-date: 2024-12-28
+date: 2025-01-01
 status: published
 ---
 
 # Hello World
 
-This is my first blog post.
+This is my first blog post with Ava.
 ```
 
-Or use the CLI: `./ava make post "My First Post"`
+Your post will appear at `/blog/my-first-post`.
 
-### Customize Your Theme
+> **Tip:** Use the CLI for faster content creation: `./ava make post "My First Post"`
 
-Templates live in `themes/default/templates/`. They're plain PHP with access to `$content` and the `$ava` helper:
+### 3. Customize Your Theme
+
+Templates live in `themes/default/templates/`. They're just PHP with a powerful helper:
 
 ```php
-<h1><?= $ava->e($content->title()) ?></h1>
-<?= $ava->body($content) ?>
+<article>
+    <h1><?= $ava->e($content->title()) ?></h1>
+    <?= $ava->body($content) ?>
+</article>
 ```
+
+Check out the theme files—they're fully commented to help you learn!
+
+---
 
 ## Learn More
 
-- 📚 **[Full Documentation](https://ava.addy.zone)** — Everything you need to know
-- 💻 **[GitHub](https://github.com/adamgreenough/ava)** — Source code and issues
-- 💬 **[Discord](https://discord.gg/Z7bF9YeK)** — Chat and support
+- 📚 **[Documentation](https://ava.addy.zone)** — Complete guides and reference
+- �� **[GitHub](https://github.com/adamgreenough/ava)** — Source code and issues
+- 💬 **[Discord](https://discord.gg/Z7bF9YeK)** — Community and support
 
-**Now go build something awesome!** Edit this page, create new content, and make the site your own. 🚀
+---
+
+**Ready to build something great?** Start by editing this page, then explore the [blog](/blog) and [about](/about) pages. Make Ava yours! 🚀

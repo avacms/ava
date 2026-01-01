@@ -10,9 +10,9 @@
 
 Ava is a friendly, flexible, flat-file CMS built in PHP for bespoke personal websites, blogs, and more.
 
-Content lives in plain [Markdown files](https://ava.addy.zone/#/content) with YAML frontmatter, optional HTML, and extensible PHP shortcodes. Back it up however you like — copy a folder, sync to the cloud, or commit to Git. Your content stays portable, transparent, and fully under your control.
+Content lives in plain [Markdown files](https://ava.addy.zone/#/content) with YAML frontmatter, optional HTML, and extensible PHP shortcodes. Back it up however you like: copy a folder, sync to the cloud, or commit to Git. Your content stays portable, transparent, and fully under your control.
 
-An intuitive [command-line interface](https://ava.addy.zone/#/cli) lets you view statistics, manage cache, create content boilerplates, automate updates, inspect logs, and benchmark your setup — all without leaving your terminal.
+An intuitive [command-line interface](https://ava.addy.zone/#/cli) lets you view statistics, manage cache, create content boilerplates, automate updates, inspect logs, and benchmark your setup without leaving your terminal.
 
 Ava automatically builds a lightweight [cache](https://ava.addy.zone/#/performance) so pages render quickly. There’s no build step, no deploy queue, and no waiting for static regeneration. Edit a file, refresh the browser, and see your changes immediately.
 
@@ -32,7 +32,7 @@ No database is required, but [SQLite is seamlessly available](https://ava.addy.z
 Edit a file, refresh your browser, see it live. There’s no build step, no deploy queue, and no waiting for static regeneration. Changes are immediate.
 
 ### 🔍 Dynamic Features Built In
-Unlike static site generators, Ava is a real PHP application. You get [searching, sorting, filtering and dynamic content](https://ava.addy.zone/#/api?id=search-endpoint) out of the box — without relying on third-party services. Add any PHP functionality you need.
+Unlike static site generators, Ava is a real PHP application. You get [searching, sorting, filtering and dynamic content](https://ava.addy.zone/#/api?id=search-endpoint) out of the box without relying on third-party services. Add any PHP functionality you need.
 
 ### 🎨 Your HTML, Your Way
 Templates are plain PHP files, so there’s no template language to learn. If you know a little HTML and CSS, you already know how to [build a theme](https://ava.addy.zone/#/themes).
