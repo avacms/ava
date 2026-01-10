@@ -101,7 +101,7 @@ $assetBadge = function($type) {
                     <?php foreach ($themeInfo['templates'] as $name => $template): ?>
                     <tr>
                         <td>
-                            <span class="material-symbols-rounded text-tertiary" style="font-size: 16px; vertical-align: middle;">description</span>
+                            <span class="material-symbols-rounded text-tertiary icon-sm">description</span>
                             <?= htmlspecialchars($name) ?>.php
                         </td>
                         <td class="text-right text-tertiary"><?= $formatBytes($template['size']) ?></td>
@@ -179,7 +179,7 @@ foreach ($assets as $asset):
                 <?php foreach ($themeInfo['assets'] as $asset): ?>
                 <tr>
                     <td>
-                        <span class="material-symbols-rounded text-tertiary" style="font-size: 16px; vertical-align: middle;"><?= $assetIcon($asset['type']) ?></span>
+                        <span class="material-symbols-rounded text-tertiary icon-sm"><?= $assetIcon($asset['type']) ?></span>
                         <?= htmlspecialchars($asset['file']) ?>
                     </td>
                     <td><span class="badge <?= $assetBadge($asset['type']) ?>"><?= htmlspecialchars($asset['type']) ?></span></td>
@@ -251,7 +251,7 @@ foreach ($assets as $asset):
                 <?php foreach ($availableThemes as $t): ?>
                 <tr>
                     <td>
-                        <span class="material-symbols-rounded text-tertiary" style="font-size: 16px; vertical-align: middle;">palette</span>
+                        <span class="material-symbols-rounded text-tertiary icon-sm">palette</span>
                         <?= htmlspecialchars($t['name']) ?>
                     </td>
                     <td><?= $t['template_count'] ?></td>

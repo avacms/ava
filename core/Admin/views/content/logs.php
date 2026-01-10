@@ -68,7 +68,7 @@
     <div class="empty-state">
         <span class="material-symbols-rounded">history</span>
         <p>No admin activity logged yet.</p>
-        <span class="text-secondary text-sm">Logs are created for logins, logouts, and lint checks.</span>
+        <span class="text-secondary text-sm">Logs are created for admin activity such as logins and content changes.</span>
     </div>
     <?php endif; ?>
 </div>

@@ -2,9 +2,6 @@
 /**
  * Redirects Plugin Admin View - Content Only
  * 
- * Redirects are managed via CLI for security. This view shows
- * existing redirects and CLI documentation.
- * 
  * Available variables:
  * - $redirects: Array of redirect entries
  * - $csrf: CSRF token for forms
@@ -13,6 +10,7 @@
  * - $admin_url: Admin base URL
  * - $app: Application instance
  * - $jsonError: JSON parsing error message (if any)
+ * - $adminPath: Configured admin path
  */
 ?>
 
@@ -28,47 +26,51 @@
 <?php endif; ?>
 
 <div class="grid grid-2">
+    <!-- Create Redirect Form -->
     <div class="card">
         <div class="card-header">
             <span class="card-title">
-                <span class="material-symbols-rounded">terminal</span>
-                Managing Redirects
+                <span class="material-symbols-rounded">add</span>
+                Add Redirect
             </span>
         </div>
         <div class="card-body">
-            <p class="text-secondary text-sm" style="margin-bottom: var(--sp-4);">
-                Redirects are managed via the command line for security. Use these commands:
-            </p>
-            
-            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
-                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Add a redirect:</p>
-                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:add /old-path /new-path</code>
-            </div>
-            
-            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
-                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Add with status code:</p>
-                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:add /old-path /new-path 302</code>
-            </div>
-            
-            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
-                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Mark page as gone (410):</p>
-                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:add /deleted-page "" 410</code>
-            </div>
-            
-            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3); margin-bottom: var(--sp-3);">
-                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">List all redirects:</p>
-                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:list</code>
-            </div>
-            
-            <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: var(--sp-3);">
-                <p class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Remove a redirect:</p>
-                <code class="text-sm" style="color: var(--text-accent);">./ava redirects:remove /old-path</code>
-            </div>
-            
-            <p class="text-tertiary text-xs" style="margin-top: var(--sp-4);">
-                <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">info</span>
-                You can also edit <code>storage/redirects.json</code> directly, or use <code>redirect_from</code> in content frontmatter.
-            </p>
+            <form method="POST" action="<?= $admin_url ?>/redirects">
+                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
+                <input type="hidden" name="action" value="create">
+                
+                <div class="form-group">
+                    <label for="from" class="form-label">Source Path <span class="text-danger">*</span></label>
+                    <input type="text" id="from" name="from" class="form-control" required
+                           placeholder="/old-page"
+                           pattern="/.*"
+                           value="<?= htmlspecialchars($_POST['from'] ?? '') ?>">
+                </div>
+                
+                <div class="form-group" id="destination-group">
+                    <label for="to" class="form-label">Destination</label>
+                    <input type="text" id="to" name="to" class="form-control"
+                           placeholder="/new-page or https://example.com"
+                           value="<?= htmlspecialchars($_POST['to'] ?? '') ?>">
+                </div>
+                
+                <div class="form-group">
+                    <label for="code" class="form-label">Status Code</label>
+                    <select id="code" name="code" class="form-control">
+                        <?php foreach ($statusCodes as $codeNum => $info): ?>
+                        <option value="<?= $codeNum ?>" <?= ($_POST['code'] ?? 301) == $codeNum ? 'selected' : '' ?> data-redirect="<?= $info['redirect'] ? 'true' : 'false' ?>">
+                            <?= $codeNum ?> - <?= htmlspecialchars($info['label']) ?>
+                            <?= $info['redirect'] ? '' : '(no destination)' ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <span class="material-symbols-rounded">add</span>
+                    Add Redirect
+                </button>
+            </form>
         </div>
     </div>
 
@@ -173,7 +175,32 @@
     <div class="empty-state">
         <span class="material-symbols-rounded">swap_horiz</span>
         <p>No entries configured</p>
-        <span class="text-sm text-tertiary">Use <code>./ava redirects:add</code> to add redirects</span>
+        <span class="text-sm text-tertiary">Use the form above to add redirects</span>
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+// Update destination field based on status code
+const codeSelect = document.getElementById('code');
+const destGroup = document.getElementById('destination-group');
+const toField = document.getElementById('to');
+
+function updateDestinationVisibility() {
+    const selectedOption = codeSelect.options[codeSelect.selectedIndex];
+    const needsDestination = selectedOption.dataset.redirect === 'true';
+    
+    if (needsDestination) {
+        destGroup.style.display = '';
+        toField.required = true;
+        toField.placeholder = '/new-page or https://example.com';
+    } else {
+        destGroup.style.display = 'none';
+        toField.required = false;
+        toField.value = '';
+    }
+}
+
+codeSelect.addEventListener('change', updateDestinationVisibility);
+updateDestinationVisibility(); // Set initial state
+</script>

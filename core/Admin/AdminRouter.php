@@ -83,11 +83,6 @@ final class AdminRouter
             return $this->handle('flushWebpageCache', $request);
         });
 
-        // Lint action (protected)
-        $router->addRoute($basePath . '/lint', function (Request $request) {
-            return $this->handle('lint', $request);
-        });
-
         // System info (protected)
         $router->addRoute($basePath . '/system', function (Request $request) {
             return $this->handle('system', $request);
@@ -113,14 +108,49 @@ final class AdminRouter
             return $this->handle('logs', $request);
         });
 
+        // Content lint page (protected)
+        $router->addRoute($basePath . '/lint', function (Request $request) {
+            return $this->handle('lint', $request);
+        });
+
+        // Media uploader (protected)
+        $router->addRoute($basePath . '/media', function (Request $request) {
+            return $this->handleMedia($request);
+        });
+
         // Content list (protected) - pattern: /admin/content/{type}
         $router->addRoute($basePath . '/content/{type}', function (Request $request, array $params) {
             return $this->handleContent($request, $params['type']);
         });
 
+        // Content create (protected) - pattern: /admin/content/{type}/create
+        $router->addRoute($basePath . '/content/{type}/create', function (Request $request, array $params) {
+            return $this->handleContentCreate($request, $params['type']);
+        });
+
+        // Content edit (protected) - pattern: /admin/content/{type}/{slug}/edit
+        $router->addRoute($basePath . '/content/{type}/{slug}/edit', function (Request $request, array $params) {
+            return $this->handleContentEdit($request, $params['type'], $params['slug']);
+        });
+
+        // Content delete (protected) - pattern: /admin/content/{type}/{slug}/delete
+        $router->addRoute($basePath . '/content/{type}/{slug}/delete', function (Request $request, array $params) {
+            return $this->handleContentDelete($request, $params['type'], $params['slug']);
+        });
+
         // Taxonomy detail (protected) - pattern: /admin/taxonomy/{taxonomy}
         $router->addRoute($basePath . '/taxonomy/{taxonomy}', function (Request $request, array $params) {
             return $this->handleTaxonomy($request, $params['taxonomy']);
+        });
+
+        // Taxonomy term create (protected) - pattern: /admin/taxonomy/{taxonomy}/create
+        $router->addRoute($basePath . '/taxonomy/{taxonomy}/create', function (Request $request, array $params) {
+            return $this->handleTaxonomyTermCreate($request, $params['taxonomy']);
+        });
+
+        // Taxonomy term delete (protected) - pattern: /admin/taxonomy/{taxonomy}/{term}/delete
+        $router->addRoute($basePath . '/taxonomy/{taxonomy}/{term}/delete', function (Request $request, array $params) {
+            return $this->handleTaxonomyTermDelete($request, $params['taxonomy'], $params['term']);
         });
 
         // Register custom plugin pages
@@ -147,7 +177,7 @@ final class AdminRouter
     {
         // Enforce HTTPS for admin access (except on localhost)
         if (!$request->isSecure() && !$request->isLocalhost()) {
-            $response = new Response(
+            $response = $this->applyAdminSecurityHeaders(new Response(
                 '<h1>HTTPS Required</h1>' .
                 '<p>The admin dashboard requires HTTPS for security. Your password and session cookies ' .
                 'would be transmitted in plain text over HTTP.</p>' .
@@ -155,7 +185,7 @@ final class AdminRouter
                 htmlspecialchars($request->path()) . '</strong></p>',
                 403,
                 ['Content-Type' => 'text/html; charset=utf-8']
-            );
+            ));
             return new RouteMatch(
                 type: 'admin',
                 template: '__raw__',
@@ -166,7 +196,7 @@ final class AdminRouter
         // Check authentication for protected routes
         if ($requireAuth && !$this->controller->auth()->check()) {
             $loginUrl = $this->app->config('admin.path', '/admin') . '/login';
-            $response = Response::redirect($loginUrl);
+            $response = $this->applyAdminSecurityHeaders(Response::redirect($loginUrl));
             return new RouteMatch(
                 type: 'admin',
                 template: '__raw__',
@@ -206,6 +236,33 @@ final class AdminRouter
             return null;
         }
 
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle media upload request.
+     */
+    private function handleMedia(Request $request): ?RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->media($request);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
         return new RouteMatch(
             type: 'admin',
             template: '__raw__',
@@ -229,6 +286,8 @@ final class AdminRouter
             return null;
         }
 
+        $response = $this->applyAdminSecurityHeaders($response);
+
         return new RouteMatch(
             type: 'admin',
             template: '__raw__',
@@ -251,6 +310,133 @@ final class AdminRouter
         if ($response === null) {
             return null;
         }
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle taxonomy term create request.
+     */
+    private function handleTaxonomyTermCreate(Request $request, string $taxonomy): ?RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->taxonomyTermCreate($request, $taxonomy);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle taxonomy term delete request.
+     */
+    private function handleTaxonomyTermDelete(Request $request, string $taxonomy, string $term): ?RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->taxonomyTermDelete($request, $taxonomy, $term);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle content create request.
+     */
+    private function handleContentCreate(Request $request, string $type): ?RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->contentCreate($request, $type);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle content edit request.
+     */
+    private function handleContentEdit(Request $request, string $type, string $slug): ?RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->contentEdit($request, $type, $slug);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $response = $this->applyAdminSecurityHeaders($response);
+
+        return new RouteMatch(
+            type: 'admin',
+            template: '__raw__',
+            params: ['response' => $response]
+        );
+    }
+
+    /**
+     * Handle content delete request.
+     */
+    private function handleContentDelete(Request $request, string $type, string $slug): ?RouteMatch
+    {
+        $accessCheck = $this->checkAccess($request);
+        if ($accessCheck !== null) {
+            return $accessCheck;
+        }
+
+        $response = $this->controller->contentDelete($request, $type, $slug);
+
+        if ($response === null) {
+            return null;
+        }
+
+        $response = $this->applyAdminSecurityHeaders($response);
 
         return new RouteMatch(
             type: 'admin',
@@ -281,10 +467,55 @@ final class AdminRouter
             return null;
         }
 
+        $response = $this->applyAdminSecurityHeaders($response);
+
         return new RouteMatch(
             type: 'admin',
             template: '__raw__',
             params: ['response' => $response]
         );
     }
+
+    /**
+     * Apply strict security headers for all admin responses.
+     * This intentionally does not affect public site pages.
+     */
+    private function applyAdminSecurityHeaders(Response $response): Response
+    {
+        // Admin should never be cached by browsers/proxies.
+        // (Avoids back-button showing sensitive pages post-logout, shared proxy caches, etc.)
+        $headers = [
+            'Cache-Control' => 'no-store, max-age=0',
+            'Pragma' => 'no-cache',
+            'X-Robots-Tag' => 'noindex, nofollow, noarchive, nosnippet',
+
+            // Stronger anti-framing for admin.
+            'X-Frame-Options' => 'DENY',
+
+            // Cross-origin isolation hardening.
+            'Cross-Origin-Opener-Policy' => 'same-origin',
+            'Cross-Origin-Resource-Policy' => 'same-origin',
+
+            // Limit powerful APIs.
+            'Permissions-Policy' => 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+
+            // CSP tuned for the current admin templates (inline theme CSS + inline JS + Google font stylesheet).
+            // If you later remove inline handlers/scripts, you can tighten script-src/style-src.
+            'Content-Security-Policy' => implode('; ', [
+                "default-src 'self'",
+                "base-uri 'none'",
+                "object-src 'none'",
+                "frame-ancestors 'none'",
+                "form-action 'self'",
+                "img-src 'self' data:",
+                "font-src 'self' https://fonts.gstatic.com data:",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "script-src 'self' 'unsafe-inline'",
+                "connect-src 'self'",
+            ]),
+        ];
+
+        return $response->withHeaders($headers);
+    }
+
 }

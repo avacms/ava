@@ -48,9 +48,9 @@ $ui = $config['ui'] ?? [];
                     ?>
                     <tr>
                         <td>
-                            <div style="display: flex; align-items: center; gap: var(--sp-2);">
-                                <span class="material-symbols-rounded text-tertiary" style="font-size: 16px;">label</span>
-                                <span style="font-weight: 500;"><?= htmlspecialchars($termData['name']) ?></span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="material-symbols-rounded text-tertiary icon-sm">label</span>
+                                <span class="font-medium"><?= htmlspecialchars($termData['name']) ?></span>
                             </div>
                         </td>
                         <td><code class="text-xs"><?= htmlspecialchars($slug) ?></code></td>
@@ -59,16 +59,20 @@ $ui = $config['ui'] ?? [];
                                 <?= $termData['count'] ?>
                             </span>
                         </td>
-                        <td style="width: 120px;">
+                        <td class="w-120">
                             <div class="progress-bar">
                                 <div class="progress-fill accent" style="width: <?= $usagePercent ?>%"></div>
                             </div>
                         </td>
                         <td>
-                            <a href="<?= htmlspecialchars($termUrl) ?>" target="_blank" class="btn btn-xs btn-secondary">
-                                <span class="material-symbols-rounded">open_in_new</span>
-                                View
-                            </a>
+                            <div class="btn-group">
+                                <a href="<?= htmlspecialchars($termUrl) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-secondary" title="View archive">
+                                    <span class="material-symbols-rounded">open_in_new</span>
+                                </a>
+                                <a href="<?= htmlspecialchars($admin_url) ?>/taxonomy/<?= htmlspecialchars($taxonomy) ?>/<?= htmlspecialchars($slug) ?>/delete" class="btn btn-xs btn-secondary" title="Delete term">
+                                    <span class="material-symbols-rounded">delete</span>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -79,6 +83,10 @@ $ui = $config['ui'] ?? [];
         <div class="empty-state">
             <span class="material-symbols-rounded">sell</span>
             <p>No terms in this taxonomy yet</p>
+            <a href="<?= htmlspecialchars($admin_url) ?>/taxonomy/<?= htmlspecialchars($taxonomy) ?>/create" class="btn btn-primary mt-3">
+                <span class="material-symbols-rounded">add</span>
+                Add Term
+            </a>
         </div>
         <?php endif; ?>
     </div>

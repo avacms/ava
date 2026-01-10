@@ -53,7 +53,7 @@
         </span>
     </div>
     <div class="card-body">
-        <p class="text-secondary text-sm" style="margin-bottom: var(--sp-3);">
+        <p class="text-secondary text-sm mb-3">
             The linter checks all content files for:
         </p>
         <div class="list-item"><span class="list-label">YAML Syntax</span><span class="text-secondary text-sm">Valid frontmatter structure</span></div>

@@ -108,24 +108,24 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
 <?php if (isset($recentErrorCount) && $recentErrorCount > 0): ?>
 <div class="alert alert-warning">
     <span class="material-symbols-rounded">warning</span>
-    <div style="flex: 1;">
+    <div class="flex-1">
         <strong><?= $recentErrorCount ?> error<?= $recentErrorCount !== 1 ? 's' : '' ?> logged in the last 24 hours</strong>
         <br>
-        <span class="text-xs" style="opacity: 0.8;">
-            <a href="<?= htmlspecialchars($admin_url) ?>/system" style="color: inherit; text-decoration: underline;">View errors in System Info</a>
+        <span class="text-xs opacity-80">
+            <a href="<?= htmlspecialchars($admin_url) ?>/system" class="link-inherit">View errors in System Info</a>
         </span>
     </div>
 </div>
 <?php endif; ?>
 
 <?php if ($updateCheck && $updateCheck['available']): ?>
-<div class="alert alert-info" style="margin-bottom: var(--sp-5);">
+<div class="alert alert-info mb-5">
     <span class="material-symbols-rounded">system_update</span>
-    <div style="flex: 1;">
+    <div class="flex-1">
         <strong>Update available:</strong> v<?= htmlspecialchars($updateCheck['latest']) ?>
         <br>
-        <span class="text-xs" style="opacity: 0.7;">
-            Run <code>./ava update:apply</code> or <a href="https://ava.addy.zone/#/updates" target="_blank" style="color: inherit;">see the update guide</a>
+        <span class="text-xs opacity-70">
+               Run <code>./ava update:apply</code> or <a href="https://ava.addy.zone/#/updates" target="_blank" rel="noopener noreferrer" class="link-inherit">see the update guide</a>
         </span>
     </div>
 </div>
@@ -192,7 +192,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="list-label">Total Size</span>
                 <span class="list-value"><?= $formatBytes($cache['size'] ?? 0) ?></span>
             </div>
-            <form method="POST" action="<?= $admin_url ?>/rebuild" style="margin-top: var(--sp-4);">
+            <form method="POST" action="<?= $admin_url ?>/rebuild" class="mt-4">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
                 <button type="submit" class="btn btn-primary btn-sm">
                     <span class="material-symbols-rounded">refresh</span>
@@ -227,7 +227,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="list-value"><?= $webpageCache['ttl'] ? $webpageCache['ttl'] . 's' : 'Forever' ?></span>
             </div>
             <?php if ($webpageCache['count'] > 0): ?>
-            <form method="POST" action="<?= $admin_url ?>/flush-pages" style="margin-top: var(--sp-4);">
+            <form method="POST" action="<?= $admin_url ?>/flush-pages" class="mt-4">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
                 <button type="submit" class="btn btn-secondary btn-sm">
                     <span class="material-symbols-rounded">delete_sweep</span>
@@ -236,7 +236,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
             </form>
             <?php endif; ?>
             <?php else: ?>
-            <p class="text-dim text-sm" style="margin: 0;">Enable in config for faster page loads.</p>
+            <p class="text-dim text-sm m-0">Enable in config for faster page loads.</p>
             <?php endif; ?>
         </div>
     </div>
@@ -277,7 +277,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="material-symbols-rounded">language</span>
                 Site
             </span>
-            <a href="<?= htmlspecialchars($site['url']) ?>" target="_blank" class="btn btn-sm btn-secondary">View</a>
+                <a href="<?= htmlspecialchars($site['url']) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary">View</a>
         </div>
         <div class="card-body">
             <div class="list-item">
@@ -315,7 +315,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
             <div class="config-section-title">
                 <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
                 <?= htmlspecialchars($typeConfig['label'] ?? ucfirst($type) . 's') ?>
-                <a href="<?= $admin_url ?>/content/<?= $type ?>" class="badge badge-accent" style="margin-left: auto;"><?= $stats['total'] ?> →</a>
+                <a href="<?= $admin_url ?>/content/<?= $type ?>" class="badge badge-accent ml-auto"><?= $stats['total'] ?> →</a>
             </div>
             <div class="config-row">
                 <span class="label">Directory</span>
@@ -348,7 +348,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
             ?>
             <div class="content-item">
                 <?php if ($itemUrl): ?>
-                <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" class="content-item-link">
+                    <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener noreferrer" class="content-item-link">
                 <?php else: ?>
                 <div class="content-item-link">
                 <?php endif; ?>
@@ -458,7 +458,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="list-label">
                     <span>
                         <?= htmlspecialchars($userData['name'] ?? $email) ?>
-                        <span class="text-xs text-tertiary" style="display: block;"><?= htmlspecialchars($email) ?></span>
+                        <span class="text-xs text-tertiary d-block"><?= htmlspecialchars($email) ?></span>
                     </span>
                 </span>
                 <span class="list-value text-sm text-tertiary">

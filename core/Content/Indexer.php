@@ -108,8 +108,14 @@ final class Indexer
                 );
             }
             $this->writeSqliteIndex($allItems, $taxIndex, $routes, $fingerprint);
+            // If we are using SQLite, remove any stale binary array index to avoid wasting disk
+            // and to prevent confusion when inspecting cache size.
+            $this->cleanupUnusedBinaryIndex();
         } else {
             $this->writeBinaryCacheFile('content_index.bin', $contentIndex);
+            // If we are not using SQLite, remove any stale SQLite index to avoid wasting disk
+            // and to prevent confusion when inspecting cache size.
+            $this->cleanupUnusedSqliteIndex();
         }
 
         // Clear webpage cache when content cache is rebuilt
@@ -119,6 +125,38 @@ final class Indexer
         if (!empty($errors)) {
             $this->logErrors($errors);
         }
+    }
+
+    /**
+     * Remove unused SQLite index artifacts when the configured backend is not sqlite.
+     */
+    private function cleanupUnusedSqliteIndex(): void
+    {
+        $cachePath = $this->getCachePath();
+        $sqlitePath = $cachePath . '/content_index.sqlite';
+
+        if (!file_exists($sqlitePath)) {
+            return;
+        }
+
+        @unlink($sqlitePath);
+        @unlink($sqlitePath . '-wal');
+        @unlink($sqlitePath . '-shm');
+    }
+
+    /**
+     * Remove unused binary array index artifact when the configured backend is sqlite.
+     */
+    private function cleanupUnusedBinaryIndex(): void
+    {
+        $cachePath = $this->getCachePath();
+        $binPath = $cachePath . '/content_index.bin';
+
+        if (!file_exists($binPath)) {
+            return;
+        }
+
+        @unlink($binPath);
     }
 
     /**

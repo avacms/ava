@@ -23,7 +23,7 @@ Ava is a flat-file CMS written in PHP 8.3+. Content lives in Markdown files with
 - Files are the source of truth (Markdown content, PHP config)
 - No build steps — edit a file, refresh, see changes
 - Minimal dependencies (League CommonMark, Symfony YAML)
-- Admin interface is optional and read-only
+- Admin interface is optional and writes to files
 - Designed for developers who want full control
 
 ---
@@ -804,7 +804,7 @@ final class MyTest extends TestCase
 
 ## Admin Panel
 
-Optional read-only dashboard (disabled by default):
+Optional admin dashboard (disabled by default):
 
 - Enable via `admin.enabled: true` in config
 - Access at `/admin` (customisable)
@@ -814,12 +814,11 @@ Optional read-only dashboard (disabled by default):
 **Features:**
 - Content statistics and recent items
 - Cache status and management
+- Create/edit/delete content (single-file editor: frontmatter + body)
 - Content validation (lint)
 - System diagnostics
-- Taxonomy term browser
+- Taxonomy term management
 - Log viewer
-
-**Not an editor:** Admin is a web wrapper around CLI commands. Content editing happens in your preferred text editor.
 
 ---
 
@@ -865,7 +864,6 @@ These are explicitly out of scope:
 - WYSIWYG / visual editor
 - Media upload UI
 - File browser in admin
-- Content editing in admin (use a text editor)
 - Complex build pipelines
 - Heavy frameworks or abstractions
 - Multi-user collaborative editing

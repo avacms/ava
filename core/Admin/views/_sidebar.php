@@ -64,6 +64,10 @@ $activePage = $activePage ?? '';
         <?php endforeach; ?>
 
         <div class="nav-section">Tools</div>
+        <a href="<?= $admin_url ?>/media" class="nav-item <?= $activePage === 'media' ? 'active' : '' ?>">
+            <span class="material-symbols-rounded">image</span>
+            Media
+        </a>
         <a href="<?= $admin_url ?>/lint" class="nav-item <?= $activePage === 'lint' ? 'active' : '' ?>">
             <span class="material-symbols-rounded">check_circle</span>
             Lint Content
@@ -96,10 +100,13 @@ $activePage = $activePage ?? '';
             <span class="material-symbols-rounded">contrast</span>
             Toggle Theme
         </button>
-        <a href="<?= $admin_url ?>/logout">
-            <span class="material-symbols-rounded">logout</span>
-            Sign Out
-        </a>
+        <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/logout" class="m-0">
+            <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf ?? '') ?>">
+            <button type="submit" class="logout-btn">
+                <span class="material-symbols-rounded">logout</span>
+                Sign Out
+            </button>
+        </form>
     </div>
 </aside>
 

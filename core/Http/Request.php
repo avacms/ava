@@ -172,9 +172,14 @@ final class Request
      */
     public function isSecure(): bool
     {
+        // Security note:
+        // Do NOT trust proxy-provided headers (e.g. X-Forwarded-Proto) here.
+        // They are user-controlled unless the app is explicitly behind a trusted proxy.
+        // If you terminate TLS at a reverse proxy, configure your web server/PHP-FPM
+        // to set HTTPS=on (or pass SERVER_PORT=443) for secure requests.
         return (
             ($_SERVER['HTTPS'] ?? 'off') !== 'off' ||
-            $this->header('x-forwarded-proto') === 'https'
+            (string) ($_SERVER['SERVER_PORT'] ?? '') === '443'
         );
     }
 

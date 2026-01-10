@@ -18,7 +18,7 @@
 
 <!-- Hidden data for JavaScript -->
 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf ?? '') ?>">
-<div data-admin-url="<?= htmlspecialchars($admin_url ?? '/admin') ?>" style="display:none;"></div>
+<div data-admin-url="<?= htmlspecialchars($admin_url ?? '/admin') ?>" class="d-none"></div>
 
 <?php
 
@@ -203,6 +203,7 @@ $loadColor = function($val) use ($cpuCount) {
             <div class="list-item"><span class="list-label">Free</span><span class="list-value"><?= $formatBytes($diskFree) ?></span></div>
             <div class="list-item"><span class="list-label">Total</span><span class="list-value"><?= $formatBytes($diskTotal) ?></span></div>
             <div class="list-item"><span class="list-label">Content</span><span class="list-value"><?= $formatBytes($system['content_size'] ?? 0) ?></span></div>
+            <div class="list-item"><span class="list-label">Media</span><span class="list-value"><?= $formatBytes($system['media_size'] ?? 0) ?></span></div>
             <div class="list-item"><span class="list-label">Cache</span><span class="list-value"><?= $formatBytes($system['storage_size'] ?? 0) ?></span></div>
         </div>
     </div>
@@ -350,17 +351,17 @@ $loadColor = function($val) use ($cpuCount) {
                     <td>
                         <?php if ($loaded): ?>
                             <span class="badge badge-success">
-                                <span class="material-symbols-rounded" style="font-size: 14px;">check</span>
+                                <span class="material-symbols-rounded icon-sm">check</span>
                                 Installed
                             </span>
                         <?php elseif ($isRequired): ?>
                             <span class="badge badge-danger">
-                                <span class="material-symbols-rounded" style="font-size: 14px;">close</span>
+                                <span class="material-symbols-rounded icon-sm">close</span>
                                 Missing
                             </span>
                         <?php else: ?>
                             <span class="badge badge-warning">
-                                <span class="material-symbols-rounded" style="font-size: 14px;">remove</span>
+                                <span class="material-symbols-rounded icon-sm">remove</span>
                                 Not installed
                             </span>
                         <?php endif; ?>
@@ -477,12 +478,12 @@ $loadColor = function($val) use ($cpuCount) {
 <div class="card mt-4">
     <div class="card-header">
         <span class="card-title"><span class="material-symbols-rounded">error</span> Recent Errors</span>
-        <div style="display: flex; gap: var(--sp-2);">
+        <div class="d-flex gap-2">
             <span class="badge badge-error"><?= count($debugInfo['recent_errors']) ?></span>
             <button class="btn btn-sm btn-secondary" onclick="clearErrorLog()" id="clearBtn"><span class="material-symbols-rounded">delete_sweep</span> Clear</button>
         </div>
     </div>
-    <pre class="card-body" style="max-height: 500px; overflow: auto; margin: 0; padding: var(--sp-3); font-size: 11px; line-height: 1.5; white-space: pre-wrap; font-family: monospace;"><?php foreach ($debugInfo['recent_errors'] as $error): 
+    <pre class="card-body error-log-pre"><?php foreach ($debugInfo['recent_errors'] as $error): 
 echo htmlspecialchars('[' . $error['level'] . '] ' . $error['time'] . "\n");
 echo htmlspecialchars($error['message']) . "\n\n";
 endforeach; ?></pre>
@@ -587,25 +588,25 @@ endforeach; ?></pre>
         <div class="card-body">
             <?php if ($activeHooks > 0): ?>
                 <?php if (!empty($hooks['active_filters'])): ?>
-                <div style="margin-bottom: var(--sp-3);">
-                    <div class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Filters</div>
+                <div class="mb-3">
+                    <div class="text-xs text-tertiary mb-1">Filters</div>
                     <?php foreach ($hooks['active_filters'] as $hook): ?>
-                    <code class="text-xs" style="display: inline-block; margin-right: var(--sp-1); margin-bottom: var(--sp-1);"><?= htmlspecialchars($hook) ?></code>
+                    <code class="text-xs code-tag"><?= htmlspecialchars($hook) ?></code>
                     <?php endforeach; ?>
                 </div>
                 <?php endif; ?>
                 <?php if (!empty($hooks['active_actions'])): ?>
                 <div>
-                    <div class="text-xs text-tertiary" style="margin-bottom: var(--sp-1);">Actions</div>
+                    <div class="text-xs text-tertiary mb-1">Actions</div>
                     <?php foreach ($hooks['active_actions'] as $hook): ?>
-                    <code class="text-xs" style="display: inline-block; margin-right: var(--sp-1); margin-bottom: var(--sp-1);"><?= htmlspecialchars($hook) ?></code>
+                    <code class="text-xs code-tag"><?= htmlspecialchars($hook) ?></code>
                     <?php endforeach; ?>
                 </div>
                 <?php endif; ?>
             <?php else: ?>
                 <p class="text-dim text-sm">No hooks registered by plugins or theme.</p>
             <?php endif; ?>
-            <p class="text-tertiary text-xs" style="margin-top: var(--sp-3);"><a href="https://ava.addy.zone/#/creating-plugins?id=available-hooks-reference" target="_blank">View hook documentation →</a></p>
+            <p class="text-tertiary text-xs mt-3"><a href="https://ava.addy.zone/#/creating-plugins?id=available-hooks-reference" target="_blank" rel="noopener noreferrer">View hook documentation →</a></p>
         </div>
     </div>
 </div>

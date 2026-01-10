@@ -56,6 +56,29 @@ return [
         'enabled' => true,
         'path'    => '/admin',
         'theme'   => 'cyan',
+
+        /*
+        |-----------------------------------------------------------------------
+        | MEDIA UPLOADS
+        |-----------------------------------------------------------------------
+        | Secure image uploader with automatic sanitization.
+        | Images are reprocessed via ImageMagick/GD to strip hidden payloads.
+        */
+
+        'media' => [
+            'enabled'          => true,
+            'path'             => 'public/media',
+            'organize_by_date' => true,             // /year/month/ folders
+            'max_file_size'    => 10 * 1024 * 1024, // 10 MB
+            'allowed_types'    => [
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/webp',
+                'image/svg+xml',
+                'image/avif',
+            ],
+        ],
     ],
 
     /*
@@ -159,6 +182,8 @@ return [
             // '@cdn:' => 'https://cdn.example.com/',
         ],
     ],
+
+
 
     /*
     |───────────────────────────────────────────────────────────────────────────

@@ -33,11 +33,26 @@ final class Auth
     public function startSession(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
+            // Harden session handling.
+            // - strict_mode: reject uninitialized session IDs (helps prevent fixation)
+            // - use_only_cookies: never accept session IDs via URL
+            // - use_trans_sid: ensure transparent SID propagation is off
+            @ini_set('session.use_strict_mode', '1');
+            @ini_set('session.use_only_cookies', '1');
+            @ini_set('session.use_trans_sid', '0');
+
+            // Isolate admin session cookie name from any front-end/session usage.
+            // (Safe even if the public site never uses sessions.)
+            @session_name('ava_admin');
+
             // Set secure session cookie parameters
             session_set_cookie_params([
                 'lifetime' => 0,          // Session cookie
                 'path' => '/',
-                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                'secure' => (
+                    (($_SERVER['HTTPS'] ?? 'off') !== 'off') ||
+                    ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443')
+                ),
                 'httponly' => true,       // Prevent JavaScript access
                 'samesite' => 'Lax',      // CSRF protection
             ]);
@@ -158,8 +173,16 @@ final class Auth
     public function logout(): void
     {
         $this->startSession();
-        unset($_SESSION[self::SESSION_KEY]);
+
+        // Clear authentication and CSRF state.
+        unset($_SESSION[self::SESSION_KEY], $_SESSION[self::CSRF_KEY]);
+
+        // Clear all session data to reduce residual risk.
+        $_SESSION = [];
+
+        // Regenerate session ID and destroy session to invalidate cookie.
         session_regenerate_id(true);
+        @session_destroy();
     }
 
     /**

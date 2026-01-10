@@ -102,7 +102,7 @@ Browse all content by type. Each item shows:
 - Date (for dated types)
 - Quick links to view on site
 
-This is read-only — to edit content, use your preferred text editor.
+You can create, edit, and delete content files directly in the admin. Changes are written back to your Markdown files (files remain the source of truth).
 
 <a href="images/admin-content.webp" target="_blank" rel="noopener">
     <img src="images/admin-content.webp" alt="Content browser screen" />
@@ -123,6 +123,62 @@ See which shortcodes are available and how they render.
 <a href="images/admin-shortcodes.webp" target="_blank" rel="noopener">
     <img src="images/admin-shortcodes.webp" alt="Shortcodes screen" />
 </a>
+
+### Media Uploader
+
+Upload images securely to your media folder. The uploader includes comprehensive security features:
+
+- **MIME type validation** — Files are verified using multiple methods (finfo, getimagesize, magic bytes)
+- **Image reprocessing** — Images are reprocessed through ImageMagick or GD to strip any hidden payloads
+- **SVG sanitization** — SVG files are cleaned to remove scripts and event handlers
+- **Filename sanitization** — Filenames are normalized to prevent path traversal and other attacks
+
+#### Configuration
+
+Configure media uploads in `app/config/ava.php` within the admin section:
+
+```php
+'admin' => [
+    'enabled' => true,
+    'path'    => '/admin',
+    'theme'   => 'cyan',
+
+    'media' => [
+        'enabled'          => true,
+        'path'             => 'public/media',       // Upload destination
+        'organize_by_date' => true,                 // Create year/month folders
+        'max_file_size'    => 10 * 1024 * 1024,     // 10 MB limit
+        'allowed_types'    => [
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'image/svg+xml',
+            'image/avif',
+        ],
+    ],
+],
+```
+
+| Option | Description |
+|--------|-------------|
+| `enabled` | Set to `false` to disable the media uploader |
+| `path` | Directory for uploads, relative to project root |
+| `organize_by_date` | When `true`, uploads go into `year/month/` subfolders |
+| `max_file_size` | Maximum file size in bytes (also limited by PHP settings) |
+| `allowed_types` | Array of permitted MIME types |
+
+#### Using Uploaded Media
+
+After uploading, you can reference images in your content using the `@media:` alias:
+
+```markdown
+![Photo](@media:2024/01/my-photo.jpg)
+```
+
+This is equivalent to `/media/2024/01/my-photo.jpg`. The alias is defined in `paths.aliases` and can be customized.
+
+?> **Tip:** The uploader provides both a full URL and a shortlink (`@media:...`) for each uploaded file. Use the shortlink in your Markdown for cleaner, portable content.
 
 ## Security
 
@@ -206,22 +262,19 @@ Every form in the admin dashboard includes a CSRF token:
 
 ### Core Dashboard Capabilities
 
-The core admin dashboard is primarily **read-only** for safety:
+The admin dashboard provides a small set of core management tools:
 
 **Core features:**
-- ✅ View content and system information
+- ✅ Create, edit, and delete content (Markdown + YAML frontmatter)
+- ✅ Manage taxonomy terms
 - ✅ Rebuild the content index
 - ✅ Lint content files for errors
 - ✅ View logs and diagnostics
 
-**Important:** Plugins can extend admin functionality that may include create/update/delete capabilities (like managing config, content and routes). Always review plugin code and permissions before enabling them.
-
-**What core admin does not do:**
-- ❌ Edit content files directly (your Markdown files remain the source of truth)
+**What admin does not do:**
+- ❌ WYSIWYG / visual editing
 - ❌ Upload media files
-- ❌ Modify core configuration files (except `users.php` for login timestamps)
-
-The actual capabilities of your admin dashboard depend on which plugins you have enabled.
+- ❌ Modify core configuration files (other than admin/user-related data)
 
 ### Best Practices
 

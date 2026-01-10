@@ -127,12 +127,16 @@ $formatBytes = function($bytes) {
                             </span>
                         </td>
                         <td>
-                            <?php if ($itemUrl): ?>
-                            <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" class="btn btn-xs btn-secondary">
-                                <span class="material-symbols-rounded"><?= $isDraft ? 'visibility' : 'open_in_new' ?></span>
-                                <?= $isDraft ? 'Preview' : 'View' ?>
-                            </a>
-                            <?php endif; ?>
+                            <div class="btn-group">
+                                <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/<?= htmlspecialchars($item->slug()) ?>/edit" class="btn btn-xs btn-secondary" title="Edit">
+                                    <span class="material-symbols-rounded">edit</span>
+                                </a>
+                                <?php if ($itemUrl): ?>
+                                <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-secondary" title="<?= $isDraft ? 'Preview' : 'View' ?>">
+                                    <span class="material-symbols-rounded"><?= $isDraft ? 'visibility' : 'open_in_new' ?></span>
+                                </a>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -179,7 +183,11 @@ $formatBytes = function($bytes) {
         <div class="empty-state">
             <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
             <p>No <?= $type ?>s yet</p>
-            <code>./ava make <?= $type ?> "Your Title"</code>
+            <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/create" class="btn btn-primary mt-3">
+                <span class="material-symbols-rounded">add</span>
+                Create <?= htmlspecialchars(rtrim($typeConfig['label'] ?? ucfirst($type), 's')) ?>
+            </a>
+            <p class="text-xs text-tertiary mt-3">or via CLI: <code>./ava make <?= $type ?> "Your Title"</code></p>
         </div>
         <?php endif; ?>
     </div>
@@ -253,7 +261,7 @@ $formatBytes = function($bytes) {
                 ?>
                 <div class="list-item">
                     <span class="list-label">
-                        <span class="material-symbols-rounded" style="font-size: 14px;"><?= ($tc['hierarchical'] ?? false) ? 'folder' : 'label' ?></span>
+                        <span class="material-symbols-rounded icon-xs"><?= ($tc['hierarchical'] ?? false) ? 'folder' : 'label' ?></span>
                         <?= htmlspecialchars($tc['label'] ?? ucfirst($tax)) ?>
                     </span>
                     <span class="badge badge-muted"><?= $termCount ?></span>

@@ -8,12 +8,13 @@ use Ava\Application;
 use Ava\Http\Request;
 use Ava\Http\Response;
 use Ava\Plugins\Hooks;
+use Ava\Support\Path;
 
 /**
  * Admin Controller
  *
- * Read-only dashboard + safe tooling.
- * NOT an editor. Effectively a web UI wrapper around CLI.
+ * Dashboard + content management with security validation.
+ * Content edits go through security linting to prevent XSS.
  */
 final class Controller
 {
@@ -105,6 +106,15 @@ final class Controller
      */
     public function logout(Request $request): Response
     {
+        if (!$request->isMethod('POST')) {
+            return Response::redirect($this->adminUrl());
+        }
+
+        $csrf = $request->post('_csrf', '');
+        if (!$this->auth->verifyCsrf($csrf)) {
+            return Response::redirect($this->adminUrl() . '?error=csrf');
+        }
+
         $user = $this->auth->user();
         $this->auth->logout();
         $this->logAction('INFO', 'Logout: ' . ($user ?? 'Unknown user'));
@@ -136,6 +146,9 @@ final class Controller
         // Check for recent errors (last 24 hours)
         $recentErrorCount = $this->getRecentErrorCount();
         
+        // Get media stats for dashboard
+        $mediaStats = $this->getMediaStats();
+        
         $data = [
             'site' => [
                 'name' => $this->app->config('site.name'),
@@ -162,6 +175,7 @@ final class Controller
             'version' => AVA_VERSION,
             'updateCheck' => $updateCheck,
             'recentErrorCount' => $recentErrorCount,
+            'mediaStats' => $mediaStats,
         ];
 
         $layout = [
@@ -292,9 +306,9 @@ final class Controller
         ];
 
         $archiveUrl = $typeConfig['url']['archive'] ?? null;
-        $headerActions = '';
+        $headerActions = '<a href="' . $this->adminUrl() . '/content/' . htmlspecialchars($type) . '/create" class="btn btn-primary btn-sm"><span class="material-symbols-rounded">add</span>New</a>';
         if ($archiveUrl) {
-            $headerActions .= '<a href="' . htmlspecialchars($this->app->config('site.base_url') . $archiveUrl) . '" target="_blank" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">list</span>Archive</a>';
+            $headerActions .= '<a href="' . htmlspecialchars($this->app->config('site.base_url') . $archiveUrl) . '" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">list</span>Archive</a>';
         }
         $headerActions .= $this->defaultHeaderActions();
 
@@ -358,7 +372,8 @@ final class Controller
         $taxBase = rtrim($this->app->config('site.base_url'), '/') . ($taxonomyConfig[$taxonomy]['rewrite']['base'] ?? '/' . $taxonomy);
         $isHierarchical = $taxonomyConfig[$taxonomy]['hierarchical'] ?? false;
 
-        $headerActions = '<a href="' . htmlspecialchars($taxBase) . '" target="_blank" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">visibility</span>View Archive</a>';
+        $headerActions = '<a href="' . $this->adminUrl() . '/taxonomy/' . htmlspecialchars($taxonomy) . '/create" class="btn btn-primary btn-sm"><span class="material-symbols-rounded">add</span>New Term</a>';
+        $headerActions .= '<a href="' . htmlspecialchars($taxBase) . '" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">visibility</span>View Archive</a>';
         $headerActions .= $this->defaultHeaderActions();
 
         $layout = [
@@ -372,19 +387,855 @@ final class Controller
     }
 
     /**
+     * Create a new taxonomy term.
+     */
+    public function taxonomyTermCreate(Request $request, string $taxonomy): ?Response
+    {
+        $repository = $this->app->repository();
+        $taxonomies = $repository->taxonomies();
+
+        // Check if taxonomy exists
+        if (!in_array($taxonomy, $taxonomies)) {
+            return null; // 404
+        }
+
+        $taxonomyConfig = $this->getTaxonomyConfig();
+        $config = $taxonomyConfig[$taxonomy] ?? [];
+        $error = null;
+        $success = null;
+
+        if ($request->isMethod('POST')) {
+            // CSRF check
+            $csrf = $request->post('_csrf', '');
+            if (!$this->auth->verifyCsrf($csrf)) {
+                $error = 'Invalid request. Please try again.';
+            } else {
+                $name = trim($request->post('name', ''));
+                $slug = trim($request->post('slug', ''));
+                $description = trim($request->post('description', ''));
+
+                // Validate name
+                if (empty($name)) {
+                    $error = 'Term name is required.';
+                } else {
+                    // Generate slug if not provided
+                    if (empty($slug)) {
+                        $slug = $this->generateSlug($name);
+                    } else {
+                        $slug = $this->sanitizeSlug($slug);
+                    }
+
+                    // Validate slug format
+                    if (!preg_match('/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/', $slug)) {
+                        $error = 'Slug must be lowercase alphanumeric with hyphens only.';
+                    } else {
+                        // Check for duplicate slug
+                        $existingTerms = $repository->terms($taxonomy);
+                        if (isset($existingTerms[$slug])) {
+                            $error = "A term with slug '{$slug}' already exists.";
+                        } else {
+                            // Add term to taxonomy file
+                            $result = $this->addTaxonomyTerm($taxonomy, $slug, $name, $description);
+                            if ($result === true) {
+                                $this->auth->regenerateCsrf();
+                                $this->logAction('INFO', "Created term '{$name}' in taxonomy '{$taxonomy}'");
+                                
+                                // Rebuild cache to include new term
+                                $this->app->indexer()->rebuild();
+                                
+                                return Response::redirect($this->adminUrl() . '/taxonomy/' . $taxonomy . '?created=' . urlencode($name));
+                            } else {
+                                $error = $result;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $data = [
+            'taxonomy' => $taxonomy,
+            'config' => $config,
+            'error' => $error,
+            'csrf' => $this->auth->csrfToken(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+            ],
+            'user' => $this->auth->user(),
+        ];
+
+        $layout = [
+            'title' => 'New Term',
+            'heading' => 'Create ' . ($taxonomyConfig[$taxonomy]['label'] ?? ucfirst($taxonomy)) . ' Term',
+            'icon' => 'add',
+            'activePage' => 'taxonomy-' . $taxonomy,
+            'alertError' => $error,
+            'headerActions' => '<a href="' . $this->adminUrl() . '/taxonomy/' . htmlspecialchars($taxonomy) . '" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">arrow_back</span>Back</a>',
+        ];
+
+        return Response::html($this->render('content/taxonomy-term-create', $data, $layout));
+    }
+
+    /**
+     * Delete a taxonomy term.
+     */
+    public function taxonomyTermDelete(Request $request, string $taxonomy, string $term): ?Response
+    {
+        $repository = $this->app->repository();
+        $taxonomies = $repository->taxonomies();
+
+        // Check if taxonomy exists
+        if (!in_array($taxonomy, $taxonomies)) {
+            return null; // 404
+        }
+
+        // Check if term exists
+        $existingTerms = $repository->terms($taxonomy);
+        if (!isset($existingTerms[$term])) {
+            return null; // 404
+        }
+
+        $termData = $existingTerms[$term];
+        $itemCount = count($termData['items'] ?? []);
+
+        if ($request->isMethod('POST')) {
+            // CSRF check
+            $csrf = $request->post('_csrf', '');
+            if (!$this->auth->verifyCsrf($csrf)) {
+                return Response::redirect($this->adminUrl() . '/taxonomy/' . $taxonomy . '?error=csrf');
+            }
+
+            // Prevent deleting terms with content (optional safety check)
+            $forceDelete = $request->post('force', '') === '1';
+            if ($itemCount > 0 && !$forceDelete) {
+                return Response::redirect($this->adminUrl() . '/taxonomy/' . $taxonomy . '?error=has_content&term=' . urlencode($term));
+            }
+
+            // Delete the term
+            $result = $this->removeTaxonomyTerm($taxonomy, $term);
+            if ($result === true) {
+                $this->auth->regenerateCsrf();
+                $this->logAction('INFO', "Deleted term '{$term}' from taxonomy '{$taxonomy}'");
+                
+                // Rebuild cache
+                $this->app->indexer()->rebuild();
+                
+                return Response::redirect($this->adminUrl() . '/taxonomy/' . $taxonomy . '?deleted=' . urlencode($termData['name'] ?? $term));
+            }
+
+            return Response::redirect($this->adminUrl() . '/taxonomy/' . $taxonomy . '?error=delete_failed');
+        }
+
+        // Show confirmation page
+        $taxonomyConfig = $this->getTaxonomyConfig();
+
+        $data = [
+            'taxonomy' => $taxonomy,
+            'term' => $term,
+            'termData' => $termData,
+            'itemCount' => $itemCount,
+            'csrf' => $this->auth->csrfToken(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+            ],
+            'user' => $this->auth->user(),
+        ];
+
+        $layout = [
+            'title' => 'Delete Term',
+            'heading' => 'Delete Term: ' . ($termData['name'] ?? $term),
+            'icon' => 'delete',
+            'activePage' => 'taxonomy-' . $taxonomy,
+            'headerActions' => '<a href="' . $this->adminUrl() . '/taxonomy/' . htmlspecialchars($taxonomy) . '" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">arrow_back</span>Back</a>',
+        ];
+
+        return Response::html($this->render('content/taxonomy-term-delete', $data, $layout));
+    }
+
+    /**
+     * Parse file content (frontmatter + body) into structured data.
+     */
+    private function parseFileContent(string $fileContent): array
+    {
+        $frontmatter = [];
+        $body = $fileContent;
+        
+        // Normalize line endings (Windows sends \r\n)
+        $fileContent = str_replace("\r\n", "\n", $fileContent);
+        $fileContent = str_replace("\r", "\n", $fileContent);
+
+        // Parse YAML frontmatter if present
+        if (preg_match('/^---\n(.*?)\n---\n*/s', $fileContent, $matches)) {
+            try {
+                $frontmatter = \Symfony\Component\Yaml\Yaml::parse($matches[1]) ?? [];
+            } catch (\Exception $e) {
+                // Invalid YAML - return raw content
+                return [
+                    'frontmatter' => [],
+                    'body' => $fileContent,
+                    'error' => 'Invalid YAML frontmatter: ' . $e->getMessage(),
+                ];
+            }
+            $body = substr($fileContent, strlen($matches[0]));
+        } else {
+            // No frontmatter found - this is an error for content files
+            return [
+                'frontmatter' => [],
+                'body' => $fileContent,
+                'error' => 'No valid frontmatter found. Content must start with --- on its own line.',
+            ];
+        }
+
+        return [
+            'frontmatter' => $frontmatter,
+            'body' => ltrim($body),
+            'error' => null,
+        ];
+    }
+
+    /**
+     * Create new content.
+     */
+    public function contentCreate(Request $request, string $type): ?Response
+    {
+        $repository = $this->app->repository();
+        $types = $repository->types();
+
+        // Check if type exists
+        if (!in_array($type, $types)) {
+            return null; // 404
+        }
+
+        $contentTypes = $this->getContentTypeConfig();
+        $typeConfig = $contentTypes[$type] ?? [];
+        $taxonomyConfig = $this->getTaxonomyConfig();
+        $error = null;
+        $securityWarnings = [];
+
+        if ($request->isMethod('POST')) {
+            $csrfError = $this->verifyInlinePostCsrf($request);
+            if ($csrfError !== null) {
+                $error = $csrfError;
+            } else {
+                // Get filename from form (without .md extension)
+                $filename = trim($request->post('filename', ''));
+                
+                // Parse the unified file content
+                $fileContent = $request->post('file_content', '');
+                $parsed = $this->parseFileContent($fileContent);
+                
+                if ($parsed['error']) {
+                    $error = $parsed['error'];
+                } else {
+                    $fm = $parsed['frontmatter'];
+                    $body = $parsed['body'];
+                    
+                    $title = trim($fm['title'] ?? '');
+                    $slug = trim($fm['slug'] ?? '');
+                    $status = $fm['status'] ?? 'draft';
+                    $date = $fm['date'] ?? '';
+                    $excerpt = $fm['excerpt'] ?? '';
+                    $id = $fm['id'] ?? '';
+                    $categories = $fm['category'] ?? [];
+                    $tags = $fm['tag'] ?? [];
+                    
+                    // Convert single values to arrays
+                    if (is_string($categories)) $categories = [$categories];
+                    if (is_string($tags)) $tags = [$tags];
+
+                    // Validate title
+                    if (empty($title)) {
+                        $error = 'Title is required in frontmatter.';
+                    } else {
+                        // Generate slug if not provided
+                        if (empty($slug)) {
+                            $slug = $this->generateSlug($title);
+                        }
+                        
+                        // Validate slug with strict security checks
+                        $slugResult = $this->validateSlug($slug);
+                        if (!$slugResult['valid']) {
+                            $error = $slugResult['error'];
+                        } else {
+                            $slug = $slugResult['slug'];
+                            
+                            // Determine if this content type uses dates
+                            $usesDate = in_array($typeConfig['sorting'] ?? '', ['date_desc', 'date_asc'], true);
+                            
+                            // Generate filename if not provided
+                            if (empty($filename)) {
+                                $filename = ContentSecurity::generateFilename($slug, $usesDate ? ($date ?: date('Y-m-d')) : null);
+                            }
+                            
+                            // Validate filename with strict security checks
+                            $filenameResult = $this->validateFilename($filename);
+                            if (!$filenameResult['valid']) {
+                                $error = 'Filename: ' . $filenameResult['error'];
+                            } else {
+                                $filename = $filenameResult['filename'];
+                                
+                                // Check for duplicate (by filename, not slug - filename is the actual file)
+                                $existing = $repository->get($type, $slug);
+                                if ($existing !== null) {
+                                    $error = "Content with slug '{$slug}' already exists.";
+                                } else {
+                                    // Security check on body content
+                                    $security = new ContentSecurity();
+                                    $securityResult = $security->validate($body);
+                                    
+                                    if (!$securityResult['valid']) {
+                                        $securityWarnings = $securityResult['errors'];
+                                        $error = $securityResult['errors'][0];
+                                    } else {
+                                        $securityWarnings = $securityResult['warnings'];
+                                        
+                                        // Validate status
+                                        if (!in_array($status, ['draft', 'published', 'unlisted'])) {
+                                            $status = 'draft';
+                                        }
+
+                                        // Create the content file from raw file content (using validated filename)
+                                        $result = $this->createContentFileRaw($type, $typeConfig, $filename, $fileContent, $id);
+
+                                        if ($result === true) {
+                                            $this->auth->regenerateCsrf();
+                                            $this->logAction('INFO', "Created {$type} '{$title}' (file: {$filename}.md, slug: {$slug})");
+                                            
+                                            // Rebuild cache
+                                            $this->app->indexer()->rebuild();
+                                            
+                                            return Response::redirect($this->adminUrl() . '/content/' . $type . '?created=' . urlencode($title));
+                                        } else {
+                                            $error = $result;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Get available taxonomy terms for dropdowns
+        $availableTerms = [];
+        foreach ($typeConfig['taxonomies'] ?? [] as $taxName) {
+            $availableTerms[$taxName] = $repository->terms($taxName);
+        }
+
+        $data = [
+            'type' => $type,
+            'typeConfig' => $typeConfig,
+            'taxonomyConfig' => $taxonomyConfig,
+            'availableTerms' => $availableTerms,
+            'error' => $error,
+            'securityWarnings' => $securityWarnings,
+            'csrf' => $this->auth->csrfToken(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+            ],
+            'user' => $this->auth->user(),
+        ];
+
+        $layout = [
+            'title' => 'New ' . ($typeConfig['label'] ?? ucfirst($type)),
+            'heading' => 'Create ' . rtrim($typeConfig['label'] ?? ucfirst($type), 's'),
+            'icon' => 'add',
+            'activePage' => 'content-' . $type,
+            // Don't set alertError - the view handles error display inline
+            'headerActions' => '<a href="https://ava.addy.zone" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">menu_book</span>Docs</a>',
+        ];
+
+        return Response::html($this->render('content/content-create', $data, $layout));
+    }
+
+    /**
+     * Edit existing content.
+     */
+    public function contentEdit(Request $request, string $type, string $slug): ?Response
+    {
+        $repository = $this->app->repository();
+        $types = $repository->types();
+
+        // Check if type exists
+        if (!in_array($type, $types)) {
+            return null; // 404
+        }
+
+        // Check if content exists
+        $item = $repository->get($type, $slug);
+        if ($item === null) {
+            return null; // 404
+        }
+
+        $contentTypes = $this->getContentTypeConfig();
+        $typeConfig = $contentTypes[$type] ?? [];
+        $taxonomyConfig = $this->getTaxonomyConfig();
+        $error = null;
+        $securityWarnings = [];
+
+        if ($request->isMethod('POST')) {
+            $csrfError = $this->verifyInlinePostCsrf($request);
+            if ($csrfError !== null) {
+                $error = $csrfError;
+            } else {
+                // Get new filename from form (without .md extension)
+                $newFilename = trim($request->post('filename', ''));
+                
+                // Parse the unified file content
+                $fileContent = $request->post('file_content', '');
+                $parsed = $this->parseFileContent($fileContent);
+                
+                if ($parsed['error']) {
+                    $error = $parsed['error'];
+                } else {
+                    $fm = $parsed['frontmatter'];
+                    $body = $parsed['body'];
+                    
+                    $title = trim($fm['title'] ?? '');
+                    $newSlug = trim($fm['slug'] ?? $slug);
+
+                    // Validate title
+                    if (empty($title)) {
+                        $error = 'Title is required in frontmatter.';
+                    } else {
+                        // Validate slug with strict security checks
+                        $slugResult = $this->validateSlug($newSlug);
+                        if (!$slugResult['valid']) {
+                            $error = $slugResult['error'];
+                        } else {
+                            $newSlug = $slugResult['slug'];
+                            
+                            // Get current filename (without .md)
+                            $currentFilename = pathinfo(basename($item->filePath()), PATHINFO_FILENAME);
+                            
+                            // If no new filename provided, keep the current one
+                            if (empty($newFilename)) {
+                                $newFilename = $currentFilename;
+                            }
+                            
+                            // Validate filename with strict security checks
+                            $filenameResult = $this->validateFilename($newFilename);
+                            if (!$filenameResult['valid']) {
+                                $error = 'Filename: ' . $filenameResult['error'];
+                            } else {
+                                $newFilename = $filenameResult['filename'];
+                                
+                                // Check for duplicate slug (if changed)
+                                if ($newSlug !== $slug) {
+                                    $existing = $repository->get($type, $newSlug);
+                                    if ($existing !== null) {
+                                        $error = "Content with slug '{$newSlug}' already exists.";
+                                    }
+                                }
+
+                                if (!$error) {
+                                    // Security check on body content
+                                    $security = new ContentSecurity();
+                                    $securityResult = $security->validate($body);
+                                    
+                                    if (!$securityResult['valid']) {
+                                        $securityWarnings = $securityResult['errors'];
+                                        $error = $securityResult['errors'][0];
+                                    } else {
+                                        $securityWarnings = $securityResult['warnings'];
+                                        
+                                        // Update the content file (using validated filename)
+                                        $result = $this->updateContentFileRaw($item, $type, $typeConfig, $newFilename, $fileContent, $currentFilename);
+
+                                        if ($result === true) {
+                                            $this->auth->regenerateCsrf();
+                                            $this->logAction('INFO', "Updated {$type} '{$title}' (file: {$newFilename}.md, slug: {$newSlug})");
+                                            
+                                            // Rebuild cache
+                                            $this->app->indexer()->rebuild();
+                                            
+                                            // Stay on same page with success message
+                                            $successMessage = "'{$title}' saved successfully.";
+                                            
+                                            // If slug changed, redirect to new URL
+                                            if ($newSlug !== $slug) {
+                                                return Response::redirect($this->adminUrl() . '/content/' . $type . '/' . urlencode($newSlug) . '/edit?saved=1');
+                                            }
+                                            
+                                            // Clear POST so view reads fresh file from disk
+                                            unset($_POST['file_content'], $_POST['filename']);
+                                        } else {
+                                            $error = $result;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Get available taxonomy terms for dropdowns
+        $availableTerms = [];
+        foreach ($typeConfig['taxonomies'] ?? [] as $taxName) {
+            $availableTerms[$taxName] = $repository->terms($taxName);
+        }
+
+        $data = [
+            'type' => $type,
+            'item' => $item,
+            'typeConfig' => $typeConfig,
+            'taxonomyConfig' => $taxonomyConfig,
+            'availableTerms' => $availableTerms,
+            'error' => $error,
+            'successMessage' => $successMessage ?? null,
+            'securityWarnings' => $securityWarnings,
+            'csrf' => $this->auth->csrfToken(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+            ],
+            'user' => $this->auth->user(),
+        ];
+
+        $layout = [
+            'title' => 'Edit: ' . $item->title(),
+            'heading' => 'Edit ' . rtrim($typeConfig['label'] ?? ucfirst($type), 's'),
+            'icon' => 'edit',
+            'activePage' => 'content-' . $type,
+            // Don't set alertError - the view handles error display inline
+            'headerActions' => '<a href="https://ava.addy.zone" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">menu_book</span>Docs</a>',
+        ];
+
+        return Response::html($this->render('content/content-edit', $data, $layout));
+    }
+
+    /**
+     * Delete content.
+     */
+    public function contentDelete(Request $request, string $type, string $slug): ?Response
+    {
+        $repository = $this->app->repository();
+        $types = $repository->types();
+
+        // Check if type exists
+        if (!in_array($type, $types)) {
+            return null; // 404
+        }
+
+        // Check if content exists
+        $item = $repository->get($type, $slug);
+        if ($item === null) {
+            return null; // 404
+        }
+
+        if ($request->isMethod('POST')) {
+            // CSRF check
+            $csrf = $request->post('_csrf', '');
+            if (!$this->auth->verifyCsrf($csrf)) {
+                return Response::redirect($this->adminUrl() . '/content/' . $type . '?error=csrf');
+            }
+
+            // Confirm deletion
+            $confirm = $request->post('confirm', '');
+            if ($confirm !== $slug) {
+                return Response::redirect($this->adminUrl() . '/content/' . $type . '/' . urlencode($slug) . '/delete?error=confirm');
+            }
+
+            // Delete the file
+            $filePath = $item->filePath();
+            if (file_exists($filePath)) {
+                // Create backup before deletion
+                $backupDir = $this->app->configPath('storage') . '/backups';
+                if (!is_dir($backupDir)) {
+                    @mkdir($backupDir, 0755, true);
+                }
+                $backupPath = $backupDir . '/' . $type . '_' . $slug . '_' . date('Y-m-d_His') . '.md';
+                @copy($filePath, $backupPath);
+
+                if (@unlink($filePath)) {
+                    $this->auth->regenerateCsrf();
+                    $this->logAction('INFO', "Deleted {$type} '{$item->title()}' (slug: {$slug}). Backup: {$backupPath}");
+                    
+                    // Rebuild cache
+                    $this->app->indexer()->rebuild();
+                    
+                    return Response::redirect($this->adminUrl() . '/content/' . $type . '?deleted=' . urlencode($item->title()));
+                }
+            }
+
+            return Response::redirect($this->adminUrl() . '/content/' . $type . '?error=delete_failed');
+        }
+
+        // Show confirmation page
+        $contentTypes = $this->getContentTypeConfig();
+        $typeConfig = $contentTypes[$type] ?? [];
+
+        $data = [
+            'type' => $type,
+            'item' => $item,
+            'typeConfig' => $typeConfig,
+            'csrf' => $this->auth->csrfToken(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+            ],
+            'user' => $this->auth->user(),
+        ];
+
+        $layout = [
+            'title' => 'Delete: ' . $item->title(),
+            'heading' => 'Delete ' . rtrim($typeConfig['label'] ?? ucfirst($type), 's'),
+            'icon' => 'delete',
+            'activePage' => 'content-' . $type,
+            'headerActions' => '<a href="' . $this->adminUrl() . '/content/' . htmlspecialchars($type) . '" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">arrow_back</span>Back</a>',
+        ];
+
+        return Response::html($this->render('content/content-delete', $data, $layout));
+    }
+
+    // -------------------------------------------------------------------------
+    // Content and Taxonomy Helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Generate a URL-safe slug from a title.
+     */
+    private function generateSlug(string $title): string
+    {
+        $slug = strtolower($title);
+        $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
+        $slug = preg_replace('/[\s_]+/', '-', $slug);
+        $slug = preg_replace('/-+/', '-', $slug);
+        $slug = trim($slug, '-');
+        return $slug ?: 'untitled';
+    }
+
+    /**
+     * Validate a user-provided slug.
+     * Returns the validated slug or null with error message.
+     * 
+     * @param string $slug The slug to validate
+     * @return array{valid: bool, slug: string, error: ?string}
+     */
+    private function validateSlug(string $slug): array
+    {
+        return ContentSecurity::validateSlug($slug);
+    }
+
+    /**
+     * Validate a user-provided filename (without extension).
+     * 
+     * @param string $filename The filename to validate
+     * @return array{valid: bool, filename: string, error: ?string}
+     */
+    private function validateFilename(string $filename): array
+    {
+        return ContentSecurity::validateFilename($filename);
+    }
+
+    /**
+     * Verify CSRF token for a POST request, returning a user-friendly error string on failure.
+     * Intended for inline form flows (where we show an error on the same page).
+     */
+    private function verifyInlinePostCsrf(Request $request): ?string
+    {
+        $csrf = $request->post('_csrf', '');
+        if (!$this->auth->verifyCsrf($csrf)) {
+            return 'Invalid request. Please try again.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Sanitize a user-provided slug (legacy compatibility, use validateSlug for new code).
+     */
+    private function sanitizeSlug(string $slug): string
+    {
+        $result = ContentSecurity::validateSlug($slug);
+        return $result['valid'] ? $result['slug'] : 'untitled';
+    }
+
+    /**
+     * Add a term to a taxonomy file.
+     */
+    private function addTaxonomyTerm(string $taxonomy, string $slug, string $name, string $description): bool|string
+    {
+        $contentBase = $this->app->configPath('content');
+        $taxonomiesPath = Path::join($contentBase, '_taxonomies');
+
+        if (!Path::isInside($taxonomiesPath, $contentBase)) {
+            return 'Invalid taxonomies directory.';
+        }
+
+        $filePath = Path::join($taxonomiesPath, $taxonomy . '.yml');
+        if (!Path::isInside($filePath, $taxonomiesPath)) {
+            return 'Invalid taxonomy.';
+        }
+
+        // Ensure directory exists
+        if (!is_dir($taxonomiesPath)) {
+            if (!@mkdir($taxonomiesPath, 0755, true)) {
+                return 'Failed to create taxonomies directory.';
+            }
+        }
+
+        // Load existing terms
+        $terms = [];
+        if (file_exists($filePath)) {
+            $content = file_get_contents($filePath);
+            $terms = \Symfony\Component\Yaml\Yaml::parse($content) ?? [];
+        }
+
+        // Add new term
+        $newTerm = [
+            'slug' => $slug,
+            'name' => $name,
+        ];
+        if (!empty($description)) {
+            $newTerm['description'] = $description;
+        }
+        $terms[] = $newTerm;
+
+        // Write back
+        $yaml = \Symfony\Component\Yaml\Yaml::dump($terms, 2, 2);
+        if (file_put_contents($filePath, $yaml) === false) {
+            return 'Failed to write taxonomy file.';
+        }
+
+        return true;
+    }
+
+    /**
+     * Remove a term from a taxonomy file.
+     */
+    private function removeTaxonomyTerm(string $taxonomy, string $slug): bool|string
+    {
+        $contentBase = $this->app->configPath('content');
+        $taxonomiesPath = Path::join($contentBase, '_taxonomies');
+
+        if (!Path::isInside($taxonomiesPath, $contentBase)) {
+            return 'Invalid taxonomies directory.';
+        }
+
+        $filePath = Path::join($taxonomiesPath, $taxonomy . '.yml');
+        if (!Path::isInside($filePath, $taxonomiesPath)) {
+            return 'Invalid taxonomy.';
+        }
+
+        if (!file_exists($filePath)) {
+            return 'Taxonomy file not found.';
+        }
+
+        $content = file_get_contents($filePath);
+        $terms = \Symfony\Component\Yaml\Yaml::parse($content) ?? [];
+
+        // Filter out the term
+        $terms = array_filter($terms, fn($term) => ($term['slug'] ?? '') !== $slug);
+        $terms = array_values($terms);
+
+        // Write back
+        $yaml = \Symfony\Component\Yaml\Yaml::dump($terms, 2, 2);
+        if (file_put_contents($filePath, $yaml) === false) {
+            return 'Failed to write taxonomy file.';
+        }
+
+        return true;
+    }
+
+    /**
+     * Create a content file from raw file content (frontmatter + body).
+     */
+    private function createContentFileRaw(string $type, array $typeConfig, string $slug, string $fileContent, string $id = ''): bool|string
+    {
+        $contentDir = $typeConfig['content_dir'] ?? $type . 's';
+        $contentBase = $this->app->configPath('content');
+        $contentPath = Path::join($contentBase, $contentDir);
+
+        if (!Path::isInside($contentPath, $contentBase)) {
+            return 'Invalid content directory.';
+        }
+
+        // Ensure directory exists
+        if (!is_dir($contentPath)) {
+            if (!@mkdir($contentPath, 0755, true)) {
+                return 'Failed to create content directory.';
+            }
+        }
+
+        $filePath = Path::join($contentPath, $slug . '.md');
+
+        if (!Path::isInside($filePath, $contentPath)) {
+            return 'Invalid slug.';
+        }
+
+        // Check if file already exists
+        if (file_exists($filePath)) {
+            return 'A file with this slug already exists.';
+        }
+
+        // If no ID in content, inject one
+        if (empty($id) && !preg_match('/^id:\s*.+$/m', $fileContent)) {
+            $newId = \Ava\Support\Ulid::generate();
+            $fileContent = preg_replace('/^---\n/', "---\nid: {$newId}\n", $fileContent);
+        }
+
+        if (file_put_contents($filePath, $fileContent) === false) {
+            return 'Failed to write content file.';
+        }
+
+        return true;
+    }
+
+    /**
+     * Update a content file from raw file content (frontmatter + body).
+     */
+    private function updateContentFileRaw(\Ava\Content\Item $item, string $type, array $typeConfig, string $newSlug, string $fileContent, string $originalSlug): bool|string
+    {
+        $contentDir = $typeConfig['content_dir'] ?? $type . 's';
+        $contentBase = $this->app->configPath('content');
+        $contentPath = Path::join($contentBase, $contentDir);
+
+        if (!Path::isInside($contentPath, $contentBase)) {
+            return 'Invalid content directory.';
+        }
+
+        $originalFilePath = $item->filePath();
+        $newFilePath = Path::join($contentPath, $newSlug . '.md');
+
+        if (!Path::isInside($newFilePath, $contentPath)) {
+            return 'Invalid slug.';
+        }
+
+        if (!Path::isInside($originalFilePath, $contentBase)) {
+            return 'Invalid original file path.';
+        }
+
+        // If slug changed, check new file doesn't exist
+        if ($newSlug !== $originalSlug && file_exists($newFilePath)) {
+            return 'A file with the new slug already exists.';
+        }
+
+        // Write to new path
+        if (file_put_contents($newFilePath, $fileContent) === false) {
+            return 'Failed to write content file.';
+        }
+
+        // If slug changed, delete old file
+        if ($newSlug !== $originalSlug && $originalFilePath !== $newFilePath) {
+            @unlink($originalFilePath);
+        }
+
+        return true;
+    }
+
+    /**
      * Lint content action.
      */
     public function lint(Request $request): Response
     {
         $errors = $this->app->indexer()->lint();
-
-        // Log lint errors if any
-        if (!empty($errors)) {
-            $errorCount = array_sum(array_map('count', $errors));
-            $this->logAction('WARNING', "Lint found {$errorCount} error(s) in " . count($errors) . ' file(s)');
-        } else {
-            $this->logAction('INFO', 'Lint check passed - no errors found');
-        }
 
         $data = [
             'errors' => $errors,
@@ -583,6 +1434,174 @@ JS;
         return Response::html($this->render('content/logs', $data, $layout));
     }
 
+    /**
+     * Media uploader page.
+     */
+    public function media(Request $request): Response
+    {
+        $uploader = new MediaUploader($this->app);
+
+        // Check if media is enabled
+        if (!$uploader->isEnabled()) {
+            return Response::html('<h1>Media uploads are disabled</h1><p>Enable them in your configuration.</p>', 403);
+        }
+
+        $error = null;
+        $success = null;
+        $uploadedFiles = [];
+
+        // Handle file upload
+        if ($request->isMethod('POST')) {
+            // CSRF check
+            $csrf = $request->post('_csrf', '');
+            if (!$this->auth->verifyCsrf($csrf)) {
+                $error = 'Invalid request. Please try again.';
+            } else {
+                $files = $_FILES['media'] ?? null;
+
+                if ($files === null || empty($files['name'][0])) {
+                    $error = 'No files selected.';
+                } else {
+                    // Determine target folder
+                    $folderMode = $request->post('folder_mode', 'date');
+                    $targetFolder = null;
+
+                    if ($folderMode === 'existing') {
+                        $targetFolder = $request->post('existing_folder', '');
+                        if ($targetFolder === '') {
+                            $targetFolder = null;
+                        }
+                    } elseif ($folderMode === 'root') {
+                        $targetFolder = null;
+                    }
+                    // 'date' mode uses null with default date organization
+
+                    $useDate = ($folderMode === 'date');
+
+                    // Handle multiple files
+                    $totalFiles = count($files['name']);
+                    $successCount = 0;
+                    $errors = [];
+
+                    for ($i = 0; $i < $totalFiles; $i++) {
+                        if ($files['error'][$i] === UPLOAD_ERR_NO_FILE) {
+                            continue;
+                        }
+
+                        $fileData = [
+                            'name' => $files['name'][$i],
+                            'type' => $files['type'][$i],
+                            'tmp_name' => $files['tmp_name'][$i],
+                            'error' => $files['error'][$i],
+                            'size' => $files['size'][$i],
+                        ];
+
+                        $result = $uploader->upload($fileData, $targetFolder, $useDate);
+
+                        if ($result['success']) {
+                            $successCount++;
+                            $uploadedFiles[] = $result;
+                            $this->logAction('INFO', "Uploaded media: {$result['filename']} to {$result['relative_path']}");
+                        } else {
+                            $errors[] = "{$files['name'][$i]}: {$result['error']}";
+                            $this->logAction('WARNING', "Media upload failed: {$files['name'][$i]} - {$result['error']}");
+                        }
+                    }
+
+                    if ($successCount > 0) {
+                        $success = "Uploaded {$successCount} file" . ($successCount > 1 ? 's' : '') . " successfully.";
+                    }
+
+                    if (!empty($errors)) {
+                        $error = implode("\n", $errors);
+                    }
+
+                    // Regenerate CSRF after successful upload
+                    $this->auth->regenerateCsrf();
+                }
+            }
+        }
+
+        // Get folder list and recent uploads
+        $existingFolders = $uploader->getExistingFolders();
+        $uploadLimits = $uploader->getUploadLimits();
+
+        // Get current folder from query string for browsing
+        $currentFolder = $request->query('folder', '');
+        $allFiles = $uploader->listFiles($currentFolder !== '' ? $currentFolder : null);
+
+        // Sorting
+        $sortBy = $request->query('sort', 'date');
+        $sortDir = $request->query('dir', 'desc');
+        
+        usort($allFiles, function ($a, $b) use ($sortBy, $sortDir) {
+            $result = match ($sortBy) {
+                'name' => strcasecmp($a['name'], $b['name']),
+                'size' => $a['size'] <=> $b['size'],
+                default => $a['modified'] <=> $b['modified'], // date
+            };
+            return $sortDir === 'desc' ? -$result : $result;
+        });
+
+        // Pagination
+        $perPage = 25;
+        $page = max(1, (int) $request->query('page', 1));
+        $totalFiles = count($allFiles);
+        $totalPages = max(1, (int) ceil($totalFiles / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+        $currentFiles = array_slice($allFiles, $offset, $perPage);
+
+        // Get media alias for shortlinks
+        $mediaAlias = '@media:';
+        $aliases = $this->app->config('paths.aliases', []);
+        foreach ($aliases as $alias => $path) {
+            if ($path === '/media/' || $path === '/media') {
+                $mediaAlias = $alias;
+                break;
+            }
+        }
+
+        $data = [
+            'error' => $error,
+            'success' => $success,
+            'uploadedFiles' => $uploadedFiles,
+            'existingFolders' => $existingFolders,
+            'uploadLimits' => $uploadLimits,
+            'currentFolder' => $currentFolder,
+            'currentFiles' => $currentFiles,
+            'organizeByDate' => $uploader->isOrganizeByDateEnabled(),
+            'dateFolder' => $uploader->getDateFolder(),
+            'mediaPath' => $uploader->getMediaPath(),
+            'isWritable' => $uploader->isWritable(),
+            'csrf' => $this->auth->csrfToken(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+            ],
+            'user' => $this->auth->user(),
+            // Sorting and pagination
+            'sortBy' => $sortBy,
+            'sortDir' => $sortDir,
+            'page' => $page,
+            'totalPages' => $totalPages,
+            'totalFiles' => $totalFiles,
+            'perPage' => $perPage,
+            'mediaAlias' => $mediaAlias,
+        ];
+
+        $layout = [
+            'title' => 'Media',
+            'icon' => 'image',
+            'activePage' => 'media',
+            'alertSuccess' => $success,
+            'alertError' => $error,
+            'headerActions' => $this->defaultHeaderActions(),
+        ];
+
+        return Response::html($this->render('content/media', $data, $layout));
+    }
+
     // -------------------------------------------------------------------------
     // Data gathering
     // -------------------------------------------------------------------------
@@ -758,7 +1777,7 @@ JS;
             $content = @file_get_contents($uptimeFile);
             if ($content !== false) {
                 $parts = explode(' ', trim($content));
-                $uptime = (float) ($parts[0] ?? 0);
+                $uptime = (float) $parts[0];
             }
         }
 
@@ -828,6 +1847,9 @@ JS;
         $snippetsSize = $this->getDirectorySize($snippetsPath);
         $appPath = $this->app->path('app');
         $appSize = $this->getDirectorySize($appPath);
+        $mediaPath = $this->app->config('admin.media.path', 'public/media');
+        $mediaFullPath = $this->app->path($mediaPath);
+        $mediaSize = is_dir($mediaFullPath) ? $this->getDirectorySize($mediaFullPath) : 0;
 
         return [
             'php_version' => PHP_VERSION,
@@ -845,6 +1867,7 @@ JS;
             'themes_size' => $themesSize,
             'snippets_size' => $snippetsSize,
             'app_size' => $appSize,
+            'media_size' => $mediaSize,
             'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'CLI',
             'os' => PHP_OS_FAMILY . ' ' . php_uname('r'),
             'hostname' => gethostname(),
@@ -963,16 +1986,25 @@ JS;
 
         $logFile = $logsPath . '/admin.log';
         $timestamp = date('Y-m-d H:i:s');
+
+        $level = strtoupper(preg_replace('/[^A-Z]/', '', $level));
+        if ($level === '') {
+            $level = 'INFO';
+        }
+
+        $message = trim(preg_replace('/[\r\n\t]+/', ' ', $message));
         
         $logLine = "[{$timestamp}] {$level}: {$message}";
         
         if ($includeClientInfo) {
             $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-            // Take first IP if comma-separated (X-Forwarded-For)
-            if (str_contains($ip, ',')) {
-                $ip = trim(explode(',', $ip)[0]);
-            }
+            $ip = trim(preg_replace('/[\r\n\t\s]+/', ' ', $ip));
+
             $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+            $ua = trim(preg_replace('/[\r\n\t]+/', ' ', $ua));
+            if (strlen($ua) > 512) {
+                $ua = substr($ua, 0, 512) . '…';
+            }
             $logLine .= " | IP: {$ip} | UA: {$ua}";
         }
         
@@ -1427,6 +2459,7 @@ JS;
             'customPages' => Hooks::apply('admin.register_pages', [], $this->app),
             'version' => defined('AVA_VERSION') ? AVA_VERSION : '1.0',
             'user' => $this->auth->user(),
+            'csrf' => $this->auth->csrfToken(),
             'site' => [
                 'name' => $this->app->config('site.name'),
                 'url' => $this->app->config('site.base_url'),
@@ -1596,6 +2629,30 @@ JS;
     }
 
     /**
+     * Get media upload stats for dashboard.
+     */
+    private function getMediaStats(): array
+    {
+        $uploader = new MediaUploader($this->app);
+        
+        if (!$uploader->isEnabled()) {
+            return ['enabled' => false];
+        }
+        
+        $limits = $uploader->getUploadLimits();
+        $folders = $uploader->getExistingFolders(false); // Include date folders for count
+        
+        return [
+            'enabled' => true,
+            'writable' => $uploader->isWritable(),
+            'processor' => $limits['has_imagick'] ? 'ImageMagick' : ($limits['has_gd'] ? 'GD' : null),
+            'max_size' => $limits['max_file_size_formatted'],
+            'folder_count' => count($folders),
+            'extensions' => $limits['allowed_extensions'],
+        ];
+    }
+
+    /**
      * Get the Application instance for plugins.
      */
     public function app(): Application
@@ -1610,11 +2667,11 @@ JS;
     {
         $siteUrl = htmlspecialchars($this->app->config('site.base_url', ''));
         return <<<HTML
-<a href="https://adamgreenough.github.io/ava/" target="_blank" class="btn btn-secondary btn-sm">
+<a href="https://adamgreenough.github.io/ava/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
     <span class="material-symbols-rounded">menu_book</span>
     <span class="hide-mobile">Docs</span>
 </a>
-<a href="{$siteUrl}" target="_blank" class="btn btn-secondary btn-sm">
+<a href="{$siteUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
     <span class="material-symbols-rounded">open_in_new</span>
     <span class="hide-mobile">View Site</span>
 </a>

@@ -116,7 +116,7 @@ $shortcodeInfo = [
         </span>
     </div>
     <div class="card-body">
-        <p class="text-secondary text-sm" style="margin-bottom: var(--sp-3);">
+        <p class="text-secondary text-sm mb-3">
             Shortcodes are processed after Markdown rendering. Use them in your content files:
         </p>
         <div class="list-item"><span class="list-label">Basic</span><code>[shortcode]</code></div>

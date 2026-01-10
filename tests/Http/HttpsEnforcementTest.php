@@ -32,12 +32,12 @@ final class HttpsEnforcementTest extends TestCase
         unset($_SERVER['HTTPS']);
     }
 
-    public function testIsSecureChecksXForwardedProto(): void
+    public function testIsSecureDoesNotTrustXForwardedProtoByDefault(): void
     {
         $_SERVER['HTTPS'] = 'off';
         $request = new Request('GET', '/admin', [], ['X-Forwarded-Proto' => 'https']);
         
-        $this->assertTrue($request->isSecure());
+        $this->assertFalse($request->isSecure());
         
         unset($_SERVER['HTTPS']);
     }
