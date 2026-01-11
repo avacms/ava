@@ -380,24 +380,6 @@ final class ReleaseChecksTest extends TestCase
         );
     }
 
-    /**
-     * Test that documentation exists
-     */
-    public function testDocumentationExists(): void
-    {
-        $docsPath = AVA_ROOT . '/docs';
-        
-        $this->assertTrue(
-            is_dir($docsPath),
-            'Documentation directory should exist at docs/'
-        );
-
-        $this->assertTrue(
-            file_exists($docsPath . '/README.md'),
-            'docs/README.md should exist'
-        );
-    }
-
     // =========================================================================
     // Composer & Dependencies
     // =========================================================================

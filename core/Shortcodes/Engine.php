@@ -154,8 +154,9 @@ final class Engine
      */
     private function loadSnippet(string $name, array $params, ?string $content): string
     {
-        // Security: no path traversal
-        if (preg_match('/\.\./', $name) || str_contains($name, '/') || str_contains($name, '\\')) {
+        // Security: allowlist-only names (blocks traversal and odd encodings)
+        $name = trim($name);
+        if (!preg_match('/^[A-Za-z0-9_-]{1,128}$/', $name)) {
             return '<!-- snippet: invalid name -->';
         }
 
@@ -164,7 +165,15 @@ final class Engine
             return '<!-- snippet: disabled -->';
         }
 
-        $snippetPath = $this->app->configPath('snippets') . '/' . $name . '.php';
+        $snippetDir = rtrim($this->app->configPath('snippets'), '/');
+        $snippetPath = $snippetDir . '/' . $name . '.php';
+
+        // Paranoid containment check (in case of unexpected path resolution)
+        $realDir = realpath($snippetDir) ?: $snippetDir;
+        $realFile = realpath($snippetPath);
+        if ($realFile !== false && !str_starts_with($realFile, $realDir . DIRECTORY_SEPARATOR)) {
+            return '<!-- snippet: invalid path -->';
+        }
 
         if (!file_exists($snippetPath)) {
             return '<!-- snippet not found: ' . htmlspecialchars($name) . ' -->';
