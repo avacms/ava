@@ -21,7 +21,7 @@ Using Ava for your website? We'd love to feature it here!
 - A screenshot (optional, but nice to have)
 
 **How to submit:**
-- [Open an issue on GitHub](https://github.com/adamgreenough/ava/issues) with the label "showcase"
+- [Open an issue on GitHub](https://github.com/ava-cms/ava/issues) with the label "showcase"
 - Or share it in [Discord](https://discord.gg/Z7bF9YeK)
 
 Whether it's a personal blog, portfolio, documentation site, or something completely different — if you built it with Ava, we want to see it!

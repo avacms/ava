@@ -213,11 +213,11 @@ Content files are Markdown with YAML frontmatter:
 
 ```yaml
 ---
-id: 01JGMK...        # ULID (auto-generated, immutable)
 title: Page Title     # Required
 slug: page-title      # Required, URL-safe
 status: published     # draft | published | unlisted
 date: 2024-12-28      # Publication date
+id: 01JGMK...        # ULID (optional, for stable references)
 excerpt: Summary      # Short description
 cache: true           # Override webpage cache setting
 categories:           # Taxonomy terms
@@ -235,11 +235,11 @@ Markdown content here. **Bold**, *italic*, [links](/url).
 ```
 
 **Core fields:**
-- `id` — Unique ULID identifier (auto-generated)
-- `title` — Content title
-- `slug` — URL-friendly identifier
+- `title` — Content title (required)
+- `slug` — URL-friendly identifier (required)
 - `status` — `draft`, `published`, or `unlisted`
 - `date` — Publication date (for dated content types)
+- `id` — Optional ULID for stable references across slug changes
 - `excerpt` — Short description
 - `cache` — Override webpage cache setting
 - `redirect_from` — Array of old URLs to 301 redirect
@@ -647,9 +647,9 @@ Hooks::addFilter('render.context', function($context) {
     return $context;
 });
 
-// Configure Markdown extensions
+// Add custom Markdown extensions (GFM is enabled by default)
 Hooks::addAction('markdown.configure', function($environment) {
-    $environment->addExtension(new \League\CommonMark\Extension\Table\TableExtension());
+    $environment->addExtension(new \League\CommonMark\Extension\Footnote\FootnoteExtension());
 });
 ```
 

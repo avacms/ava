@@ -21,7 +21,7 @@ Built a theme you'd like to share? We'd love to feature it here!
 - Which Ava version you tested it with
 
 **How to submit:**
-- [Open an issue on GitHub](https://github.com/adamgreenough/ava/issues) with the label "community-theme"
+- [Open an issue on GitHub](https://github.com/ava-cms/ava/issues) with the label "community-theme"
 - Or share it in [Discord](https://discord.gg/Z7bF9YeK)
 
 ---

@@ -19,29 +19,15 @@ $typeLabel = rtrim($typeConfig['label'] ?? ucfirst($type), 's');
 $typeSingular = strtolower($typeLabel);
 $usesDate = in_array($typeConfig['sorting'] ?? '', ['date_desc', 'date_asc'], true);
 
-// Generate a ULID-like ID for new content
-$generateId = function(): string {
-    $t = strtoupper(base_convert((string)floor(microtime(true) * 1000), 10, 32));
-    $t = str_pad($t, 10, '0', STR_PAD_LEFT);
-    $chars = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-    $r = '';
-    for ($i = 0; $i < 16; $i++) {
-        $r .= $chars[random_int(0, 31)];
-    }
-    return $t . $r;
-};
-
 // Default file content for new files
 if (isset($_POST['file_content'])) {
     $currentFileContent = $_POST['file_content'];
     $currentFilename = $_POST['filename'] ?? '';
 } else {
-    $id = $generateId();
     $today = date('Y-m-d');
     $slug = 'new-' . $typeSingular;
     
-    $yaml = "id: {$id}\n";
-    $yaml .= "title: New {$typeLabel}\n";
+    $yaml = "title: New {$typeLabel}\n";
     $yaml .= "slug: {$slug}\n";
     $yaml .= "status: draft\n";
     if ($usesDate) {
@@ -153,10 +139,10 @@ $jsConfig = [
                         <input type="date" id="fm-date" class="form-control" value="<?= date('Y-m-d') ?>">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">ID</label>
+                        <label class="form-label">ID <span class="text-secondary text-xs">(optional)</span></label>
                         <div class="input-group">
-                            <input type="text" id="fm-id" class="form-control font-mono text-xs" readonly>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="generateNewId()" title="Generate new ID">
+                            <input type="text" id="fm-id" class="form-control font-mono text-xs" placeholder="Auto-generated if empty">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="generateNewId()" title="Generate ID">
                                 <span class="material-symbols-rounded">refresh</span>
                             </button>
                         </div>
@@ -377,11 +363,6 @@ function openFrontmatterGenerator() {
         });
     }
     
-    // Generate ID if empty
-    if (!document.getElementById('fm-id').value) {
-        generateNewId();
-    }
-    
     document.getElementById('fm-modal').style.display = 'flex';
     document.getElementById('fm-title').focus();
 }
@@ -403,8 +384,7 @@ function insertFrontmatter() {
     const slug = document.getElementById('fm-slug').value.trim() || generateSlug(title);
     const status = document.getElementById('fm-status').value;
     const date = document.getElementById('fm-date').value;
-    let id = document.getElementById('fm-id').value;
-    if (!id) { generateNewId(); id = document.getElementById('fm-id').value; }
+    const id = document.getElementById('fm-id').value.trim();
     
     // SEO
     const metaTitle = document.getElementById('fm-meta-title').value.trim();
@@ -431,7 +411,7 @@ function insertFrontmatter() {
     }
     
     // Add managed fields in order
-    newFm.id = id;
+    if (id) newFm.id = id;
     newFm.title = title;
     newFm.slug = slug;
     newFm.status = status;

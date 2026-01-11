@@ -2,10 +2,10 @@
 
 # Ava CMS
 
-[![Release](https://img.shields.io/github/v/release/adamgreenough/ava)](https://github.com/adamgreenough/ava/releases)
-[![Issues](https://img.shields.io/github/issues/adamgreenough/ava)](https://github.com/adamgreenough/ava/issues)
-[![Stars](https://img.shields.io/github/stars/adamgreenough/ava)](https://github.com/adamgreenough/ava/stargazers)
-[![Code size](https://img.shields.io/github/languages/code-size/adamgreenough/ava)](https://github.com/adamgreenough/ava)
+[![Release](https://img.shields.io/github/v/release/ava-cms/ava)](https://github.com/ava-cms/ava/releases)
+[![Issues](https://img.shields.io/github/issues/ava-cms/ava)](https://github.com/ava-cms/ava/issues)
+[![Stars](https://img.shields.io/github/stars/ava-cms/ava)](https://github.com/ava-cms/ava/stargazers)
+[![Code size](https://img.shields.io/github/languages/code-size/ava-cms/ava)](https://github.com/ava-cms/ava)
 [![Discord](https://img.shields.io/discord/1028357262189801563)](https://discord.gg/Z7bF9YeK)
 
 Ava is a friendly, flexible, flat-file CMS built in PHP for bespoke personal websites, blogs, and more.
@@ -62,7 +62,7 @@ A clean file-based structure, clear configuration, thorough documentation, and a
 
 ```bash
 # 1. Download from GitHub releases (or git clone)
-#    https://github.com/adamgreenough/ava/releases
+#    https://github.com/ava-cms/ava/releases
 
 # 2. Install dependencies
 composer install
@@ -125,7 +125,7 @@ Ava is designed to be fast by default, whether you have 100 posts or 100,000.
 
 Ava is moving quickly, so I'm not accepting undiscussed pull requests right now. The best way to help:
 
-- [Open an issue](https://github.com/adamgreenough/ava/issues) — bugs, ideas, questions all welcome
+- [Open an issue](https://github.com/ava-cms/ava/issues) — bugs, ideas, questions all welcome
 - [Join the Discord](https://discord.gg/Z7bF9YeK) — chat and support
 
 ## License

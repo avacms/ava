@@ -7,6 +7,7 @@ namespace Ava\Tests\Rendering;
 use Ava\Testing\TestCase;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\MarkdownConverter;
 
 /**
@@ -25,6 +26,7 @@ final class MarkdownTest extends TestCase
             'allow_unsafe_links' => false,
         ]);
         $environment->addExtension(new CommonMarkCoreExtension());
+        $environment->addExtension(new GithubFlavoredMarkdownExtension());
         $this->converter = new MarkdownConverter($environment);
     }
 
@@ -68,9 +70,9 @@ final class MarkdownTest extends TestCase
 
     public function testStrikethrough(): void
     {
-        // Note: Strikethrough requires GFM extension, not in core
+        // GFM extension provides strikethrough support
         $html = $this->render("This is ~~strikethrough~~ text");
-        $this->assertStringContains('~~strikethrough~~', $html);
+        $this->assertStringContains('<del>strikethrough</del>', $html);
     }
 
     public function testInlineCode(): void
@@ -308,6 +310,42 @@ final class MarkdownTest extends TestCase
     {
         $html = $this->render("Line 1  \nLine 2");
         $this->assertStringContains('<br', $html);
+    }
+
+    // =========================================================================
+    // GitHub Flavored Markdown (GFM)
+    // =========================================================================
+
+    public function testTable(): void
+    {
+        $markdown = "| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |";
+        $html = $this->render($markdown);
+        $this->assertStringContains('<table>', $html);
+        $this->assertStringContains('<th>Header 1</th>', $html);
+        $this->assertStringContains('<td>Cell 1</td>', $html);
+    }
+
+    public function testTableWithAlignment(): void
+    {
+        $markdown = "| Left | Center | Right |\n|:-----|:------:|------:|\n| L    | C      | R     |";
+        $html = $this->render($markdown);
+        $this->assertStringContains('<table>', $html);
+        $this->assertStringContains('Left', $html);
+    }
+
+    public function testTaskList(): void
+    {
+        $markdown = "- [ ] Unchecked\n- [x] Checked";
+        $html = $this->render($markdown);
+        $this->assertStringContains('type="checkbox"', $html);
+        $this->assertStringContains('checked', $html);
+    }
+
+    public function testAutolinkGfm(): void
+    {
+        // GFM autolinks bare URLs without angle brackets
+        $html = $this->render("Visit https://example.com for more");
+        $this->assertStringContains('<a href="https://example.com"', $html);
     }
 
     // =========================================================================

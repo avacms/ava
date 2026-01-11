@@ -9,6 +9,7 @@ use Ava\Content\Item;
 use Ava\Plugins\Hooks;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\MarkdownConverter;
 
 /**
@@ -179,6 +180,7 @@ final class Engine
 
             $environment = new Environment($config);
             $environment->addExtension(new CommonMarkCoreExtension());
+            $environment->addExtension(new GithubFlavoredMarkdownExtension());
 
             // Allow plugins to add extensions
             Hooks::doAction('markdown.configure', $environment);

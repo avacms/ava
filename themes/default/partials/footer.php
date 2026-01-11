@@ -21,7 +21,7 @@
                  * is always current without manual updates.
                  */
                 ?>
-                <p>&copy; <?= date('Y') ?> <?= $ava->e($site['name']) ?>. Built with <a href="https://github.com/adamgreenough/ava">Ava CMS</a>.</p>
+                <p>&copy; <?= date('Y') ?> <?= $ava->e($site['name']) ?>. Built with <a href="https://github.com/ava-cms/ava">Ava CMS</a>.</p>
             </div>
         </div>
     </footer>

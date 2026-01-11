@@ -231,7 +231,7 @@ final class ReleaseChecksTest extends TestCase
             $this->skip('curl extension required for GitHub API check');
         }
 
-        $ch = curl_init('https://api.github.com/repos/adamgreenough/ava/releases/latest');
+        $ch = curl_init('https://api.github.com/repos/ava-cms/ava/releases/latest');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 10,

@@ -544,11 +544,12 @@ final class SqliteBackend implements BackendInterface
         $pdo = $this->pdo();
 
         // Content table - main index
+        // Primary key is (type, slug) since id is optional
         $pdo->exec('
             CREATE TABLE IF NOT EXISTS content (
-                id TEXT PRIMARY KEY,
                 type TEXT NOT NULL,
                 slug TEXT NOT NULL,
+                id TEXT,
                 title TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT "published",
                 date TEXT,
@@ -559,7 +560,7 @@ final class SqliteBackend implements BackendInterface
                 taxonomies TEXT DEFAULT "{}",
                 meta TEXT DEFAULT "{}",
                 frontmatter TEXT DEFAULT "{}",
-                UNIQUE(type, slug)
+                PRIMARY KEY(type, slug)
             )
         ');
 
@@ -568,7 +569,7 @@ final class SqliteBackend implements BackendInterface
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_content_status ON content(status)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_content_date ON content(date DESC)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_content_type_status ON content(type, status)');
-        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_content_type_slug ON content(type, slug)');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_content_id ON content(id)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_content_file_path ON content(file_path)');
 
         // Taxonomy terms table
@@ -651,14 +652,16 @@ final class SqliteBackend implements BackendInterface
     {
         $stmt = $this->stmt('insert_content', '
             INSERT OR REPLACE INTO content 
-            (id, type, slug, title, status, date, updated_at, file_path, template, excerpt, taxonomies, meta, frontmatter)
-            VALUES (:id, :type, :slug, :title, :status, :date, :updated_at, :file_path, :template, :excerpt, :taxonomies, :meta, :frontmatter)
+            (type, slug, id, title, status, date, updated_at, file_path, template, excerpt, taxonomies, meta, frontmatter)
+            VALUES (:type, :slug, :id, :title, :status, :date, :updated_at, :file_path, :template, :excerpt, :taxonomies, :meta, :frontmatter)
         ');
 
+        $id = $item['id'] ?? null;
+
         $stmt->execute([
-            'id' => $item['id'] ?? '',
             'type' => $item['type'] ?? '',
             'slug' => $item['slug'] ?? '',
+            'id' => $id ?: null,  // Store NULL if empty, not empty string
             'title' => $item['title'] ?? '',
             'status' => $item['status'] ?? 'published',
             'date' => $item['date'] ?? null,

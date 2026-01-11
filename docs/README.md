@@ -1,10 +1,10 @@
 # Addy's (very adaptable) CMS
 
-[![Release](https://img.shields.io/github/v/release/adamgreenough/ava)](https://github.com/adamgreenough/ava/releases)
-[![Issues](https://img.shields.io/github/issues/adamgreenough/ava)](https://github.com/adamgreenough/ava/issues)
-[![Code size](https://img.shields.io/github/languages/code-size/adamgreenough/ava)](https://github.com/adamgreenough/ava)
+[![Release](https://img.shields.io/github/v/release/ava-cms/ava)](https://github.com/ava-cms/ava/releases)
+[![Issues](https://img.shields.io/github/issues/ava-cms/ava)](https://github.com/ava-cms/ava/issues)
+[![Code size](https://img.shields.io/github/languages/code-size/ava-cms/ava)](https://github.com/ava-cms/ava)
 [![Discord](https://img.shields.io/discord/1028357262189801563)](https://discord.gg/Z7bF9YeK)
-[![GitHub Repo stars](https://img.shields.io/github/stars/adamgreenough/ava)](https://github.com/adamgreenough/ava)
+[![GitHub Repo stars](https://img.shields.io/github/stars/ava-cms/ava)](https://github.com/ava-cms/ava)
 
 
 A friendly, flexible, flat-file PHP-based CMS for bespoke personal websites, blogs and more.
@@ -115,9 +115,9 @@ Getting started with Ava is incredibly simple and the default set-up can be put 
 
 The simplest approach—no special tools required:
 
-[![Release](https://img.shields.io/github/v/release/adamgreenough/ava)](https://github.com/adamgreenough/ava/releases)
+[![Release](https://img.shields.io/github/v/release/ava-cms/ava)](https://github.com/ava-cms/ava/releases)
 
-1. Download the latest release from [GitHub Releases](https://github.com/adamgreenough/ava/releases)
+1. Download the latest release from [GitHub Releases](https://github.com/ava-cms/ava/releases)
 2. Extract the ZIP file
 3. Upload to your web host (via SFTP, your host's file manager, or however you prefer)
 4. Run `composer install` to install dependencies
@@ -130,7 +130,7 @@ If you're comfortable with Git and want version control from the start:
 
 1. Clone the repo in your websites root directory (above the `public` folder):
 ```bash
-git clone https://github.com/adamgreenough/ava.git
+git clone https://github.com/ava-cms/ava.git
 ```
 2. Install dependencies:
 ```bash
@@ -236,7 +236,7 @@ It won't be a good fit if you need a drag-and-drop page builder or a massive eco
 
 ## License
 
-Ava CMS is free and open-source software licensed under the [MIT License](https://github.com/adamgreenough/ava/blob/main/LICENSE).
+Ava CMS is free and open-source software licensed under the [MIT License](https://github.com/ava-cms/ava/blob/main/LICENSE).
 
 In plain English, that means you can:
 
@@ -254,7 +254,7 @@ Ava is still fairly early and moving quickly, so I’m not looking for undiscuss
 
 That said, I’d genuinely love your feedback:
 
-- If you run into a bug, get stuck, or have a “this could be nicer” moment, please [open an issue](https://github.com/adamgreenough/ava/issues).
+- If you run into a bug, get stuck, or have a “this could be nicer” moment, please [open an issue](https://github.com/ava-cms/ava/issues).
 - Feature requests, ideas, and “what if Ava could…” suggestions are very welcome.
 
 If you prefer a more conversational place to ask questions and share ideas, join the Discord:

@@ -179,10 +179,10 @@ final class UpdaterTest extends TestCase
      */
     public function testGitHubRepoFormat(): void
     {
-        $repo = 'adamgreenough/ava';
+        $repo = 'ava-cms/ava';
         
         $this->assertStringContains('/', $repo);
-        $this->assertTrue(str_contains($repo, 'adamgreenough'));
+        $this->assertTrue(str_contains($repo, 'ava-cms'));
         $this->assertTrue(str_contains($repo, 'ava'));
     }
 
@@ -236,8 +236,8 @@ final class UpdaterTest extends TestCase
                 'name' => '1.0.1',
                 'body' => 'Bug fixes and improvements',
                 'published_at' => '2026-01-10T00:00:00Z',
-                'html_url' => 'https://github.com/adamgreenough/ava/releases/tag/v1.0.1',
-                'zipball_url' => 'https://api.github.com/repos/adamgreenough/ava/zipball/v1.0.1',
+                'html_url' => 'https://github.com/ava-cms/ava/releases/tag/v1.0.1',
+                'zipball_url' => 'https://api.github.com/repos/ava-cms/ava/zipball/v1.0.1',
             ],
             'error' => null,
         ];
@@ -277,7 +277,7 @@ final class UpdaterTest extends TestCase
      */
     public function testGitHubApiUrlFormat(): void
     {
-        $repo = 'adamgreenough/ava';
+        $repo = 'ava-cms/ava';
         $apiUrl = "https://api.github.com/repos/{$repo}/releases/latest";
         
         $this->assertStringContains('api.github.com', $apiUrl);

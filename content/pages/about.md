@@ -66,7 +66,7 @@ No frameworks. No JavaScript build tools. Just PHP.
 ## Get Involved
 
 - 📚 **[Documentation](https://ava.addy.zone)** — Learn everything about Ava
-- 🗳️ **[GitHub](https://github.com/adamgreenough/ava)** — Source code and issues
+- 🗳️ **[GitHub](https://github.com/ava-cms/ava)** — Source code and issues
 - 💬 **[Discord](https://discord.gg/Z7bF9YeK)** — Join the community
 
 ---

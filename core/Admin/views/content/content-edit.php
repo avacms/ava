@@ -161,10 +161,10 @@ $successMsg = $successMessage ?? 'Changes saved successfully.';
                         <input type="date" id="fm-date" class="form-control" value="<?= htmlspecialchars($item->date() ? $item->date()->format('Y-m-d') : date('Y-m-d')) ?>">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">ID</label>
+                        <label class="form-label">ID <span class="text-secondary text-xs">(optional)</span></label>
                         <div class="input-group">
-                            <input type="text" id="fm-id" class="form-control font-mono text-xs" value="<?= htmlspecialchars($item->id() ?? '') ?>" readonly>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="generateNewId()" title="Generate new ID">
+                            <input type="text" id="fm-id" class="form-control font-mono text-xs" value="<?= htmlspecialchars($item->id() ?? '') ?>" placeholder="Leave empty if not needed">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="generateNewId()" title="Generate ID">
                                 <span class="material-symbols-rounded">refresh</span>
                             </button>
                         </div>
@@ -404,8 +404,7 @@ function insertFrontmatter() {
     const slug = document.getElementById('fm-slug').value.trim() || generateSlug(title);
     const status = document.getElementById('fm-status').value;
     const date = document.getElementById('fm-date').value;
-    let id = document.getElementById('fm-id').value;
-    if (!id) { generateNewId(); id = document.getElementById('fm-id').value; }
+    const id = document.getElementById('fm-id').value.trim();
     
     // SEO
     const metaTitle = document.getElementById('fm-meta-title').value.trim();
@@ -432,7 +431,7 @@ function insertFrontmatter() {
     }
     
     // Add managed fields in order
-    newFm.id = id;
+    if (id) newFm.id = id;
     newFm.title = title;
     newFm.slug = slug;
     newFm.status = status;

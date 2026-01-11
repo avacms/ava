@@ -85,7 +85,7 @@ Check out the theme files—they're fully commented to help you learn!
 ## Learn More
 
 - 📚 **[Documentation](https://ava.addy.zone)** — Complete guides and reference
-- 🗳️ **[GitHub](https://github.com/adamgreenough/ava)** — Source code and issues
+- 🗳️ **[GitHub](https://github.com/ava-cms/ava)** — Source code and issues
 - 💬 **[Discord](https://discord.gg/Z7bF9YeK)** — Community and support
 
 ---
