@@ -15,7 +15,7 @@
  *   $ava   - The template helper with all rendering methods
  *   $site  - Site configuration array from app/config/ava.php
  * 
- * @see https://ava.addy.zone/#/themes?id=partials
+ * @see https://ava.addy.zone/docs/theming
  */
 ?>
 <!DOCTYPE html>
@@ -62,7 +62,7 @@
          *   - Open Graph tags for social sharing
          *   - canonical URL
          * 
-         * @see https://ava.addy.zone/#/themes?id=meta-tags
+         * @see https://ava.addy.zone/docs/theming
          */
         ?>
         <?= $ava->metaTags($item) ?>
@@ -85,7 +85,7 @@
          * manually. $ava->e() escapes output to prevent XSS attacks.
          * Always escape user-provided or dynamic content!
          * 
-         * @see https://ava.addy.zone/#/themes?id=escaping-output
+         * @see https://ava.addy.zone/docs/theming
          */
         $title = $pageTitle ?? $site['name'];
         $description = $pageDescription ?? $site['tagline'] ?? '';
@@ -105,7 +105,7 @@
      * assets/ directory. URLs include a cache-busting hash based on file
      * modification time.
      * 
-     * @see https://ava.addy.zone/#/themes?id=assets
+     * @see https://ava.addy.zone/docs/theming
      */
     ?>
     <link rel="stylesheet" href="<?= $ava->asset('style.css') ?>">

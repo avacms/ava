@@ -516,3 +516,4 @@ document.getElementById('filename').addEventListener('input', function(e) {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFrontmatterGenerator(); });
 </script>
+

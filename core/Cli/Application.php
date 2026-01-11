@@ -1595,7 +1595,7 @@ final class Application
             $this->writeln('  ' . $this->color('💡 Tip:', self::YELLOW) . ' Run with ' . $this->color('--compare', self::PRIMARY) . ' to test all backends.');
         }
 
-        $this->writeln('  ' . $this->color('📚 Docs:', self::BLUE) . ' https://ava.addy.zone/#/performance');
+        $this->writeln('  ' . $this->color('📚 Docs:', self::BLUE) . ' https://ava.addy.zone/docs/performance');
         $this->writeln('');
 
         return 0;

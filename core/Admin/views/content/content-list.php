@@ -293,3 +293,4 @@ $formatBytes = function($bytes) {
         </div>
     </div>
 </div>
+

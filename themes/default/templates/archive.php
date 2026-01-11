@@ -15,8 +15,8 @@
  *   $ava           - Template helper
  *   $site          - Site configuration array
  * 
- * @see https://ava.addy.zone/#/themes?id=archive-templates
- * @see https://ava.addy.zone/#/routing?id=archive-routes
+ * @see https://ava.addy.zone/docs/theming
+ * @see https://ava.addy.zone/docs/routing
  */
 
 // Get the content type from route parameters (default: 'Archive')
@@ -38,7 +38,7 @@ $pageTitle = ucfirst($contentType) . ' - ' . $site['name'];
              * content items. The query is lazy - it doesn't hit the index
              * until you call get() or iterate.
              * 
-             * @see https://ava.addy.zone/#/themes?id=content-queries
+             * @see https://ava.addy.zone/docs/theming
              */
             $results = $query->get();
             ?>
@@ -96,7 +96,7 @@ $pageTitle = ucfirst($contentType) . ' - ' . $site['name'];
                  * and page info. The query object tracks the current page
                  * and total items.
                  * 
-                 * @see https://ava.addy.zone/#/themes?id=pagination
+                 * @see https://ava.addy.zone/docs/theming
                  */
                 ?>
                 <?= $ava->pagination($query, $request->path()) ?>

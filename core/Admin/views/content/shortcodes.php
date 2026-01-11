@@ -125,3 +125,4 @@ $shortcodeInfo = [
         <div class="list-item"><span class="list-label">Snippet variables</span><code>$params, $content, $app, $ava</code></div>
     </div>
 </div>
+

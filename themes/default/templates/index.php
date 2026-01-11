@@ -18,7 +18,7 @@
  *   $ava      - Template helper
  *   $site     - Site configuration array
  * 
- * @see https://ava.addy.zone/#/themes?id=template-hierarchy
+ * @see https://ava.addy.zone/docs/theming
  */
 ?>
 <?= $ava->partial('header', ['request' => $request, 'pageTitle' => $site['name'], 'pageDescription' => 'Welcome to ' . $site['name']]) ?>

@@ -19,8 +19,8 @@
  *   $ava     - Template helper
  *   $site    - Site configuration array
  * 
- * @see https://ava.addy.zone/#/content?id=taxonomies
- * @see https://ava.addy.zone/#/configuration?id=taxonomies
+ * @see https://ava.addy.zone/docs/content
+ * @see https://ava.addy.zone/docs/configuration
  */
 
 $termName = $tax['term']['name'] ?? 'Unknown';

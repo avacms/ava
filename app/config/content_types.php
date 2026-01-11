@@ -10,7 +10,7 @@ declare(strict_types=1);
  * Define the kinds of content your site has. Each content type specifies
  * where files live, how URLs are generated, and which templates to use.
  *
- * Docs: https://ava.addy.zone/#/configuration?id=content-types-content_typesphp
+ * Docs: https://ava.addy.zone/docs/configuration
  */
 
 return [

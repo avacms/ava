@@ -125,7 +125,7 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
         <strong>Update available:</strong> v<?= htmlspecialchars($updateCheck['latest']) ?>
         <br>
         <span class="text-xs opacity-70">
-               Run <code>./ava update:apply</code> or <a href="https://ava.addy.zone/#/updates" target="_blank" rel="noopener noreferrer" class="link-inherit">see the update guide</a>
+               Run <code>./ava update:apply</code> or <a href="https://ava.addy.zone/docs/updates" target="_blank" rel="noopener noreferrer" class="link-inherit">see the update guide</a>
         </span>
     </div>
 </div>
@@ -479,3 +479,4 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
         <?php endif; ?>
     </div>
 </div>
+

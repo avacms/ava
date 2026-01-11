@@ -5,7 +5,7 @@
  * This partial closes the main content area and adds the site footer.
  * Include it at the end of every template with $ava->partial('footer').
  * 
- * @see https://ava.addy.zone/#/themes?id=partials
+ * @see https://ava.addy.zone/docs/theming
  */
 ?>
     </main>

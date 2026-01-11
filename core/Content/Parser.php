@@ -124,20 +124,20 @@ final class Parser
         $errors = [];
 
         if (empty($item->title())) {
-            $errors[] = "Missing required field: title — see https://ava.addy.zone/#/content?id=frontmatter-guide";
+            $errors[] = "Missing required field: title — see https://ava.addy.zone/docs/content";
         }
 
         if (empty($item->slug())) {
-            $errors[] = "Missing required field: slug — see https://ava.addy.zone/#/content?id=frontmatter-guide";
+            $errors[] = "Missing required field: slug — see https://ava.addy.zone/docs/content";
         }
 
         if (!in_array($item->status(), ['draft', 'published', 'unlisted'], true)) {
-            $errors[] = "Invalid status: {$item->status()} (must be draft, published, or unlisted) — see https://ava.addy.zone/#/content?id=status";
+            $errors[] = "Invalid status: {$item->status()} (must be draft, published, or unlisted) — see https://ava.addy.zone/docs/content";
         }
 
         // Validate slug is URL-safe
         if (!preg_match('/^[a-z0-9-]+$/', $item->slug())) {
-            $errors[] = "Slug must be lowercase alphanumeric with hyphens: {$item->slug()} — see https://ava.addy.zone/#/content?id=slug";
+            $errors[] = "Slug must be lowercase alphanumeric with hyphens: {$item->slug()} — see https://ava.addy.zone/docs/content";
         }
 
         return $errors;

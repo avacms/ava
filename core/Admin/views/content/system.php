@@ -606,7 +606,8 @@ endforeach; ?></pre>
             <?php else: ?>
                 <p class="text-dim text-sm">No hooks registered by plugins or theme.</p>
             <?php endif; ?>
-            <p class="text-tertiary text-xs mt-3"><a href="https://ava.addy.zone/#/creating-plugins?id=available-hooks-reference" target="_blank" rel="noopener noreferrer">View hook documentation →</a></p>
+            <p class="text-tertiary text-xs mt-3"><a href="https://ava.addy.zone/docs/creating-plugins" target="_blank" rel="noopener noreferrer">View hook documentation →</a></p>
         </div>
     </div>
 </div>
+

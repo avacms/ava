@@ -198,6 +198,10 @@ return [
                         'headerActions' => '<a href="' . htmlspecialchars($baseUrl) . '/sitemap.xml" target="_blank" class="btn btn-primary btn-sm">
                             <span class="material-symbols-rounded">open_in_new</span>
                             View Sitemap
+                        </a>' .
+                        '<a href="https://ava.addy.zone/docs/bundled-plugins" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
+                            <span class="material-symbols-rounded">menu_book</span>
+                            <span class="hide-mobile">Docs</span>
                         </a>',
                     ], $content);
                 },

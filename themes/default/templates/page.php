@@ -14,7 +14,7 @@
  *   $ava      - Template helper
  *   $site     - Site configuration array
  * 
- * @see https://ava.addy.zone/#/themes?id=templates
+ * @see https://ava.addy.zone/docs/theming
  */
 ?>
 <?= $ava->partial('header', ['request' => $request, 'pageTitle' => $content->title() . ' - ' . $site['name']]) ?>
@@ -37,7 +37,7 @@
                      * The output is already escaped where needed, so don't
                      * wrap this in $ava->e().
                      * 
-                     * @see https://ava.addy.zone/#/themes?id=rendering-content
+                     * @see https://ava.addy.zone/docs/theming
                      */
                     ?>
                     <?= $ava->body($content) ?>

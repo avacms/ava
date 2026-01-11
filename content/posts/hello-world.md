@@ -83,13 +83,13 @@ Ava includes shortcodes for dynamic content:
 - **Current year:** [year]
 - **Site name:** [site_name]
 
-You can create your own shortcodes too—check the [documentation](https://ava.addy.zone/#/shortcodes).
+You can create your own shortcodes too—check the [documentation](https://ava.addy.zone/docs/shortcodes).
 
 ## What's Next?
 
 1. **Edit this post** — Change the title, add your own content
 2. **Create a new post** — Run `./ava make post "Your Post Title"`
 3. **Explore the theme** — Check out `themes/default/` to see how templates work
-4. **Read the docs** — Visit [ava.addy.zone](https://ava.addy.zone) for guides and reference
+4. **Read the docs** — Visit [ava.addy.zone/docs](https://ava.addy.zone/docs) for guides and reference
 
 Happy publishing! 📝

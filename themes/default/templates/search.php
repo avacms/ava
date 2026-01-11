@@ -12,8 +12,8 @@
  *   $ava         - Template helper
  *   $site        - Site configuration array
  * 
- * @see https://ava.addy.zone/#/themes?id=search
- * @see https://ava.addy.zone/#/api?id=search-endpoint
+ * @see https://ava.addy.zone/docs/theming
+ * @see https://ava.addy.zone/docs/api
  */
 
 $pageTitle = 'Search' . ($searchQuery ? ': ' . $searchQuery : '') . ' - ' . $site['name'];

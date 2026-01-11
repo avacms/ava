@@ -176,7 +176,7 @@ final class Controller
             'title' => 'Dashboard',
             'icon' => 'dashboard',
             'activePage' => 'dashboard',
-            'headerActions' => $this->defaultHeaderActions(),
+            'headerActions' => $this->defaultHeaderActions('admin'),
         ];
 
         return Response::html($this->render('content/dashboard', $data, $layout));
@@ -304,7 +304,7 @@ final class Controller
         if ($archiveUrl) {
             $headerActions .= '<a href="' . htmlspecialchars($this->app->config('site.base_url') . $archiveUrl) . '" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">list</span>Archive</a>';
         }
-        $headerActions .= $this->defaultHeaderActions();
+        $headerActions .= $this->defaultHeaderActions('content');
 
         $layout = [
             'title' => $typeConfig['label'] ?? ucfirst($type),
@@ -368,7 +368,7 @@ final class Controller
 
         $headerActions = '<a href="' . $this->adminUrl() . '/taxonomy/' . htmlspecialchars($taxonomy) . '/create" class="btn btn-primary btn-sm"><span class="material-symbols-rounded">add</span>New Term</a>';
         $headerActions .= '<a href="' . htmlspecialchars($taxBase) . '" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">visibility</span>View Archive</a>';
-        $headerActions .= $this->defaultHeaderActions();
+        $headerActions .= $this->defaultHeaderActions('content');
 
         $layout = [
             'title' => $taxonomyConfig[$taxonomy]['label'] ?? ucfirst($taxonomy),
@@ -1254,7 +1254,7 @@ final class Controller
             'title' => 'Lint Content',
             'icon' => 'check_circle',
             'activePage' => 'lint',
-            'headerActions' => $this->defaultHeaderActions(),
+            'headerActions' => $this->defaultHeaderActions('cli'),
         ];
 
         return Response::html($this->render('content/lint', $data, $layout));
@@ -1295,7 +1295,7 @@ final class Controller
             'title' => 'System Info',
             'icon' => 'dns',
             'activePage' => 'system',
-            'headerActions' => $this->defaultHeaderActions(),
+            'headerActions' => $this->defaultHeaderActions('admin'),
             'scripts' => <<<'JS'
 function clearErrorLog() {
     if (!confirm('Clear error log?')) return;
@@ -1367,7 +1367,7 @@ JS;
             'heading' => 'Shortcodes Reference',
             'icon' => 'code',
             'activePage' => 'shortcodes',
-            'headerActions' => $this->defaultHeaderActions(),
+            'headerActions' => $this->defaultHeaderActions('shortcodes'),
             'scripts' => $scripts,
         ];
 
@@ -1405,7 +1405,7 @@ JS;
             'title' => 'Themes',
             'icon' => 'palette',
             'activePage' => 'themes',
-            'headerActions' => $this->defaultHeaderActions(),
+            'headerActions' => $this->defaultHeaderActions('theming'),
         ];
 
         return Response::html($this->render('content/themes', $data, $layout));
@@ -1436,7 +1436,7 @@ JS;
             'title' => 'Admin Logs',
             'icon' => 'history',
             'activePage' => 'logs',
-            'headerActions' => $this->defaultHeaderActions(),
+            'headerActions' => $this->defaultHeaderActions('admin'),
         ];
 
         return Response::html($this->render('content/logs', $data, $layout));
@@ -1605,7 +1605,7 @@ JS;
             'activePage' => 'media',
             'alertSuccess' => $success,
             'alertError' => $error,
-            'headerActions' => $this->defaultHeaderActions(),
+            'headerActions' => $this->defaultHeaderActions('admin'),
         ];
 
         return Response::html($this->render('content/media', $data, $layout));
@@ -2671,12 +2671,15 @@ JS;
 
     /**
      * Get default header actions HTML (Docs + View Site buttons).
+     *
+     * @param string $docsPath Optional docs page path (e.g. 'admin', 'content#frontmatter')
      */
-    private function defaultHeaderActions(): string
+    private function defaultHeaderActions(string $docsPath = ''): string
     {
+        $docsUrl = 'https://ava.addy.zone/docs' . ($docsPath ? '/' . ltrim($docsPath, '/') : '');
         $siteUrl = htmlspecialchars($this->app->config('site.base_url', ''));
         return <<<HTML
-<a href="https://adamgreenough.github.io/ava/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
+<a href="{$docsUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
     <span class="material-symbols-rounded">menu_book</span>
     <span class="hide-mobile">Docs</span>
 </a>

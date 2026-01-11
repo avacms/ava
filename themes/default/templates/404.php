@@ -15,7 +15,7 @@
  *   $ava     - Template helper
  *   $site    - Site configuration array
  * 
- * @see https://ava.addy.zone/#/themes?id=error-templates
+ * @see https://ava.addy.zone/docs/theming
  */
 ?>
 <?= $ava->partial('header', ['request' => $request, 'pageTitle' => 'Page Not Found - ' . $site['name']]) ?>

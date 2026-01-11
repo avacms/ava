@@ -10,7 +10,7 @@ declare(strict_types=1);
  * Taxonomies organise content into groups (Categories, Tags, Authors, etc.).
  * Assign taxonomies to content types in content_types.php.
  *
- * Docs: https://ava.addy.zone/#/configuration?id=taxonomies-taxonomiesphp
+ * Docs: https://ava.addy.zone/docs/configuration
  */
 
 return [

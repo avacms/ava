@@ -17,7 +17,7 @@ declare(strict_types=1);
  *   partials/    - Reusable template fragments (header.php, footer.php)
  *   assets/      - CSS, JavaScript, and images
  * 
- * @see https://ava.addy.zone/#/themes
+ * @see https://ava.addy.zone/docs/theming
  */
 
 use Ava\Application;
@@ -35,7 +35,7 @@ use Ava\Plugins\Hooks;
  * The function is called once when Ava loads your theme, before any
  * content is rendered.
  * 
- * @see https://ava.addy.zone/#/themes?id=theme-bootstrap
+ * @see https://ava.addy.zone/docs/theming
  */
 return function (Application $app): void {
     
@@ -50,10 +50,9 @@ return function (Application $app): void {
      * Returning a Response object bypasses normal routing. Returning the
      * original $match value continues normal processing.
      * 
-     * @see https://ava.addy.zone/#/creating-plugins?id=available-hooks
+     * @see https://ava.addy.zone/docs/creating-plugins
      */
     Hooks::addFilter('router.before_match', function ($match, Request $request) use ($app) {
-        
         // Only handle the /search URL
         if ($request->path() !== '/search') {
             return $match; // Let Ava handle this URL normally
@@ -78,7 +77,7 @@ return function (Application $app): void {
          *   ->perPage(10)           Limit results per page
          *   ->search('term')        Full-text search
          * 
-         * @see https://ava.addy.zone/#/themes?id=content-queries
+         * @see https://ava.addy.zone/docs/theming
          */
         $query = $app->query()
             ->published()

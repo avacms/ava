@@ -16,8 +16,8 @@
  *   $ava      - Template helper
  *   $site     - Site configuration array
  * 
- * @see https://ava.addy.zone/#/themes?id=templates
- * @see https://ava.addy.zone/#/content?id=taxonomies
+ * @see https://ava.addy.zone/docs/theming
+ * @see https://ava.addy.zone/docs/content
  */
 ?>
 <?= $ava->partial('header', ['request' => $request]) ?>
@@ -56,7 +56,7 @@
                          * 
                          * $ava->termUrl() generates the URL to a taxonomy term page.
                          * 
-                         * @see https://ava.addy.zone/#/content?id=taxonomies
+                         * @see https://ava.addy.zone/docs/content
                          */
                         ?>
                         <?php $categories = $content->terms('category'); ?>

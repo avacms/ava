@@ -275,7 +275,11 @@ return [
                         'activePage' => 'redirects',
                         'alertSuccess' => $message,
                         'alertError' => $error,
-                        'headerActions' => '<span class="badge badge-muted">' . count($redirects) . ' entr' . (count($redirects) !== 1 ? 'ies' : 'y') . '</span>',
+                        'headerActions' => '<span class="badge badge-muted">' . count($redirects) . ' entr' . (count($redirects) !== 1 ? 'ies' : 'y') . '</span>' .
+                            '<a href="https://ava.addy.zone/docs/bundled-plugins" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
+                                <span class="material-symbols-rounded">menu_book</span>
+                                <span class="hide-mobile">Docs</span>
+                            </a>',
                     ], $content);
                 },
             ];

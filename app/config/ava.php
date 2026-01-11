@@ -13,7 +13,7 @@ declare(strict_types=1);
  * Tip: You can use PHP logic here for environment-specific settings:
  *      if (getenv('APP_ENV') === 'production') { ... }
  *
- * Docs: https://ava.addy.zone/#/configuration
+ * Docs: https://ava.addy.zone/docs/configuration
  */
 
 return [
@@ -23,7 +23,7 @@ return [
     | SITE IDENTITY
     |───────────────────────────────────────────────────────────────────────────
     | Basic information about your site. These values are available in
-    | templates via $site->name, $site->url, and the $ava->date() helper.
+    | templates via $site['name'], $site['url'], and the $ava->date() helper.
     */
 
     'site' => [
@@ -53,7 +53,7 @@ return [
     */
 
     'admin' => [
-        'enabled' => false,
+        'enabled' => true,
         'path'    => '/admin',
         'theme'   => 'cyan',
 
