@@ -105,7 +105,26 @@ $formatBytes = function($bytes) {
                             <div class="table-title"><?= htmlspecialchars($item->title()) ?></div>
                         </td>
                         <td>
-                            <code class="text-xs"><?= htmlspecialchars(basename($item->filePath())) ?></code>
+                            <?php
+                            // Show path relative to content type directory
+                            // The indexed data has file_path as absolute, extract relative from content dir
+                            $fullPath = $item->filePath();
+                            $typeDir = $typeConfig['content_dir'] ?? $type . 's';
+                            
+                            // Find the type directory in the path and extract everything after it
+                            $marker = '/' . $typeDir . '/';
+                            $pos = strrpos($fullPath, $marker);
+                            if ($pos !== false) {
+                                $relPath = substr($fullPath, $pos + strlen($marker));
+                            } else {
+                                $relPath = basename($fullPath);
+                            }
+                            
+                            // File param is just the path within the type dir, without .md
+                            // Use pipe as separator for cleaner URLs (no encoding needed)
+                            $editFile = str_replace('/', '|', preg_replace('/\.md$/', '', $relPath));
+                            ?>
+                            <code class="text-xs"><?= htmlspecialchars($relPath) ?></code>
                         </td>
                         <td>
                             <code class="text-xs <?= $isDraft ? 'text-tertiary' : '' ?>"><?= $itemPath ? htmlspecialchars($itemPath) : '—' ?></code>
@@ -128,7 +147,7 @@ $formatBytes = function($bytes) {
                         </td>
                         <td>
                             <div class="btn-group">
-                                <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/<?= htmlspecialchars($item->slug()) ?>/edit" class="btn btn-xs btn-secondary" title="Edit">
+                                <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/edit?file=<?= urlencode($editFile) ?>" class="btn btn-xs btn-secondary" title="Edit">
                                     <span class="material-symbols-rounded">edit</span>
                                 </a>
                                 <?php if ($itemUrl): ?>

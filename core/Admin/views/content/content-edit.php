@@ -59,7 +59,7 @@ $saved = isset($_GET['saved']) || isset($successMessage);
 $successMsg = $successMessage ?? 'Changes saved successfully.';
 ?>
 
-<form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/<?= htmlspecialchars($item->slug()) ?>/edit" class="editor-form" id="editor-form">
+<form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/edit?file=<?= urlencode($fileParam) ?>" class="editor-form" id="editor-form">
     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
     <input type="hidden" name="_file_mtime" value="<?= htmlspecialchars((string) ($fileMtime ?? 0)) ?>">
 

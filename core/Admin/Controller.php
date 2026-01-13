@@ -752,8 +752,10 @@ final class Controller
 
     /**
      * Edit existing content.
+     * 
+     * @param string $file Path within content type directory without .md, using | as separator (e.g., "about|team")
      */
-    public function contentEdit(Request $request, string $type, string $slug): ?Response
+    public function contentEdit(Request $request, string $type, string $file): ?Response
     {
         $repository = $this->app->repository();
         $types = $repository->types();
@@ -763,20 +765,25 @@ final class Controller
             return null; // 404
         }
 
+        // Convert pipe separator to slash (allows cleaner URLs without encoding)
+        $file = str_replace('|', '/', $file);
+
+        // Security: reject any path traversal attempts
+        if (str_contains($file, '..') || str_contains($file, "\0") || preg_match('#^/|^[a-zA-Z]:#', $file)) {
+            return null; // 404 - attempted path traversal
+        }
+
         $contentTypes = $this->getContentTypeConfig();
         $typeConfig = $contentTypes[$type] ?? [];
 
-        // Check if content exists
-        // Note: for hierarchical content types, the index file (index.md) is stored under
-        // an empty content key '' so /admin/content/page/index/edit must resolve to ''.
-        $lookupKey = $slug;
-        $urlType = $typeConfig['url']['type'] ?? 'pattern';
-        if ($urlType === 'hierarchical' && ($slug === 'index' || $slug === '_index')) {
-            $lookupKey = '';
-        }
+        // Build full relative path: {content_dir}/{file}.md
+        $contentDir = $typeConfig['content_dir'] ?? $type . 's';
+        $fullPath = $contentDir . '/' . $file . '.md';
 
-        $item = $repository->get($type, $lookupKey);
-        if ($item === null) {
+        // Look up content by file path
+        // getByPath only returns indexed content files, providing defense in depth
+        $item = $repository->getByPath($fullPath);
+        if ($item === null || $item->type() !== $type) {
             return null; // 404
         }
 
@@ -812,7 +819,7 @@ final class Controller
                         $body = $parsed['body'];
                         
                         $title = trim($fm['title'] ?? '');
-                        $newSlug = trim($fm['slug'] ?? $slug);
+                        $newSlug = trim($fm['slug'] ?? $item->slug());
 
                         // Validate title
                         if (empty($title)) {
@@ -841,7 +848,7 @@ final class Controller
                                     $newFilename = $filenameResult['filename'];
                                     
                                     // Check for duplicate slug (if changed)
-                                    if ($newSlug !== $slug) {
+                                    if ($newSlug !== $item->slug()) {
                                         $existing = $repository->get($type, $newSlug);
                                         if ($existing !== null) {
                                             $error = "Content with slug '{$newSlug}' already exists.";
@@ -872,9 +879,13 @@ final class Controller
                                                 // Stay on same page with success message
                                                 $successMessage = "'{$title}' saved successfully.";
                                                 
-                                                // If slug changed, redirect to new URL
-                                                if ($newSlug !== $slug) {
-                                                    return Response::redirect($this->adminUrl() . '/content/' . $type . '/' . urlencode($newSlug) . '/edit?saved=1');
+                                                // If filename changed, redirect to new URL with updated file path
+                                                if ($newFilename !== $currentFilename) {
+                                                    // Compute new file path (same directory, new filename) - use pipe separator
+                                                    $dir = dirname($file);
+                                                    $newFile = ($dir === '.' ? '' : $dir . '/') . $newFilename;
+                                                    $newFileParam = str_replace('/', '|', $newFile);
+                                                    return Response::redirect($this->adminUrl() . '/content/' . $type . '/edit?file=' . urlencode($newFileParam) . '&saved=1');
                                                 }
                                                 
                                                 // Clear POST so view reads fresh file from disk
@@ -901,9 +912,14 @@ final class Controller
         // Get current file modification time for optimistic locking
         $fileMtime = file_exists($item->filePath()) ? filemtime($item->filePath()) : 0;
         
+        // For URLs, convert slashes back to pipes
+        $fileParam = str_replace('/', '|', $file);
+        
         $data = [
             'type' => $type,
             'item' => $item,
+            'file' => $file,
+            'fileParam' => $fileParam,
             'typeConfig' => $typeConfig,
             'taxonomyConfig' => $taxonomyConfig,
             'availableTerms' => $availableTerms,
@@ -933,8 +949,10 @@ final class Controller
 
     /**
      * Delete content.
+     * 
+     * @param string $file Path within content type directory without .md, using | as separator (e.g., "about|team")
      */
-    public function contentDelete(Request $request, string $type, string $slug): ?Response
+    public function contentDelete(Request $request, string $type, string $file): ?Response
     {
         $repository = $this->app->repository();
         $types = $repository->types();
@@ -944,20 +962,25 @@ final class Controller
             return null; // 404
         }
 
+        // Convert pipe separator to slash (allows cleaner URLs without encoding)
+        $file = str_replace('|', '/', $file);
+
+        // Security: reject any path traversal attempts
+        if (str_contains($file, '..') || str_contains($file, "\0") || preg_match('#^/|^[a-zA-Z]:#', $file)) {
+            return null; // 404 - attempted path traversal
+        }
+
         $contentTypes = $this->getContentTypeConfig();
         $typeConfig = $contentTypes[$type] ?? [];
 
-        // Check if content exists
-        // Note: for hierarchical content types, the index file (index.md) is stored under
-        // an empty content key '' so /admin/content/page/index/delete must resolve to ''.
-        $lookupKey = $slug;
-        $urlType = $typeConfig['url']['type'] ?? 'pattern';
-        if ($urlType === 'hierarchical' && ($slug === 'index' || $slug === '_index')) {
-            $lookupKey = '';
-        }
+        // Build full relative path: {content_dir}/{file}.md
+        $contentDir = $typeConfig['content_dir'] ?? $type . 's';
+        $fullPath = $contentDir . '/' . $file . '.md';
 
-        $item = $repository->get($type, $lookupKey);
-        if ($item === null) {
+        // Look up content by file path
+        // getByPath only returns indexed content files, providing defense in depth
+        $item = $repository->getByPath($fullPath);
+        if ($item === null || $item->type() !== $type) {
             return null; // 404
         }
 
@@ -968,10 +991,11 @@ final class Controller
                 return Response::redirect($this->adminUrl() . '/content/' . $type . '?error=csrf');
             }
 
-            // Confirm deletion
+            // Confirm deletion - user types filename with .md suffix
             $confirm = $request->post('confirm', '');
-            if ($confirm !== $slug) {
-                return Response::redirect($this->adminUrl() . '/content/' . $type . '/' . urlencode($slug) . '/delete?error=confirm');
+            if ($confirm !== $file . '.md') {
+                $fileParam = str_replace('/', '|', $file);
+                return Response::redirect($this->adminUrl() . '/content/' . $type . '/delete?file=' . urlencode($fileParam) . '&error=confirm');
             }
 
             // Delete the file
@@ -982,12 +1006,13 @@ final class Controller
                 if (!is_dir($backupDir)) {
                     @mkdir($backupDir, 0755, true);
                 }
-                $backupPath = $backupDir . '/' . $type . '_' . $slug . '_' . date('Y-m-d_His') . '.md';
+                $safeFilename = str_replace(['/', '\\'], '_', $file);
+                $backupPath = $backupDir . '/' . $type . '_' . $safeFilename . '_' . date('Y-m-d_His') . '.md';
                 @copy($filePath, $backupPath);
 
                 if (@unlink($filePath)) {
                     $this->auth->regenerateCsrf();
-                    $this->logAction('INFO', "Deleted {$type} '{$item->title()}' (slug: {$slug}). Backup: {$backupPath}");
+                    $this->logAction('INFO', "Deleted {$type} '{$item->title()}' (file: {$file}). Backup: {$backupPath}");
                     
                     // Rebuild cache
                     $this->app->indexer()->rebuild();
@@ -1000,12 +1025,14 @@ final class Controller
         }
 
         // Show confirmation page
-        $contentTypes = $this->getContentTypeConfig();
-        $typeConfig = $contentTypes[$type] ?? [];
-
+        // For URLs, convert slashes back to pipes
+        $fileParam = str_replace('/', '|', $file);
+        
         $data = [
             'type' => $type,
             'item' => $item,
+            'file' => $file,
+            'fileParam' => $fileParam,
             'typeConfig' => $typeConfig,
             'csrf' => $this->auth->csrfToken(),
             'site' => [

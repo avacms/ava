@@ -39,7 +39,7 @@ $hasError = isset($_GET['error']);
                 </div>
             </div>
 
-            <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/<?= htmlspecialchars($item->slug()) ?>/delete">
+            <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/delete?file=<?= urlencode($fileParam) ?>">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
 
                 <div class="delete-preview">
@@ -59,7 +59,7 @@ $hasError = isset($_GET['error']);
                     </div>
                     <div class="list-item">
                         <span class="list-label">File</span>
-                        <code class="text-xs"><?= htmlspecialchars(basename($item->filePath())) ?></code>
+                        <code class="text-xs"><?= htmlspecialchars($file) ?>.md</code>
                     </div>
                     <?php if ($item->date()): ?>
                     <div class="list-item">
@@ -71,11 +71,11 @@ $hasError = isset($_GET['error']);
 
                 <div class="form-group mt-5">
                     <label for="confirm" class="form-label">
-                        Type <strong><?= htmlspecialchars($item->slug()) ?></strong> to confirm:
+                        Type <strong><?= htmlspecialchars($file) ?>.md</strong> to confirm:
                     </label>
                     <input type="text" id="confirm" name="confirm" class="form-control" 
                            autocomplete="off"
-                           placeholder="<?= htmlspecialchars($item->slug()) ?>">
+                           placeholder="<?= htmlspecialchars($file) ?>.md">
                 </div>
 
                 <div class="form-actions mt-5">
@@ -114,9 +114,9 @@ $hasError = isset($_GET['error']);
 <script>
 const confirmInput = document.getElementById('confirm');
 const deleteBtn = document.getElementById('delete-btn');
-const expectedSlug = <?= json_encode($item->slug()) ?>;
+const expectedFile = <?= json_encode($file . '.md') ?>;
 
 confirmInput.addEventListener('input', function() {
-    deleteBtn.disabled = this.value !== expectedSlug;
+    deleteBtn.disabled = this.value !== expectedFile;
 });
 </script>

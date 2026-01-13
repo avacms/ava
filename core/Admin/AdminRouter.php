@@ -128,14 +128,14 @@ final class AdminRouter
             return $this->handleContentCreate($request, $params['type']);
         });
 
-        // Content edit (protected) - pattern: /admin/content/{type}/{slug}/edit
-        $router->addRoute($basePath . '/content/{type}/{slug}/edit', function (Request $request, array $params) {
-            return $this->handleContentEdit($request, $params['type'], $params['slug']);
+        // Content edit (protected) - pattern: /admin/content/{type}/edit?file=path
+        $router->addRoute($basePath . '/content/{type}/edit', function (Request $request, array $params) {
+            return $this->handleContentEdit($request, $params['type']);
         });
 
-        // Content delete (protected) - pattern: /admin/content/{type}/{slug}/delete
-        $router->addRoute($basePath . '/content/{type}/{slug}/delete', function (Request $request, array $params) {
-            return $this->handleContentDelete($request, $params['type'], $params['slug']);
+        // Content delete (protected) - pattern: /admin/content/{type}/delete?file=path
+        $router->addRoute($basePath . '/content/{type}/delete', function (Request $request, array $params) {
+            return $this->handleContentDelete($request, $params['type']);
         });
 
         // Taxonomy detail (protected) - pattern: /admin/taxonomy/{taxonomy}
@@ -394,14 +394,20 @@ final class AdminRouter
     /**
      * Handle content edit request.
      */
-    private function handleContentEdit(Request $request, string $type, string $slug): ?RouteMatch
+    private function handleContentEdit(Request $request, string $type): ?RouteMatch
     {
         $accessCheck = $this->checkAccess($request);
         if ($accessCheck !== null) {
             return $accessCheck;
         }
 
-        $response = $this->controller->contentEdit($request, $type, $slug);
+        // Get file path from query parameter
+        $file = $request->query('file', '');
+        if (empty($file)) {
+            return null;
+        }
+
+        $response = $this->controller->contentEdit($request, $type, $file);
 
         if ($response === null) {
             return null;
@@ -419,14 +425,20 @@ final class AdminRouter
     /**
      * Handle content delete request.
      */
-    private function handleContentDelete(Request $request, string $type, string $slug): ?RouteMatch
+    private function handleContentDelete(Request $request, string $type): ?RouteMatch
     {
         $accessCheck = $this->checkAccess($request);
         if ($accessCheck !== null) {
             return $accessCheck;
         }
 
-        $response = $this->controller->contentDelete($request, $type, $slug);
+        // Get file path from query parameter
+        $file = $request->query('file', '');
+        if (empty($file)) {
+            return null;
+        }
+
+        $response = $this->controller->contentDelete($request, $type, $file);
 
         if ($response === null) {
             return null;
