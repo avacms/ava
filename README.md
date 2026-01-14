@@ -25,7 +25,7 @@
 [![License](https://img.shields.io/github/license/AvaCMS/ava)](https://github.com/AvaCMS/ava/blob/main/LICENSE)
 [![Discord](https://img.shields.io/discord/1028357262189801563)](https://discord.gg/fZwW4jBVh5)
 
-Ava is a modern flat-file CMS for people who want a website they can **understand**, **move**, **scale** and **keep**.
+Ava CMS is a modern flat-file CMS for people who want a website they can **understand**, **move**, **scale** and **keep**.
 
 Your content lives on disk as plain files, not rows in a database or records in a proprietary system. Create a Markdown file and you have a page. Edit it, refresh your browser, and it’s live.
 
@@ -51,18 +51,18 @@ your-site/
 
 No proprietary formats. No hidden layers. Just files in, website out.
 
-Ava is not a “one-click” CMS, and it doesn’t try to be. It trades heavy admin interfaces and complex deployment pipelines for speed, clarity, and control. If you’re comfortable editing files, writing a little HTML, and checking documentation — or want a CMS that grows with you as you learn — Ava fits naturally into your workflow.
+Ava CMS is not a “one-click” CMS, and it doesn’t try to be. It trades heavy admin interfaces and complex deployment pipelines for speed, clarity, and control. If you’re comfortable editing files, writing a little HTML, and checking documentation — or want a CMS that grows with you as you learn — Ava fits naturally into your workflow.
 
 ## ✨ Why Ava?
 
 - 📝 **Markdown & HTML** — Write fast in Markdown, drop into HTML when you need total control.
 - ⚡ **Instant feedback** — No build step or deploy queue. Edit a file, refresh, done.
-- 🎨 **Design freedom** — Plain PHP templates with standard HTML/CSS. Ava stays out of your way.
+- 🎨 **Design freedom** — Plain PHP templates with standard HTML/CSS. Ava CMS stays out of your way.
 - 🧩 **Flexible content modeling** — Define blogs, portfolios, events, catalogs, or anything else using custom content types and fields.
 - 🚀 **Dynamic features without bloat** — Search, filtering, pagination and sorting work out of the box.
 - 🛠️ **Power when you want it** — A CLI, plugin system, and hooks keep put advanced features at hand.
 - 📈 **Seamless scaling** — Switch engines with a single setting, optional SQLite keeps sites with tens of thousands of posts snappy. 
-- 🤖 **LLM-friendly** — Clear files, detailed docs, and a smooth CLI make Ava + AI tools a great pair to help you build themes and plugins.
+- 🤖 **LLM-friendly** — Clear files, detailed docs, and a smooth CLI make Ava CMS + AI tools a great pair to help you build themes and plugins.
 
 ## 📦 What’s included
 
@@ -79,10 +79,10 @@ Ava is not a “one-click” CMS, and it doesn’t try to be. It trades heavy ad
 ## 💡 How it works
 
 1. **Write** — Create Markdown files in `content/`.
-2. **Index** — Ava automatically scans your files and builds fast indexes.
+2. **Index** — Ava CMS automatically scans your files and builds fast indexes.
 3. **Render** — Your theme turns that content into HTML.
 
-You choose how you work: edit directly on your server (SFTP/SSH), work locally and upload, use Git, or mix and match. Ava doesn’t lock you into a workflow, it adapts to yours.
+You choose how you work: edit directly on your server (SFTP/SSH), work locally and upload, use Git, or mix and match. Ava CMS doesn’t lock you into a workflow, it adapts to yours.
 
 ## 🏁 Quick Start
 
@@ -100,7 +100,7 @@ You choose how you work: edit directly on your server (SFTP/SSH), work locally a
 
 - **`pdo_sqlite`** PHP extension ([see benchmarks](https://ava.addy.zone/docs/performance))
 
-That’s it! Ava is designed to run happily whether it's on modest shared hosting, a scalable VPS, powerful cloud infrastructure or just your local machine and works well with most web servers (Apache, Nginx, Caddy, etc).
+That’s it! Ava CMS is designed to run happily whether it's on modest shared hosting, a scalable VPS, powerful cloud infrastructure or just your local machine and works well with most web servers (Apache, Nginx, Caddy, etc).
 
 ### 1) Install
 
@@ -129,7 +129,7 @@ Edit your site settings in `app/config/ava.php`.
 
 ### 3) Run locally
 
-Start the built-in PHP development server if you want to run Ava locally:
+Start the built-in PHP development server if you want to run Ava CMS locally:
 
 ```bash
 ./ava start
@@ -151,7 +151,7 @@ title: Hello World
 status: published
 ---
 
-# Welcome to Ava!
+# Welcome to Ava CMS!
 
 This is my first page. It's just a text file.
 ```
@@ -201,4 +201,4 @@ Feedback and suggestions are always welcome! If you're trying Ava and face any f
 
 ## 📄 License
 
-Ava is open-source software licensed under the [MIT license](LICENSE).
+Ava CMS is open-source software licensed under the [MIT license](LICENSE).
