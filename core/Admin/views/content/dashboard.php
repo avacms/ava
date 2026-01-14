@@ -94,7 +94,12 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
 <?php if (isset($_GET['action']) && $_GET['action'] === 'rebuild'): ?>
 <div class="alert alert-success">
     <span class="material-symbols-rounded">check_circle</span>
-    Content index rebuilt in <?= htmlspecialchars($_GET['time'] ?? '?') ?>ms
+    <div class="flex-1">
+        Content index rebuilt in <?= htmlspecialchars($_GET['time'] ?? '?') ?>ms
+        <?php if (isset($_GET['keep_webpage_cache']) && $_GET['keep_webpage_cache'] === '1'): ?>
+            <div class="text-xs opacity-80">Webpage cache kept.</div>
+        <?php endif; ?>
+    </div>
 </div>
 <?php endif; ?>
 
@@ -194,6 +199,10 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
             </div>
             <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/rebuild" class="mt-4">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
+                <label class="flex items-center gap-2 text-xs text-dim mb-2">
+                    <input type="checkbox" name="keep_webpage_cache" value="1">
+                    Keep webpage cache
+                </label>
                 <button type="submit" class="btn btn-primary btn-sm">
                     <span class="material-symbols-rounded">refresh</span>
                     Rebuild Now

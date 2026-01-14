@@ -364,12 +364,14 @@ final class Application
      */
     private function cmdRebuild(array $args): int
     {
+        $keepWebpageCache = in_array('--keep-webpage-cache', $args, true) || in_array('--keep-webcache', $args, true);
+
         // Load plugins so they can hook into the rebuild process
         $this->app->loadPlugins();
 
         $this->writeln('');
-        $this->withSpinner('Rebuilding content index', function () {
-            $this->app->indexer()->rebuild();
+        $this->withSpinner('Rebuilding content index', function () use ($keepWebpageCache) {
+            $this->app->indexer()->rebuild(clearWebpageCache: !$keepWebpageCache);
             return true;
         });
 
@@ -380,7 +382,11 @@ final class Application
 
         Hooks::doAction('cli.rebuild', $this->app);
 
-        $this->success('Content index rebuilt!');
+        if ($keepWebpageCache) {
+            $this->success('Content index rebuilt (webpage cache kept)!');
+        } else {
+            $this->success('Content index rebuilt!');
+        }
         $this->writeln('');
         return 0;
     }
@@ -2505,7 +2511,7 @@ final class Application
 
         $this->sectionHeader('Site Management');
         $this->commandItem('status', 'Show site health and overview');
-        $this->commandItem('rebuild', 'Rebuild the content index');
+        $this->commandItem('rebuild [--keep-webpage-cache]', 'Rebuild the content index');
         $this->commandItem('lint', 'Validate all content files');
 
         $this->sectionHeader('Content');

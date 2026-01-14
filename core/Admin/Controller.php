@@ -197,12 +197,15 @@ final class Controller
             return Response::redirect($this->adminUrl() . '?error=csrf');
         }
 
+        $keepWebpageCache = $request->post('keep_webpage_cache', '') === '1';
+
         $start = microtime(true);
-        $this->app->indexer()->rebuild();
+        $this->app->indexer()->rebuild(clearWebpageCache: !$keepWebpageCache);
         $elapsed = round((microtime(true) - $start) * 1000);
 
         $this->auth->regenerateCsrf();
-        return Response::redirect($this->adminUrl() . '?action=rebuild&time=' . $elapsed);
+        $keepFlag = $keepWebpageCache ? '&keep_webpage_cache=1' : '';
+        return Response::redirect($this->adminUrl() . '?action=rebuild&time=' . $elapsed . $keepFlag);
     }
 
     /**

@@ -65,7 +65,7 @@ final class Indexer
     /**
      * Rebuild all cache files.
      */
-    public function rebuild(): void
+    public function rebuild(bool $clearWebpageCache = true): void
     {
         // Reset seen IDs for duplicate detection
         $this->seenIds = [];
@@ -131,8 +131,10 @@ final class Indexer
             $this->cleanupUnusedSqliteIndex();
         }
 
-        // Clear webpage cache when content cache is rebuilt
-        $this->clearWebpageCache();
+        // Clear webpage cache when content cache is rebuilt (unless skipped)
+        if ($clearWebpageCache) {
+            $this->clearWebpageCache();
+        }
 
         // Trigger rebuild hook (allows observing plugins to run actions)
         Hooks::doAction('indexer.rebuild', $this->app);

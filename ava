@@ -13,7 +13,7 @@ declare(strict_types=1);
  *
  * Commands:
  *   status     Show site status and cache info
- *   rebuild    Rebuild all cache files
+ *   rebuild    Rebuild content index (use --keep-webpage-cache to preserve page cache)
  *   lint       Validate content files
  *   make:page  Create a new page
  *   make:type  Create content of a specific type
