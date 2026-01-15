@@ -500,20 +500,12 @@ final class Repository
         if ($prefix === 'IG:' && function_exists('igbinary_unserialize')) {
             return igbinary_unserialize($data) ?: [];
         }
-        
+
         if ($prefix === 'SZ:') {
             return unserialize($data) ?: [];
         }
-        
-        // Legacy format (no prefix) - try igbinary first, then serialize
-        if (function_exists('igbinary_unserialize')) {
-            $result = @igbinary_unserialize($content);
-            if ($result !== false) {
-                return $result;
-            }
-        }
-        
-        return @unserialize($content) ?: [];
+
+        return [];
     }
 
     // === Cache Management ===
