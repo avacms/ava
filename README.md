@@ -201,7 +201,7 @@ Feedback and suggestions are always welcome! If you're trying Ava and face any f
 
 ## 📄 License
 
-Copyright (C) <year>  <name of author>
+Copyright (c) 2025-2026 Adam Greenough
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
