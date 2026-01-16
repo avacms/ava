@@ -89,7 +89,40 @@ $totalPublished = array_sum(array_column($content, 'published'));
 $totalDrafts = array_sum(array_column($content, 'draft'));
 $totalTerms = array_sum($taxonomies);
 $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
+
+// Greeting based on time of day
+$hour = (int) date('H');
+if ($hour >= 5 && $hour < 12) {
+    $greeting = 'Good morning';
+    $greetingIcon = 'wb_sunny';
+} elseif ($hour >= 12 && $hour < 17) {
+    $greeting = 'Good afternoon';
+    $greetingIcon = 'wb_sunny';
+} elseif ($hour >= 17 && $hour < 21) {
+    $greeting = 'Good evening';
+    $greetingIcon = 'wb_twilight';
+} else {
+    $greeting = 'Good evening';
+    $greetingIcon = 'dark_mode';
+}
+
+// Site summary
+$siteSummary = $totalContent . ' content item' . ($totalContent !== 1 ? 's' : '') . ' across ' . count($content) . ' type' . (count($content) !== 1 ? 's' : '');
+if ($totalDrafts > 0) {
+    $siteSummary .= ', ' . $totalDrafts . ' pending draft' . ($totalDrafts !== 1 ? 's' : '');
+}
 ?>
+
+<!-- Welcome Banner -->
+<div class="dashboard-banner">
+    <div class="dashboard-banner-content">
+        <h2 class="dashboard-banner-greeting">
+            <span class="material-symbols-rounded"><?= $greetingIcon ?></span>
+            <?= $greeting ?>!
+        </h2>
+        <p class="dashboard-banner-summary"><?= htmlspecialchars($siteSummary) ?></p>
+    </div>
+</div>
 
 <?php if (isset($_GET['action']) && $_GET['action'] === 'rebuild'): ?>
 <div class="alert alert-success">
@@ -172,8 +205,8 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
     </div>
 </div>
 
-<!-- Top Row: Content Index, Webpage Cache, System, Site -->
-<div class="grid grid-4">
+<!-- Top Row: Content Index, Webpage Cache, Site -->
+<div class="grid grid-3">
     <div class="card">
         <div class="card-header">
             <span class="card-title">
@@ -253,36 +286,6 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
     <div class="card">
         <div class="card-header">
             <span class="card-title">
-                <span class="material-symbols-rounded">dns</span>
-                System
-            </span>
-            <a href="<?= $admin_url ?>/system" class="btn btn-sm btn-secondary">Details</a>
-        </div>
-        <div class="card-body">
-            <div class="list-item">
-                <span class="list-label">PHP</span>
-                <span class="list-value"><?= $system['php_version'] ?></span>
-            </div>
-            <div class="list-item">
-                <span class="list-label">Memory</span>
-                <span class="list-value"><?= $formatBytes($system['memory_used']) ?></span>
-            </div>
-            <div class="list-item">
-                <span class="list-label">Theme</span>
-                <span class="list-value"><?= htmlspecialchars($ava->config('theme', 'default')) ?></span>
-            </div>
-            <?php if ($system['opcache'] && $system['opcache']['enabled']): ?>
-            <div class="list-item">
-                <span class="list-label">OPcache</span>
-                <span class="list-value text-success"><?= $system['opcache']['hit_rate'] ?>% hit</span>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">
                 <span class="material-symbols-rounded">language</span>
                 Site
             </span>
@@ -298,6 +301,10 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
                 <span class="list-value text-sm"><?= htmlspecialchars(preg_replace('#^https?://#', '', $site['url'])) ?></span>
             </div>
             <div class="list-item">
+                <span class="list-label">Theme</span>
+                <span class="list-value"><?= htmlspecialchars($ava->config('theme', 'default')) ?></span>
+            </div>
+            <div class="list-item">
                 <span class="list-label">Timezone</span>
                 <span class="list-value"><?= htmlspecialchars($site['timezone'] ?? 'UTC') ?></span>
             </div>
@@ -305,187 +312,55 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
     </div>
 </div>
 
-<!-- Content Types & Recent -->
-<div class="grid grid-2 mt-5">
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">
-                <span class="material-symbols-rounded">folder_open</span>
-                Content Types
-            </span>
-            <span class="badge badge-muted"><?= count($content) ?></span>
-        </div>
-        <?php foreach ($content as $type => $stats): 
-            $typeConfig = $contentTypes[$type] ?? [];
-            $urlType = $typeConfig['url']['type'] ?? 'pattern';
-            $urlPattern = $typeConfig['url']['pattern'] ?? '/' . $type . '/{slug}';
+<!-- Recent Content -->
+<div class="card mt-5">
+    <div class="card-header">
+        <span class="card-title">
+            <span class="material-symbols-rounded">schedule</span>
+            Recent Content
+        </span>
+        <span class="badge badge-muted"><?= count($recentContent) ?></span>
+    </div>
+    <?php if (!empty($recentContent)): ?>
+        <?php foreach ($recentContent as $item): 
+            $itemUrl = $getContentUrl($item);
+            $isDraft = !$item->isPublished();
         ?>
-        <div class="config-section">
-            <div class="config-section-title">
-                <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
-                <?= htmlspecialchars($typeConfig['label'] ?? ucfirst($type) . 's') ?>
-                <a href="<?= $admin_url ?>/content/<?= $type ?>" class="badge badge-accent ml-auto"><?= $stats['total'] ?> →</a>
+        <div class="content-item">
+            <?php if ($itemUrl): ?>
+                <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener noreferrer" class="content-item-link">
+            <?php else: ?>
+            <div class="content-item-link">
+            <?php endif; ?>
+                <div>
+                    <div class="content-title"><?= htmlspecialchars($item->title()) ?></div>
+                    <div class="content-meta">
+                        <span><?= $item->type() ?></span>
+                        <span>·</span>
+                        <span><?= $item->date() ? $item->date()->format('M j, Y') : 'No date' ?></span>
+                        <?php if ($isDraft && $previewToken): ?>
+                        <span class="preview-link">
+                            <span class="material-symbols-rounded">visibility</span>
+                            Preview
+                        </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <span class="badge <?= $item->isPublished() ? 'badge-success' : 'badge-warning' ?>">
+                    <?= $item->status() ?>
+                </span>
+            <?php if ($itemUrl): ?>
+            </a>
+            <?php else: ?>
             </div>
-            <div class="config-row">
-                <span class="label">Directory</span>
-                <span class="value"><code>content/<?= htmlspecialchars($typeConfig['content_dir'] ?? $type . 's') ?>/</code></span>
-            </div>
-            <div class="config-row">
-                <span class="label">URL Pattern</span>
-                <span class="value"><code><?= htmlspecialchars($urlPattern) ?></code></span>
-            </div>
-            <div class="config-row">
-                <span class="label">Template</span>
-                <span class="value"><code><?= htmlspecialchars($typeConfig['templates']['single'] ?? $type . '.php') ?></code></span>
-            </div>
+            <?php endif; ?>
         </div>
         <?php endforeach; ?>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">
-                <span class="material-symbols-rounded">schedule</span>
-                Recent Content
-            </span>
-            <span class="badge badge-muted"><?= count($recentContent) ?></span>
-        </div>
-        <?php if (!empty($recentContent)): ?>
-            <?php foreach ($recentContent as $item): 
-                $itemUrl = $getContentUrl($item);
-                $isDraft = !$item->isPublished();
-            ?>
-            <div class="content-item">
-                <?php if ($itemUrl): ?>
-                    <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener noreferrer" class="content-item-link">
-                <?php else: ?>
-                <div class="content-item-link">
-                <?php endif; ?>
-                    <div>
-                        <div class="content-title"><?= htmlspecialchars($item->title()) ?></div>
-                        <div class="content-meta">
-                            <span><?= $item->type() ?></span>
-                            <span>·</span>
-                            <span><?= $item->date() ? $item->date()->format('M j, Y') : 'No date' ?></span>
-                            <?php if ($isDraft && $previewToken): ?>
-                            <span class="preview-link">
-                                <span class="material-symbols-rounded">visibility</span>
-                                Preview
-                            </span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <span class="badge <?= $item->isPublished() ? 'badge-success' : 'badge-warning' ?>">
-                        <?= $item->status() ?>
-                    </span>
-                <?php if ($itemUrl): ?>
-                </a>
-                <?php else: ?>
-                </div>
-                <?php endif; ?>
-            </div>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <div class="empty-state">
-                <span class="material-symbols-rounded">article</span>
-                <p>No content yet</p>
-            </div>
-        <?php endif; ?>
-    </div>
-</div>
-
-<!-- Plugins, Routes & Users -->
-<div class="grid grid-3 mt-5">
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">
-                <span class="material-symbols-rounded">extension</span>
-                Plugins
-            </span>
-            <span class="badge badge-muted"><?= count($plugins ?? []) ?></span>
-        </div>
-        <?php if (!empty($plugins)): ?>
-        <div class="card-body">
-            <?php foreach ($plugins as $plugin): ?>
-            <div class="list-item">
-                <span class="list-label">
-                    <span class="material-symbols-rounded">check_circle</span>
-                    <?= htmlspecialchars($plugin) ?>
-                </span>
-                <span class="badge badge-success">Active</span>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <?php else: ?>
+    <?php else: ?>
         <div class="empty-state">
-            <span class="material-symbols-rounded">extension</span>
-            <p>No plugins active</p>
+            <span class="material-symbols-rounded">article</span>
+            <p>No content yet</p>
         </div>
-        <?php endif; ?>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">
-                <span class="material-symbols-rounded">route</span>
-                Routes
-            </span>
-            <span class="badge badge-muted"><?= count($routes['exact'] ?? []) + count($routes['pattern'] ?? []) ?></span>
-        </div>
-        <div class="card-body">
-            <div class="list-item">
-                <span class="list-label">Exact</span>
-                <span class="list-value"><?= count($routes['exact'] ?? []) ?></span>
-            </div>
-            <div class="list-item">
-                <span class="list-label">Pattern</span>
-                <span class="list-value"><?= count($routes['pattern'] ?? []) ?></span>
-            </div>
-            <div class="list-item">
-                <span class="list-label">Taxonomy</span>
-                <span class="list-value"><?= count($routes['taxonomy'] ?? []) ?></span>
-            </div>
-            <div class="list-item">
-                <span class="list-label">Redirects</span>
-                <span class="list-value"><?= count($routes['redirects'] ?? []) ?></span>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">
-                <span class="material-symbols-rounded">group</span>
-                Users
-            </span>
-            <span class="badge badge-muted"><?= count($users ?? []) ?></span>
-        </div>
-        <?php if (!empty($users)): ?>
-        <div class="card-body">
-            <?php foreach ($users as $email => $userData): ?>
-            <div class="list-item">
-                <span class="list-label">
-                    <span>
-                        <?= htmlspecialchars($userData['name'] ?? $email) ?>
-                        <span class="text-xs text-tertiary d-block"><?= htmlspecialchars($email) ?></span>
-                    </span>
-                </span>
-                <span class="list-value text-sm text-tertiary">
-                    <?php if (!empty($userData['last_login'])): ?>
-                        <?= date('M j, H:i', strtotime($userData['last_login'])) ?>
-                    <?php else: ?>
-                        Never
-                    <?php endif; ?>
-                </span>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <?php else: ?>
-        <div class="empty-state">
-            <span class="material-symbols-rounded">group</span>
-            <p>No users</p>
-        </div>
-        <?php endif; ?>
-    </div>
+    <?php endif; ?>
 </div>
 

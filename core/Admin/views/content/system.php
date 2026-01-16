@@ -233,7 +233,7 @@ $loadColor = function($val) use ($cpuCount) {
         <span class="badge badge-muted"><?= $formatBytes($totalCacheSize) ?> total</span>
     </div>
     <div class="table-wrap">
-        <table class="dir-table">
+        <table class="table table-sm">
             <thead>
                 <tr>
                     <th>File</th>
@@ -326,7 +326,7 @@ $loadColor = function($val) use ($cpuCount) {
         </span>
     </div>
     <div class="table-wrap">
-        <table class="dir-table">
+        <table class="table table-sm">
             <thead>
                 <tr>
                     <th>Extension</th>
@@ -506,7 +506,7 @@ endforeach; ?></pre>
         <span class="badge <?= $dirOk === count($directories) ? 'badge-success' : 'badge-warning' ?>"><?= $dirOk ?>/<?= count($directories) ?> OK</span>
     </div>
     <div class="table-wrap">
-        <table class="dir-table">
+        <table class="table table-sm">
             <thead>
                 <tr>
                     <th>Directory</th>
@@ -608,6 +608,94 @@ endforeach; ?></pre>
             <?php endif; ?>
             <p class="text-tertiary text-xs mt-3"><a href="https://ava.addy.zone/docs/creating-plugins" target="_blank" rel="noopener noreferrer">View hook documentation →</a></p>
         </div>
+    </div>
+</div>
+
+<!-- Content Types & Routes -->
+<div class="grid grid-2 mt-4">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title"><span class="material-symbols-rounded">folder_open</span> Content Types</span>
+            <span class="badge badge-muted"><?= count($content ?? []) ?></span>
+        </div>
+        <div class="card-body">
+            <?php if (!empty($content)): ?>
+                <?php foreach ($content as $type => $stats): 
+                    $typeConfig = $contentTypes[$type] ?? [];
+                    $urlType = $typeConfig['url']['type'] ?? 'pattern';
+                    $urlPattern = $typeConfig['url']['pattern'] ?? '/' . $type . '/{slug}';
+                ?>
+                <div class="config-section">
+                    <div class="config-section-title">
+                        <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
+                        <?= htmlspecialchars($typeConfig['label'] ?? ucfirst($type) . 's') ?>
+                        <span class="badge badge-accent ml-auto"><?= $stats['total'] ?></span>
+                    </div>
+                    <div class="config-row">
+                        <span class="label">Directory</span>
+                        <span class="value"><code>content/<?= htmlspecialchars($typeConfig['content_dir'] ?? $type . 's') ?>/</code></span>
+                    </div>
+                    <div class="config-row">
+                        <span class="label">URL Pattern</span>
+                        <span class="value"><code><?= htmlspecialchars($urlPattern) ?></code></span>
+                    </div>
+                    <div class="config-row">
+                        <span class="label">Template</span>
+                        <span class="value"><code><?= htmlspecialchars($typeConfig['templates']['single'] ?? $type . '.php') ?></code></span>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <p class="text-dim text-sm">No content types configured.</p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title"><span class="material-symbols-rounded">route</span> Routes</span>
+            <span class="badge badge-muted"><?= count($routes['exact'] ?? []) + count($routes['pattern'] ?? []) ?></span>
+        </div>
+        <div class="card-body">
+            <div class="list-item">
+                <span class="list-label">Exact</span>
+                <span class="list-value"><?= count($routes['exact'] ?? []) ?></span>
+            </div>
+            <div class="list-item">
+                <span class="list-label">Pattern</span>
+                <span class="list-value"><?= count($routes['pattern'] ?? []) ?></span>
+            </div>
+            <div class="list-item">
+                <span class="list-label">Taxonomy</span>
+                <span class="list-value"><?= count($routes['taxonomy'] ?? []) ?></span>
+            </div>
+            <div class="list-item">
+                <span class="list-label">Redirects</span>
+                <span class="list-value"><?= count($routes['redirects'] ?? []) ?></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Plugins -->
+<div class="card mt-4">
+    <div class="card-header">
+        <span class="card-title"><span class="material-symbols-rounded">extension</span> Active Plugins</span>
+        <span class="badge badge-muted"><?= count($plugins ?? []) ?></span>
+    </div>
+    <div class="card-body">
+        <?php if (!empty($plugins)): ?>
+            <div class="d-flex flex-wrap gap-2">
+                <?php foreach ($plugins as $plugin): ?>
+                <span class="badge badge-success">
+                    <span class="material-symbols-rounded icon-sm">check_circle</span>
+                    <?= htmlspecialchars($plugin) ?>
+                </span>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p class="text-dim text-sm">No plugins active. Enable plugins in <code>app/config/ava.php</code>.</p>
+        <?php endif; ?>
     </div>
 </div>
 

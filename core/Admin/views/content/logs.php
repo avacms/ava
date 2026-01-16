@@ -4,8 +4,46 @@
  * 
  * Available variables:
  * - $logs: Array of log entries
+ * - $users: Array of admin users
  */
 ?>
+<!-- Users Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <span class="card-title">
+            <span class="material-symbols-rounded">group</span>
+            Users
+        </span>
+        <span class="badge badge-muted"><?= count($users ?? []) ?></span>
+    </div>
+    <?php if (!empty($users)): ?>
+    <div class="card-body">
+        <?php foreach ($users as $email => $userData): ?>
+        <div class="list-item">
+            <span class="list-label">
+                <span>
+                    <?= htmlspecialchars($userData['name'] ?? $email) ?>
+                    <span class="text-xs text-tertiary d-block"><?= htmlspecialchars($email) ?></span>
+                </span>
+            </span>
+            <span class="list-value text-sm text-tertiary">
+                <?php if (!empty($userData['last_login'])): ?>
+                    <?= date('M j, H:i', strtotime($userData['last_login'])) ?>
+                <?php else: ?>
+                    Never
+                <?php endif; ?>
+            </span>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php else: ?>
+    <div class="empty-state">
+        <span class="material-symbols-rounded">group</span>
+        <p>No users</p>
+    </div>
+    <?php endif; ?>
+</div>
+
 <div class="card">
     <div class="card-header">
         <span class="card-title">

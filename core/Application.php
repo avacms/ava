@@ -390,7 +390,105 @@ final class Application
         if ($this->config('admin.enabled', false)) {
             $adminRouter = new Admin\AdminRouter($this);
             $adminRouter->register();
+            $this->registerAdminAssetsRoute();
         }
+    }
+
+    /**
+     * Register a route to serve admin assets with cache busting.
+     * 
+     * This serves:
+     * - Core admin CSS from core/Admin/ (admin.css)
+     * - Plugin assets from app/plugins/{name}/assets/
+     * - Other public assets from public/assets/
+     */
+    private function registerAdminAssetsRoute(): void
+    {
+        $corePath = $this->path('core/Admin');
+        $publicPath = $this->path('public/assets');
+        $pluginsPath = $this->configPath('plugins');
+
+        $this->router()->addPrefixRoute('/admin-assets/', function (Request $request) use ($corePath, $publicPath, $pluginsPath) {
+            $path = $request->path();
+            // Remove /admin-assets/ prefix
+            $assetPath = substr($path, 14);
+
+            // Serve core admin.css from core/Admin/
+            if ($assetPath === 'admin.css') {
+                $adminCssPath = $corePath . '/admin.css';
+                if (file_exists($adminCssPath)) {
+                    return $this->serveAsset($adminCssPath);
+                }
+                return null;
+            }
+
+            // Check if this is a plugin asset request: /admin-assets/plugin-name/...
+            $parts = explode('/', $assetPath, 2);
+            if (count($parts) === 2) {
+                $pluginName = $parts[0];
+                $pluginAssetPath = $parts[1];
+                $pluginAssetsDir = realpath($pluginsPath . '/' . $pluginName . '/assets');
+                
+                if ($pluginAssetsDir !== false) {
+                    $fullPath = $pluginAssetsDir . '/' . $pluginAssetPath;
+                    $realPath = realpath($fullPath);
+                    
+                    if ($realPath !== false && str_starts_with($realPath, $pluginAssetsDir . '/') && is_file($realPath)) {
+                        return $this->serveAsset($realPath);
+                    }
+                }
+            }
+
+            // Otherwise, serve from public/assets/
+            $assetsDir = realpath($publicPath);
+            if ($assetsDir === false) {
+                return null;
+            }
+
+            $fullPath = $assetsDir . '/' . $assetPath;
+            $realPath = realpath($fullPath);
+
+            if ($realPath === false || !str_starts_with($realPath, $assetsDir . '/') || !is_file($realPath)) {
+                return null;
+            }
+
+            return $this->serveAsset($realPath);
+        });
+    }
+
+    /**
+     * Serve a static asset file with appropriate headers.
+     */
+    private function serveAsset(string $fullPath): Response
+    {
+        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+        $contentTypes = [
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'json' => 'application/json',
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'eot' => 'application/vnd.ms-fontobject',
+            'ico' => 'image/x-icon',
+        ];
+
+        $contentType = $contentTypes[$ext] ?? 'application/octet-stream';
+        $content = file_get_contents($fullPath);
+        $mtime = filemtime($fullPath);
+
+        return new Response($content, 200, [
+            'Content-Type' => $contentType,
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
+            'ETag' => '"' . md5_file($fullPath) . '"',
+        ]);
     }
 
     private function render404(Request $request): Response

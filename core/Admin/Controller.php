@@ -1576,6 +1576,7 @@ final class Controller
             'content' => $this->getContentStats(),
             'taxonomies' => $this->getTaxonomyStats(),
             'taxonomyConfig' => $this->getTaxonomyConfig(),
+            'contentTypes' => $this->getContentTypeConfig(),
             'cache' => $this->getCacheStatus(),
             'cacheFiles' => $this->getCacheFilesInfo(),
             'plugins' => $this->getActivePlugins(),
@@ -1633,10 +1634,15 @@ JS
     }
 
     /**
-     * Shortcodes reference page.
+     * Theme page - overview of theme system, current theme, and shortcodes reference.
      */
-    public function shortcodes(Request $request): Response
+    public function theme(Request $request): Response
     {
+        $currentTheme = $this->app->config('theme', 'default');
+        $themesPath = $this->app->configPath('themes');
+        $themeInfo = $this->getThemeInfo($currentTheme, $themesPath);
+        $availableThemes = $this->getAvailableThemes($themesPath);
+
         // Get registered shortcodes from the engine
         $shortcodesEngine = $this->app->shortcodes();
         $shortcodeTags = $shortcodesEngine->tags();
@@ -1645,8 +1651,22 @@ JS
         $snippets = $this->getAvailableSnippets();
 
         $data = [
+            'currentTheme' => $currentTheme,
+            'themeInfo' => $themeInfo,
+            'availableThemes' => $availableThemes,
+            'themesPath' => $themesPath,
             'shortcodes' => $shortcodeTags,
             'snippets' => $snippets,
+            'content' => $this->getContentStats(),
+            'taxonomies' => $this->getTaxonomyStats(),
+            'taxonomyConfig' => $this->getTaxonomyConfig(),
+            'site' => [
+                'name' => $this->app->config('site.name'),
+                'url' => $this->app->config('site.base_url'),
+                'timezone' => $this->app->config('site.timezone', 'UTC'),
+            ],
+            'csrf' => $this->auth->csrfToken(),
+            'user' => $this->auth->user(),
         ];
 
         $scripts = <<<'JS'
@@ -1667,52 +1687,14 @@ document.querySelectorAll('.copy-btn').forEach(btn => {
 JS;
 
         $layout = [
-            'title' => 'Shortcodes',
-            'heading' => 'Shortcodes Reference',
-            'icon' => 'code',
-            'activePage' => 'shortcodes',
-            'headerActions' => $this->defaultHeaderActions('shortcodes'),
+            'title' => 'Theme',
+            'icon' => 'palette',
+            'activePage' => 'theme',
+            'headerActions' => $this->defaultHeaderActions('theming'),
             'scripts' => $scripts,
         ];
 
-        return Response::html($this->render('content/shortcodes', $data, $layout));
-    }
-
-    /**
-     * Themes page - overview of theme system and current theme.
-     */
-    public function themes(Request $request): Response
-    {
-        $currentTheme = $this->app->config('theme', 'default');
-        $themesPath = $this->app->configPath('themes');
-        $themeInfo = $this->getThemeInfo($currentTheme, $themesPath);
-        $availableThemes = $this->getAvailableThemes($themesPath);
-
-        $data = [
-            'currentTheme' => $currentTheme,
-            'themeInfo' => $themeInfo,
-            'availableThemes' => $availableThemes,
-            'themesPath' => $themesPath,
-            'content' => $this->getContentStats(),
-            'taxonomies' => $this->getTaxonomyStats(),
-            'taxonomyConfig' => $this->getTaxonomyConfig(),
-            'site' => [
-                'name' => $this->app->config('site.name'),
-                'url' => $this->app->config('site.base_url'),
-                'timezone' => $this->app->config('site.timezone', 'UTC'),
-            ],
-            'csrf' => $this->auth->csrfToken(),
-            'user' => $this->auth->user(),
-        ];
-
-        $layout = [
-            'title' => 'Themes',
-            'icon' => 'palette',
-            'activePage' => 'themes',
-            'headerActions' => $this->defaultHeaderActions('theming'),
-        ];
-
-        return Response::html($this->render('content/themes', $data, $layout));
+        return Response::html($this->render('content/theme', $data, $layout));
     }
 
     /**
@@ -1724,6 +1706,7 @@ JS;
 
         $data = [
             'logs' => $logs,
+            'users' => $this->app->loadConfig('users'),
             'content' => $this->getContentStats(),
             'taxonomies' => $this->getTaxonomyStats(),
             'taxonomyConfig' => $this->getTaxonomyConfig(),
@@ -3016,24 +2999,14 @@ JS;
     }
 
     /**
-     * Get default header actions HTML (Docs + View Site buttons).
+     * Get default header actions HTML.
      *
-     * @param string $docsPath Optional docs page path (e.g. 'admin', 'content#frontmatter')
+     * @param string $docsPath Unused, kept for backwards compatibility
      */
     private function defaultHeaderActions(string $docsPath = ''): string
     {
-        $docsUrl = 'https://ava.addy.zone/docs' . ($docsPath ? '/' . ltrim($docsPath, '/') : '');
-        $siteUrl = htmlspecialchars($this->app->config('site.base_url', ''));
-        return <<<HTML
-<a href="{$docsUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-    <span class="material-symbols-rounded">menu_book</span>
-    <span class="hide-mobile">Docs</span>
-</a>
-<a href="{$siteUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-    <span class="material-symbols-rounded">open_in_new</span>
-    <span class="hide-mobile">View Site</span>
-</a>
-HTML;
+        // View Site is now in topbar, so default header actions is empty
+        return '';
     }
 
     private function adminUrl(): string

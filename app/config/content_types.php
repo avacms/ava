@@ -55,6 +55,13 @@ return [
                 'group'       => 'content',
             ],
             
+            'arraytest' => [
+                'type'        => 'array',
+                'label'       => 'Array Test',
+                'description' => 'An array field for testing',
+                'group'       => 'content',
+            ],
+
             // Textarea for longer content
             'summary' => [
                 'type'        => 'textarea',

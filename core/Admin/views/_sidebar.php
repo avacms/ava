@@ -17,115 +17,84 @@ $activePage = $activePage ?? '';
 <script>
     (function() {
         const theme = document.cookie.split('; ').find(row => row.startsWith('theme='))?.split('=')[1];
-        if (theme) {
+        if (theme && theme !== 'system') {
             document.documentElement.setAttribute('data-theme', theme);
         }
     })();
 </script>
-<div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
-<aside class="sidebar" id="sidebar">
-    <div class="logo">
-        <h1>✨ Ava <span class="version-badge">v<?= htmlspecialchars($version ?? '1.0.0') ?></span></h1>
+<aside class="app-sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+            <span class="material-symbols-rounded">menu</span>
+        </button>
+        <span class="sidebar-brand">Ava CMS</span>
     </div>
-    <nav class="nav">
-        <div class="nav-section">Overview</div>
-        <a href="<?= $admin_url ?>" class="nav-item <?= $activePage === 'dashboard' ? 'active' : '' ?>">
-            <span class="material-symbols-rounded">dashboard</span>
-            Dashboard
-        </a>
-        <a href="<?= $admin_url ?>/themes" class="nav-item <?= $activePage === 'themes' ? 'active' : '' ?>">
-            <span class="material-symbols-rounded">palette</span>
-            Themes
-        </a>
-        <a href="<?= $admin_url ?>/shortcodes" class="nav-item <?= $activePage === 'shortcodes' ? 'active' : '' ?>">
-            <span class="material-symbols-rounded">code</span>
-            Shortcodes
-        </a>
+    
+    <nav class="sidebar-nav">
+        <div class="nav-group">
+            <a href="<?= $admin_url ?>" class="nav-item <?= $activePage === 'dashboard' ? 'active' : '' ?>" data-tooltip="Dashboard" title="Dashboard">
+                <span class="material-symbols-rounded">dashboard</span>
+                <span class="nav-item-label">Dashboard</span>
+            </a>
+        </div>
 
-        <div class="nav-section">Content</div>
-        <?php foreach ($content as $type => $stats): ?>
-        <a href="<?= $admin_url ?>/content/<?= $type ?>" class="nav-item <?= $activePage === 'content-' . $type ? 'active' : '' ?>">
-            <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
-            <?= ucfirst($type) ?>s
-            <span class="nav-count"><?= $stats['total'] ?></span>
-        </a>
-        <?php endforeach; ?>
+        <div class="nav-group">
+            <div class="nav-group-label">Content</div>
+            <?php foreach ($content as $type => $stats): ?>
+            <a href="<?= $admin_url ?>/content/<?= $type ?>" class="nav-item <?= $activePage === 'content-' . $type ? 'active' : '' ?>" data-tooltip="<?= ucfirst($type) ?>s" title="<?= ucfirst($type) ?>s">
+                <span class="material-symbols-rounded"><?= $type === 'page' ? 'description' : 'article' ?></span>
+                <span class="nav-item-label"><?= ucfirst($type) ?>s</span>
+            </a>
+            <?php endforeach; ?>
+        </div>
 
-        <div class="nav-section">Taxonomies</div>
-        <?php foreach ($taxonomies as $tax => $count): 
-            $taxConfig = $taxonomyConfig[$tax] ?? [];
-        ?>
-        <a href="<?= $admin_url ?>/taxonomy/<?= $tax ?>" class="nav-item <?= $activePage === 'taxonomy-' . $tax ? 'active' : '' ?>">
-            <span class="material-symbols-rounded"><?= ($taxConfig['hierarchical'] ?? false) ? 'folder' : 'sell' ?></span>
-            <?= htmlspecialchars($taxConfig['label'] ?? ucfirst($tax)) ?>
-            <span class="nav-count"><?= $count ?></span>
-        </a>
-        <?php endforeach; ?>
+        <div class="nav-group">
+            <div class="nav-group-label">Taxonomies</div>
+            <?php foreach ($taxonomies as $tax => $count): 
+                $taxConfig = $taxonomyConfig[$tax] ?? [];
+            ?>
+            <a href="<?= $admin_url ?>/taxonomy/<?= $tax ?>" class="nav-item <?= $activePage === 'taxonomy-' . $tax ? 'active' : '' ?>" data-tooltip="<?= htmlspecialchars($taxConfig['label'] ?? ucfirst($tax)) ?>" title="<?= htmlspecialchars($taxConfig['label'] ?? ucfirst($tax)) ?>">
+                <span class="material-symbols-rounded"><?= ($taxConfig['hierarchical'] ?? false) ? 'folder' : 'sell' ?></span>
+                <span class="nav-item-label"><?= htmlspecialchars($taxConfig['label'] ?? ucfirst($tax)) ?></span>
+            </a>
+            <?php endforeach; ?>
+        </div>
 
-        <div class="nav-section">Tools</div>
-        <a href="<?= $admin_url ?>/media" class="nav-item <?= $activePage === 'media' ? 'active' : '' ?>">
-            <span class="material-symbols-rounded">image</span>
-            Media
-        </a>
-        <a href="<?= $admin_url ?>/lint" class="nav-item <?= $activePage === 'lint' ? 'active' : '' ?>">
-            <span class="material-symbols-rounded">check_circle</span>
-            Lint Content
-        </a>
-        <a href="<?= $admin_url ?>/logs" class="nav-item <?= $activePage === 'logs' ? 'active' : '' ?>">
-            <span class="material-symbols-rounded">history</span>
-            Admin Logs
-        </a>
-        <a href="<?= $admin_url ?>/system" class="nav-item <?= $activePage === 'system' ? 'active' : '' ?>">
-            <span class="material-symbols-rounded">dns</span>
-            System Info
-        </a>
+        <div class="nav-group">
+            <div class="nav-group-label">Tools</div>
+            <a href="<?= $admin_url ?>/media" class="nav-item <?= $activePage === 'media' ? 'active' : '' ?>" data-tooltip="Media" title="Media">
+                <span class="material-symbols-rounded">image</span>
+                <span class="nav-item-label">Media</span>
+            </a>
+            <a href="<?= $admin_url ?>/lint" class="nav-item <?= $activePage === 'lint' ? 'active' : '' ?>" data-tooltip="Lint Content" title="Lint Content">
+                <span class="material-symbols-rounded">check_circle</span>
+                <span class="nav-item-label">Lint Content</span>
+            </a>
+            <a href="<?= $admin_url ?>/logs" class="nav-item <?= $activePage === 'logs' ? 'active' : '' ?>" data-tooltip="Admin Logs" title="Admin Logs">
+                <span class="material-symbols-rounded">history</span>
+                <span class="nav-item-label">Admin Logs</span>
+            </a>
+            <a href="<?= $admin_url ?>/theme" class="nav-item <?= $activePage === 'theme' ? 'active' : '' ?>" data-tooltip="Theme" title="Theme">
+                <span class="material-symbols-rounded">palette</span>
+                <span class="nav-item-label">Theme</span>
+            </a>
+            <a href="<?= $admin_url ?>/system" class="nav-item <?= $activePage === 'system' ? 'active' : '' ?>" data-tooltip="System Info" title="System Info">
+                <span class="material-symbols-rounded">dns</span>
+                <span class="nav-item-label">System Info</span>
+            </a>
+        </div>
 
         <?php if (!empty($customPages)): ?>
-        <div class="nav-section">Plugins</div>
-        <?php foreach ($customPages as $slug => $page): ?>
-        <a href="<?= $admin_url ?>/<?= htmlspecialchars($slug) ?>" class="nav-item <?= $activePage === $slug ? 'active' : '' ?>">
-            <span class="material-symbols-rounded"><?= htmlspecialchars($page['icon'] ?? 'extension') ?></span>
-            <?= htmlspecialchars($page['label'] ?? ucfirst($slug)) ?>
-        </a>
-        <?php endforeach; ?>
+        <div class="nav-group">
+            <div class="nav-group-label">Plugins</div>
+            <?php foreach ($customPages as $slug => $page): ?>
+            <a href="<?= $admin_url ?>/<?= htmlspecialchars($slug) ?>" class="nav-item <?= $activePage === $slug ? 'active' : '' ?>" data-tooltip="<?= htmlspecialchars($page['label'] ?? ucfirst($slug)) ?>" title="<?= htmlspecialchars($page['label'] ?? ucfirst($slug)) ?>">
+                <span class="material-symbols-rounded"><?= htmlspecialchars($page['icon'] ?? 'extension') ?></span>
+                <span class="nav-item-label"><?= htmlspecialchars($page['label'] ?? ucfirst($slug)) ?></span>
+            </a>
+            <?php endforeach; ?>
+        </div>
         <?php endif; ?>
     </nav>
-    <div class="sidebar-footer">
-        <div class="user-info">
-            <span class="material-symbols-rounded">person</span>
-            <?= htmlspecialchars($user ?? 'Admin') ?>
-        </div>
-        <button onclick="toggleTheme()" class="theme-toggle">
-            <span class="material-symbols-rounded">contrast</span>
-            Toggle Theme
-        </button>
-        <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/logout" class="m-0">
-            <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf ?? '') ?>">
-            <button type="submit" class="logout-btn">
-                <span class="material-symbols-rounded">logout</span>
-                Sign Out
-            </button>
-        </form>
-    </div>
 </aside>
-
-<script>
-function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    let next = 'light';
-    if (current === 'light') {
-        next = 'dark';
-    } else if (current === 'dark') {
-        next = 'light';
-    } else {
-        // No override set, use opposite of system
-        next = systemDark ? 'light' : 'dark';
-    }
-    
-    document.documentElement.setAttribute('data-theme', next);
-    document.cookie = `theme=${next}; path=/; max-age=31536000`;
-}
-</script>

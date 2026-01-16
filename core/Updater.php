@@ -13,14 +13,14 @@ namespace Ava;
  *
  * What gets updated:
  * - core/, docs/, ava (CLI), bootstrap.php, composer.json
- * - public/index.php, public/assets/admin.css
+ * - public/index.php
  * - Bundled plugins in app/plugins/ (sitemap, feed, redirects)
  *
  * What is preserved (never touched):
  * - content/, app/config/, app/themes/, app/snippets/, storage/, vendor/
  * - Custom plugins, public/robots.txt, .git, .env
  *
- * Note: Updates sync individual files, not entire directories.
+ * Updates sync individual files, not entire directories.
  * This may leave stale files from old versions. Use update:stale to detect them.
  */
 final class Updater
@@ -478,11 +478,6 @@ final class Updater
             }
         }
 
-        // Update public assets (but not user assets)
-        $publicAssetsSource = $sourceDir . '/public/assets/admin.css';
-        if (file_exists($publicAssetsSource)) {
-            $this->syncFile($publicAssetsSource, $rootDir . '/public/assets/admin.css');
-        }
     }
 
     /**

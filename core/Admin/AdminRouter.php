@@ -93,14 +93,9 @@ final class AdminRouter
             return $this->handle('clearErrorLog', $request);
         });
 
-        // Themes (protected)
-        $router->addRoute($basePath . '/themes', function (Request $request) {
-            return $this->handle('themes', $request);
-        });
-
-        // Shortcodes reference (protected)
-        $router->addRoute($basePath . '/shortcodes', function (Request $request) {
-            return $this->handle('shortcodes', $request);
+        // Theme (protected)
+        $router->addRoute($basePath . '/theme', function (Request $request) {
+            return $this->handle('theme', $request);
         });
 
         // Admin logs (protected)
@@ -231,8 +226,7 @@ final class AdminRouter
             'clearErrorLog' => $this->controller->clearErrorLog($request),
             'lint' => $this->controller->lint($request),
             'system' => $this->controller->system($request),
-            'themes' => $this->controller->themes($request),
-            'shortcodes' => $this->controller->shortcodes($request),
+            'theme' => $this->controller->theme($request),
             'logs' => $this->controller->logs($request),
             default => null,
         };

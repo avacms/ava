@@ -98,7 +98,7 @@ if ($currentFolder !== '') {
         <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/media" enctype="multipart/form-data" id="upload-form">
             <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
             
-            <div class="form-row-2">
+            <div class="form-row form-row-2">
                 <div class="form-group">
                     <label class="form-label" for="media">Select Images</label>
                     <input type="file" name="media[]" id="media" multiple accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/avif" class="form-control" required>

@@ -50,7 +50,11 @@ $ui = $config['ui'] ?? [];
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="material-symbols-rounded text-tertiary icon-sm">label</span>
-                                <span class="font-medium"><?= htmlspecialchars($termData['name']) ?></span>
+                                <?php 
+                                $termName = $termData['name'];
+                                $truncatedName = mb_strlen($termName) > 40 ? mb_substr($termName, 0, 40) . '…' : $termName;
+                                ?>
+                                <span class="font-medium" <?= mb_strlen($termName) > 40 ? 'title="' . htmlspecialchars($termName) . '"' : '' ?>><?= htmlspecialchars($truncatedName) ?></span>
                             </div>
                         </td>
                         <td><code class="text-xs"><?= htmlspecialchars($slug) ?></code></td>

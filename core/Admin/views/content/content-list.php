@@ -99,31 +99,34 @@ $formatBytes = function($bytes) {
                         $itemPath = $getContentPath($item);
                         $fileSize = file_exists($item->filePath()) ? filesize($item->filePath()) : 0;
                         $isDraft = $item->isDraft();
+                        
+                        // Compute edit URL early so we can link the title
+                        $fullPath = $item->filePath();
+                        $typeDir = $typeConfig['content_dir'] ?? $type . 's';
+                        
+                        // Find the type directory in the path and extract everything after it
+                        $marker = '/' . $typeDir . '/';
+                        $pos = strrpos($fullPath, $marker);
+                        if ($pos !== false) {
+                            $relPath = substr($fullPath, $pos + strlen($marker));
+                        } else {
+                            $relPath = basename($fullPath);
+                        }
+                        
+                        // File param is just the path within the type dir, without .md
+                        // Use pipe as separator for cleaner URLs (no encoding needed)
+                        $editFile = str_replace('/', '|', preg_replace('/\.md$/', '', $relPath));
+                        $editUrl = $admin_url . '/content/' . htmlspecialchars($type) . '/edit?file=' . htmlspecialchars($editFile);
                     ?>
                     <tr>
                         <td>
-                            <div class="table-title"><?= htmlspecialchars($item->title()) ?></div>
+                            <?php 
+                            $title = $item->title();
+                            $truncatedTitle = mb_strlen($title) > 40 ? mb_substr($title, 0, 40) . '…' : $title;
+                            ?>
+                            <a href="<?= $editUrl ?>" class="table-title-link" <?= mb_strlen($title) > 40 ? 'title="' . htmlspecialchars($title) . '"' : '' ?>><?= htmlspecialchars($truncatedTitle) ?></a>
                         </td>
                         <td>
-                            <?php
-                            // Show path relative to content type directory
-                            // The indexed data has file_path as absolute, extract relative from content dir
-                            $fullPath = $item->filePath();
-                            $typeDir = $typeConfig['content_dir'] ?? $type . 's';
-                            
-                            // Find the type directory in the path and extract everything after it
-                            $marker = '/' . $typeDir . '/';
-                            $pos = strrpos($fullPath, $marker);
-                            if ($pos !== false) {
-                                $relPath = substr($fullPath, $pos + strlen($marker));
-                            } else {
-                                $relPath = basename($fullPath);
-                            }
-                            
-                            // File param is just the path within the type dir, without .md
-                            // Use pipe as separator for cleaner URLs (no encoding needed)
-                            $editFile = str_replace('/', '|', preg_replace('/\.md$/', '', $relPath));
-                            ?>
                             <code class="text-xs"><?= htmlspecialchars($relPath) ?></code>
                         </td>
                         <td>
@@ -147,7 +150,7 @@ $formatBytes = function($bytes) {
                         </td>
                         <td>
                             <div class="btn-group">
-                                <a href="<?= htmlspecialchars($admin_url) ?>/content/<?= htmlspecialchars($type) ?>/edit?file=<?= htmlspecialchars($editFile) ?>" class="btn btn-xs btn-secondary" title="Edit">
+                                <a href="<?= $editUrl ?>" class="btn btn-xs btn-secondary" title="Edit">
                                     <span class="material-symbols-rounded">edit</span>
                                 </a>
                                 <?php if ($itemUrl): ?>
