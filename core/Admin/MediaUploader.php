@@ -1108,6 +1108,72 @@ final class MediaUploader
     }
 
     /**
+     * List all files recursively from the media directory.
+     * Used for "All Files" view in media picker.
+     * 
+     * @param int $maxDepth Maximum directory depth to traverse
+     * @return array List of files with metadata
+     */
+    public function listFilesRecursive(int $maxDepth = 5): array
+    {
+        if (!is_dir($this->mediaPath)) {
+            return [];
+        }
+
+        $files = [];
+        $this->scanFilesRecursive($this->mediaPath, '', $files, $maxDepth);
+
+        // Sort by modified time descending
+        usort($files, fn($a, $b) => $b['modified'] - $a['modified']);
+
+        return $files;
+    }
+
+    /**
+     * Recursively scan directories for files.
+     */
+    private function scanFilesRecursive(string $basePath, string $prefix, array &$files, int $depth): void
+    {
+        if ($depth <= 0) {
+            return;
+        }
+
+        $items = @scandir($basePath);
+        if ($items === false) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..' || str_starts_with($item, '.')) {
+                continue;
+            }
+
+            $fullPath = $basePath . '/' . $item;
+            $relativePath = $prefix !== '' ? $prefix . '/' . $item : $item;
+
+            if (is_dir($fullPath)) {
+                // Recurse into subdirectory
+                $this->scanFilesRecursive($fullPath, $relativePath, $files, $depth - 1);
+            } elseif (is_file($fullPath)) {
+                // Add file with metadata
+                $stat = @stat($fullPath);
+                $imageInfo = @getimagesize($fullPath);
+
+                $files[] = [
+                    'name' => $item,
+                    'path' => $relativePath,
+                    'url' => $this->getMediaUrlBase() . '/' . $relativePath,
+                    'size' => $stat['size'] ?? 0,
+                    'modified' => $stat['mtime'] ?? 0,
+                    'width' => $imageInfo[0] ?? null,
+                    'height' => $imageInfo[1] ?? null,
+                    'mime' => $imageInfo['mime'] ?? mime_content_type($fullPath),
+                ];
+            }
+        }
+    }
+
+    /**
      * List subfolders in a directory (for navigation).
      * 
      * @param string|null $subfolder Optional subfolder within media directory

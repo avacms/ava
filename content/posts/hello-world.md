@@ -1,14 +1,14 @@
 ---
-title: Hello World
+title: 'Hello World'
 slug: hello-world
 status: published
-date: 2026-01-01
-excerpt: Welcome to your new Ava site! This sample post shows you how content works and what you can do with Markdown.
-category:
-  - general
+date: '2026-01-01'
+updated: '2026-01-01'
+category: general
 tag:
   - welcome
   - tutorial
+excerpt: 'Welcome to your new Ava site! This sample post shows you how content works and what you can do with Markdown.'
 ---
 
 Welcome to your new Ava site! 🎉

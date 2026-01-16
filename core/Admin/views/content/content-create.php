@@ -76,8 +76,8 @@ $jsConfig = [
         <?php include __DIR__ . '/_editor-file-header.php'; ?>
         
         <div class="editor-wrapper">
-            <textarea id="file_content" name="file_content" class="editor-textarea" spellcheck="false"><?= htmlspecialchars($currentFileContent) ?></textarea>
-            <pre id="editor-highlight" class="editor-highlight" aria-hidden="true"></pre>
+            <div id="editor" class="codemirror-container" data-codemirror="yaml-frontmatter"></div>
+            <textarea id="file_content" name="file_content" class="editor-hidden-input"><?= htmlspecialchars($currentFileContent) ?></textarea>
         </div>
     </div>
 
@@ -219,301 +219,326 @@ $jsConfig = [
 </div>
 
 <script>
-const editor = document.getElementById('file_content');
-const highlight = document.getElementById('editor-highlight');
-const form = document.getElementById('editor-form');
-const CONFIG = <?= json_encode($jsConfig) ?>;
-
-// Syntax highlighting
-function updateHighlight() {
-    highlight.innerHTML = highlightMarkdown(editor.value);
-    syncScroll();
-}
-
-function syncScroll() {
-    highlight.scrollTop = editor.scrollTop;
-    highlight.scrollLeft = editor.scrollLeft;
-}
-
-function highlightMarkdown(text) {
-    let html = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+(function() {
+    const editorContainer = document.getElementById('editor');
+    const editorCard = document.querySelector('.editor-container');
+    const hiddenInput = document.getElementById('file_content');
+    const form = document.getElementById('editor-form');
+    const wrapBtn = document.getElementById('wrap-toggle');
+    const fullscreenBtn = document.getElementById('fullscreen-toggle');
+    const CONFIG = <?= json_encode($jsConfig) ?>;
+    let cmEditor = null;
     
-    // Frontmatter - highlight the delimiters and keys
-    html = html.replace(/^(---\n)([\s\S]*?)(\n---)/m, function(m, open, content, close) {
-        const yaml = content.replace(/^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)(:)/gm, 
-            '$1<span class="hl-key">$2</span><span class="hl-colon">$3</span>');
-        return '<span class="hl-delim">' + open + '</span><span class="hl-fm">' + yaml + '</span><span class="hl-delim">' + close + '</span>';
-    });
+    // Line wrap mode labels and icons
+    const wrapModeLabels = {
+        'full': 'Full width',
+        'narrow': 'Narrow column',
+        'none': 'No wrapping'
+    };
+    const wrapModeIcons = {
+        'full': 'wrap_text',
+        'narrow': 'view_column',
+        'none': 'more_horiz'
+    };
     
-    // Code blocks (triple backticks) - must be before inline code
-    html = html.replace(/^(```\w*)\n([\s\S]*?)\n(```)/gm, '<span class="hl-cb">$1\n$2\n$3</span>');
-    
-    // Headers (must be at line start)
-    html = html.replace(/^(#{1,6})\s(.+)$/gm, '<span class="hl-h"><span class="hl-hm">$1</span> $2</span>');
-    // Bold - must have non-space content
-    html = html.replace(/(\*\*)([^\s*][^*]*[^\s*]|[^\s*])(\*\*)/g, '<span class="hl-b">$1$2$3</span>');
-    html = html.replace(/(__)([^\s_][^_]*[^\s_]|[^\s_])(__)/g, '<span class="hl-b">$1$2$3</span>');
-    // Inline code - simple single backticks only (not already in code block)
-    html = html.replace(/`([^`\n]+)`/g, '<span class="hl-c">`$1`</span>');
-    // Links
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<span class="hl-l">[$1]($2)</span>');
-    // Blockquotes
-    html = html.replace(/^(&gt;.*)$/gm, '<span class="hl-q">$1</span>');
-    // List markers
-    html = html.replace(/^(\s*)([-*+])\s/gm, '$1<span class="hl-li">$2</span> ');
-    html = html.replace(/^(\s*)(\d+\.)\s/gm, '$1<span class="hl-li">$2</span> ');
-    
-    return html;
-}
-
-editor.addEventListener('input', updateHighlight);
-editor.addEventListener('scroll', syncScroll);
-updateHighlight();
-
-// Tab key support
-editor.addEventListener('keydown', function(e) {
-    if (e.key === 'Tab') {
-        e.preventDefault();
-        const start = this.selectionStart;
-        const end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + 2;
-        updateHighlight();
+    function updateWrapButton(mode) {
+        if (!wrapBtn) return;
+        wrapBtn.title = 'Line wrap: ' + (wrapModeLabels[mode] || 'Full width');
+        const icon = wrapBtn.querySelector('.material-symbols-rounded');
+        if (icon) icon.textContent = wrapModeIcons[mode] || 'wrap_text';
     }
-});
-
-// Parse YAML frontmatter (simple parser for known structures)
-function parseYamlFrontmatter(yaml) {
-    const result = {};
-    const lines = yaml.split('\n');
-    let currentKey = null;
-    let currentArray = null;
     
-    for (let line of lines) {
-        // Array item
-        if (line.match(/^\s+-\s+(.+)$/)) {
-            const val = line.replace(/^\s+-\s+/, '').replace(/^["']|["']$/g, '').trim();
-            if (currentArray && currentKey) {
-                result[currentKey].push(val);
-            }
-            continue;
-        }
-        
-        // Key-value pair
-        const match = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*):\s*(.*)$/);
-        if (match) {
-            currentKey = match[1];
-            const val = match[2].replace(/^["']|["']$/g, '').trim();
-            if (val === '' || val === '[]') {
-                // Could be array on next lines
-                result[currentKey] = [];
-                currentArray = true;
-            } else {
-                result[currentKey] = val;
-                currentArray = false;
-            }
-        }
-    }
-    return result;
-}
-
-// Frontmatter Generator
-function openFrontmatterGenerator() {
-    const content = editor.value;
-    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    
-    if (fmMatch) {
-        const parsed = parseYamlFrontmatter(fmMatch[1]);
-        
-        // Core fields - only populate if not default values
-        const title = parsed.title;
-        if (title && !title.startsWith('New ')) {
-            document.getElementById('fm-title').value = title;
-        }
-        if (parsed.slug && parsed.slug !== 'new-' + CONFIG.typeLabel.toLowerCase()) {
-            document.getElementById('fm-slug').value = parsed.slug;
-        }
-        if (parsed.status) document.getElementById('fm-status').value = parsed.status;
-        if (parsed.date) document.getElementById('fm-date').value = parsed.date;
-        if (parsed.id) document.getElementById('fm-id').value = parsed.id;
-        
-        // SEO fields
-        if (parsed.meta_title) document.getElementById('fm-meta-title').value = parsed.meta_title;
-        if (parsed.meta_description) document.getElementById('fm-meta-desc').value = parsed.meta_description;
-        if (parsed.og_image) document.getElementById('fm-og-image').value = parsed.og_image;
-        document.getElementById('fm-noindex').checked = parsed.noindex === 'true' || parsed.noindex === true;
-        
-        // Taxonomies - work with select or text input
-        CONFIG.taxonomies.forEach(taxName => {
-            const selectEl = document.querySelector(`select.fm-tax-select[data-taxonomy="${taxName}"]`);
-            const textInput = document.querySelector(`.fm-tax-text[data-taxonomy="${taxName}"]`);
-            const values = Array.isArray(parsed[taxName]) ? parsed[taxName] : (parsed[taxName] ? [parsed[taxName]] : []);
+    // Initialize CodeMirror
+    async function initEditor() {
+        if (typeof window.AvaCodeMirror !== 'undefined') {
+            cmEditor = await window.AvaCodeMirror.createEditor(editorContainer, {
+                content: hiddenInput.value,
+                language: 'yaml-frontmatter',
+                onChange: function(value) {
+                    hiddenInput.value = value;
+                }
+            });
             
-            if (selectEl) {
-                // Multi-select: set selected options
-                Array.from(selectEl.options).forEach(opt => {
-                    opt.selected = values.includes(opt.value);
-                });
-            } else if (textInput) {
-                textInput.value = values.join(', ');
-            }
+            // Apply saved wrap mode
+            const savedMode = window.AvaCodeMirror.getSavedWrapMode();
+            window.AvaCodeMirror.setLineWrap(editorContainer, savedMode);
+            updateWrapButton(savedMode);
+        } else {
+            setTimeout(initEditor, 50);
+        }
+    }
+    
+    // Get editor content
+    function getEditorContent() {
+        if (cmEditor) {
+            return window.AvaCodeMirror.getValue(cmEditor);
+        }
+        return hiddenInput.value;
+    }
+    
+    // Wrap toggle
+    if (wrapBtn) {
+        wrapBtn.addEventListener('click', function() {
+            if (!window.AvaCodeMirror) return;
+            const newMode = window.AvaCodeMirror.cycleLineWrap(editorContainer);
+            updateWrapButton(newMode);
         });
     }
     
-    document.getElementById('fm-modal').style.display = 'flex';
-    document.getElementById('fm-title').focus();
-}
-
-function closeFrontmatterGenerator() {
-    document.getElementById('fm-modal').style.display = 'none';
-}
-
-function generateNewId() {
-    const t = Date.now().toString(32).toUpperCase().padStart(10, '0');
-    const r = Array.from({length: 16}, () => '0123456789ABCDEFGHJKMNPQRSTVWXYZ'[Math.floor(Math.random() * 32)]).join('');
-    document.getElementById('fm-id').value = t + r;
-}
-
-function insertFrontmatter() {
-    const title = document.getElementById('fm-title').value.trim();
-    if (!title) { alert('Title is required'); return; }
-    
-    const slug = document.getElementById('fm-slug').value.trim() || generateSlug(title);
-    const status = document.getElementById('fm-status').value;
-    const date = document.getElementById('fm-date').value;
-    const id = document.getElementById('fm-id').value.trim();
-    
-    // SEO
-    const metaTitle = document.getElementById('fm-meta-title').value.trim();
-    const metaDesc = document.getElementById('fm-meta-desc').value.trim();
-    const ogImage = document.getElementById('fm-og-image').value.trim();
-    const noindex = document.getElementById('fm-noindex').checked;
-    
-    // Parse existing frontmatter to preserve custom fields
-    const content = editor.value;
-    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    const existingFm = fmMatch ? parseYamlFrontmatter(fmMatch[1]) : {};
-    
-    // Fields we manage (will be updated)
-    const managedFields = ['id', 'title', 'slug', 'status', 'date', 'meta_title', 'meta_description', 'og_image', 'noindex', ...CONFIG.taxonomies];
-    
-    // Build new frontmatter, preserving custom fields
-    const newFm = {};
-    
-    // Add custom fields first (anything not in managedFields)
-    for (const key in existingFm) {
-        if (!managedFields.includes(key)) {
-            newFm[key] = existingFm[key];
+    // Fullscreen toggle
+    let isFullscreen = false;
+    function toggleFullscreen() {
+        isFullscreen = !isFullscreen;
+        editorCard.classList.toggle('editor-fullscreen', isFullscreen);
+        const icon = fullscreenBtn?.querySelector('.material-symbols-rounded');
+        if (icon) icon.textContent = isFullscreen ? 'fullscreen_exit' : 'fullscreen';
+        if (isFullscreen && cmEditor && cmEditor.focus) {
+            setTimeout(() => cmEditor.focus(), 0);
         }
     }
     
-    // Add managed fields in order
-    if (id) newFm.id = id;
-    newFm.title = title;
-    newFm.slug = slug;
-    newFm.status = status;
-    if (CONFIG.usesDate && date) newFm.date = date;
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+    }
     
-    // Taxonomies - read from select or text input
-    CONFIG.taxonomies.forEach(taxName => {
-        const selectEl = document.querySelector(`select.fm-tax-select[data-taxonomy="${taxName}"]`);
-        const textInput = document.querySelector(`.fm-tax-text[data-taxonomy="${taxName}"]`);
-        
-        let values = [];
-        if (selectEl) {
-            values = Array.from(selectEl.selectedOptions).map(opt => opt.value);
-        } else if (textInput) {
-            values = textInput.value.split(',').map(v => v.trim()).filter(v => v);
+    form.addEventListener('submit', function() {
+        hiddenInput.value = getEditorContent();
+    });
+    
+    // Ctrl+S to save, Escape to exit fullscreen
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isFullscreen) {
+            toggleFullscreen();
+            return;
         }
-        
-        if (values.length === 1) {
-            newFm[taxName] = values[0];
-        } else if (values.length > 1) {
-            newFm[taxName] = values;
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            hiddenInput.value = getEditorContent();
+            form.submit();
         }
     });
     
-    // SEO fields
-    if (metaTitle) newFm.meta_title = metaTitle;
-    if (metaDesc) newFm.meta_description = metaDesc;
-    if (ogImage) newFm.og_image = ogImage;
-    if (noindex) newFm.noindex = true;
-    
-    // YAML value formatter - only quote if contains special chars
-    function yamlValue(val) {
-        if (typeof val === 'boolean') return val;
-        if (typeof val === 'number') return val;
-        const str = String(val);
-        // Quote if contains: colon followed by space, #, leading/trailing spaces, or starts with special chars
-        if (/[:#\[\]{}|>&*!?'"]/.test(str) || str !== str.trim() || str === '') {
-            return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+    // Validate filename on input
+    document.getElementById('filename').addEventListener('input', function(e) {
+        let val = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/--+/g, '-');
+        if (val !== this.value) {
+            this.value = val;
         }
-        return str;
-    }
+    });
     
-    // Convert to YAML
-    let yaml = '';
-    for (const [key, val] of Object.entries(newFm)) {
-        if (Array.isArray(val)) {
-            yaml += `${key}:\n` + val.map(v => `  - ${yamlValue(v)}\n`).join('');
-        } else if (typeof val === 'boolean') {
-            yaml += `${key}: ${val}\n`;
-        } else {
-            yaml += `${key}: ${yamlValue(val)}\n`;
+    // Expose for frontmatter generator
+    window.setEditorContent = function(text) {
+        hiddenInput.value = text;
+        if (cmEditor && window.AvaCodeMirror.setValue) {
+            window.AvaCodeMirror.setValue(cmEditor, text);
         }
-    }
+    };
     
-    const body = fmMatch ? content.slice(fmMatch[0].length + fmMatch.index) : content;
-    
-    // If body is the default placeholder, create a nice heading
-    const defaultBody = body.trim();
-    let newBody = body;
-    if (defaultBody.startsWith('# New ') || defaultBody === '') {
-        newBody = `# ${title}\n\nStart writing your content here...\n`;
-    }
-    
-    editor.value = `---\n${yaml}---\n\n${newBody.replace(/^\n+/, '')}`;
-    updateHighlight();
-    closeFrontmatterGenerator();
-}
+    window.getEditorContent = function() {
+        return getEditorContent();
+    };
 
-function generateSlug(title) {
-    return title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-}
+    initEditor();
 
-// Generate filename from frontmatter date and slug
-function generateFilenameFromContent() {
-    const content = editor.value;
-    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (!fmMatch) {
-        alert('No frontmatter found. Add frontmatter first.');
-        return;
+    // Parse YAML frontmatter (simple parser for known structures)
+    function parseYamlFrontmatter(yaml) {
+        const result = {};
+        const lines = yaml.split('\n');
+        let currentKey = null;
+        let currentArray = null;
+        
+        for (let line of lines) {
+            if (line.match(/^\s+-\s+(.+)$/)) {
+                const val = line.replace(/^\s+-\s+/, '').replace(/^["']|["']$/g, '').trim();
+                if (currentArray && currentKey) {
+                    result[currentKey].push(val);
+                }
+                continue;
+            }
+            
+            const match = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*):\s*(.*)$/);
+            if (match) {
+                currentKey = match[1];
+                const val = match[2].replace(/^["']|["']$/g, '').trim();
+                if (val === '' || val === '[]') {
+                    result[currentKey] = [];
+                    currentArray = true;
+                } else {
+                    result[currentKey] = val;
+                    currentArray = false;
+                }
+            }
+        }
+        return result;
     }
-    
-    const parsed = parseYamlFrontmatter(fmMatch[1]);
-    const slug = parsed.slug || generateSlug(parsed.title || 'untitled');
-    const date = parsed.date || '';
-    
-    let filename = slug;
-    if (CONFIG.usesDate && date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        filename = date + '-' + slug;
-    }
-    
-    document.getElementById('filename').value = filename;
-}
+    window.parseYamlFrontmatter = parseYamlFrontmatter;
 
-// Validate filename on input (only allow valid characters)
-document.getElementById('filename').addEventListener('input', function(e) {
-    // Remove any invalid characters (only allow lowercase a-z, 0-9, and hyphens)
-    let val = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/--+/g, '-');
-    if (val !== this.value) {
-        this.value = val;
-    }
-});
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFrontmatterGenerator(); });
+    // Frontmatter Generator functions (exposed globally)
+    window.openFrontmatterGenerator = function() {
+        const content = getPlainText();
+        const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        
+        if (fmMatch) {
+            const parsed = parseYamlFrontmatter(fmMatch[1]);
+            document.getElementById('fm-title').value = parsed.title || '';
+            document.getElementById('fm-slug').value = parsed.slug || '';
+            document.getElementById('fm-status').value = parsed.status || 'draft';
+            if (CONFIG.usesDate) {
+                document.getElementById('fm-date').value = parsed.date || new Date().toISOString().slice(0, 10);
+            }
+            document.getElementById('fm-template').value = parsed.template || '';
+            document.getElementById('fm-excerpt').value = parsed.excerpt || '';
+            document.getElementById('fm-meta-title').value = parsed.meta_title || '';
+            document.getElementById('fm-meta-desc').value = parsed.meta_description || '';
+            document.getElementById('fm-og-image').value = parsed.og_image || '';
+            document.getElementById('fm-noindex').checked = parsed.noindex === true || parsed.noindex === 'true';
+            
+            // Taxonomies
+            if (CONFIG.taxonomies) {
+                CONFIG.taxonomies.forEach(tax => {
+                    const el = document.getElementById('fm-tax-' + tax);
+                    if (el) {
+                        const vals = parsed[tax];
+                        if (Array.isArray(vals)) {
+                            Array.from(el.options).forEach(opt => {
+                                opt.selected = vals.includes(opt.value);
+                            });
+                        }
+                    }
+                });
+            }
+        }
+        
+        document.getElementById('fm-modal').style.display = 'flex';
+        document.getElementById('fm-title').focus();
+    };
+    
+    window.closeFrontmatterGenerator = function() {
+        document.getElementById('fm-modal').style.display = 'none';
+    };
+    
+    window.insertFrontmatter = function() {
+        const content = getPlainText();
+        const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        
+        const title = document.getElementById('fm-title').value.trim();
+        const slug = document.getElementById('fm-slug').value.trim() || generateSlug(title);
+        const status = document.getElementById('fm-status').value;
+        const date = CONFIG.usesDate ? document.getElementById('fm-date').value : null;
+        const template = document.getElementById('fm-template').value.trim();
+        const excerpt = document.getElementById('fm-excerpt').value.trim();
+        const metaTitle = document.getElementById('fm-meta-title').value.trim();
+        const metaDesc = document.getElementById('fm-meta-desc').value.trim();
+        const ogImage = document.getElementById('fm-og-image').value.trim();
+        const noindex = document.getElementById('fm-noindex').checked;
+        
+        // Collect taxonomy values
+        const taxValues = {};
+        if (CONFIG.taxonomies) {
+            CONFIG.taxonomies.forEach(tax => {
+                const el = document.getElementById('fm-tax-' + tax);
+                if (el) {
+                    const selected = Array.from(el.selectedOptions).map(o => o.value);
+                    if (selected.length > 0) {
+                        taxValues[tax] = selected;
+                    }
+                }
+            });
+        }
+        
+        // Build frontmatter object
+        let newFm = {
+            id: crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            }),
+            title: title,
+            slug: slug,
+            status: status,
+        };
+        
+        if (date) newFm.date = date;
+        if (template) newFm.template = template;
+        if (excerpt) newFm.excerpt = excerpt;
+        
+        // Add taxonomy values
+        for (const [tax, vals] of Object.entries(taxValues)) {
+            newFm[tax] = vals;
+        }
+        
+        // SEO fields
+        if (metaTitle) newFm.meta_title = metaTitle;
+        if (metaDesc) newFm.meta_description = metaDesc;
+        if (ogImage) newFm.og_image = ogImage;
+        if (noindex) newFm.noindex = true;
+        
+        // YAML value formatter
+        function yamlValue(val) {
+            if (typeof val === 'boolean') return val;
+            if (typeof val === 'number') return val;
+            const str = String(val);
+            if (/[:#\[\]{}|>&*!?'"]/.test(str) || str !== str.trim() || str === '') {
+                return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+            }
+            return str;
+        }
+        
+        // Convert to YAML
+        let yaml = '';
+        for (const [key, val] of Object.entries(newFm)) {
+            if (Array.isArray(val)) {
+                yaml += `${key}:\n` + val.map(v => `  - ${yamlValue(v)}\n`).join('');
+            } else if (typeof val === 'boolean') {
+                yaml += `${key}: ${val}\n`;
+            } else {
+                yaml += `${key}: ${yamlValue(val)}\n`;
+            }
+        }
+        
+        const body = fmMatch ? content.slice(fmMatch[0].length + fmMatch.index) : content;
+        const defaultBody = body.trim();
+        let newBody = body;
+        if (defaultBody.startsWith('# New ') || defaultBody === '') {
+            newBody = `# ${title}\n\nStart writing your content here...\n`;
+        }
+        
+        setEditorContent(`---\n${yaml}---\n\n${newBody.replace(/^\n+/, '')}`);
+        closeFrontmatterGenerator();
+    };
+    
+    window.generateSlug = function(title) {
+        return title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    };
+    
+    window.generateFilenameFromContent = function() {
+        const content = getPlainText();
+        const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        if (!fmMatch) {
+            alert('No frontmatter found. Add frontmatter first.');
+            return;
+        }
+        
+        const parsed = parseYamlFrontmatter(fmMatch[1]);
+        const slug = parsed.slug || generateSlug(parsed.title || 'untitled');
+        const date = parsed.date || '';
+        
+        let filename = slug;
+        if (CONFIG.usesDate && date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            filename = date + '-' + slug;
+        }
+        
+        document.getElementById('filename').value = filename;
+    };
+    
+    // Validate filename
+    document.getElementById('filename').addEventListener('input', function(e) {
+        let val = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/--+/g, '-');
+        if (val !== this.value) {
+            this.value = val;
+        }
+    });
+    
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFrontmatterGenerator(); });
+})();
 </script>
 

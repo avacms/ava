@@ -1,0 +1,112 @@
+/**
+ * CodeMirror 6 Container Styles for Ava CMS
+ */
+
+/* Editor container (supports both .cm-wrapper and .codemirror-container) */
+.codemirror-container,
+.cm-wrapper {
+    height: 100%;
+    min-height: 200px;
+    overflow: hidden;
+}
+
+.codemirror-container .cm-editor,
+.cm-wrapper .cm-editor {
+    height: 100%;
+}
+
+.codemirror-container .cm-scroller,
+.cm-wrapper .cm-scroller {
+    overflow: auto;
+    font-family: var(--font-mono, 'SF Mono', 'Fira Code', 'Consolas', monospace);
+}
+
+/* Match Ava focus styles */
+.codemirror-container .cm-editor.cm-focused,
+.cm-wrapper .cm-editor.cm-focused {
+    outline: none;
+}
+
+.codemirror-container:focus-within,
+.cm-wrapper:focus-within {
+    box-shadow: 0 0 0 2px var(--accent-subtle, rgba(129, 140, 248, 0.12));
+}
+
+/* Placeholder text */
+.codemirror-container .cm-placeholder,
+.cm-wrapper .cm-placeholder {
+    color: var(--text-tertiary, #71717a);
+    font-style: italic;
+}
+
+/* Scrollbar styling for dark theme */
+.codemirror-container .cm-scroller::-webkit-scrollbar,
+.cm-wrapper .cm-scroller::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.codemirror-container .cm-scroller::-webkit-scrollbar-track,
+.cm-wrapper .cm-scroller::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.codemirror-container .cm-scroller::-webkit-scrollbar-thumb,
+.cm-wrapper .cm-scroller::-webkit-scrollbar-thumb {
+    background: var(--border, #2e2e33);
+    border-radius: 4px;
+}
+
+.codemirror-container .cm-scroller::-webkit-scrollbar-thumb:hover,
+.cm-wrapper .cm-scroller::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light, #3a3a40);
+}
+
+/* Raw file editor specific */
+.editor-wrapper .codemirror-container {
+    flex: 1;
+    min-height: 400px;
+}
+
+/* Field editor markdown area */
+.ce-editor-wrapper .codemirror-container {
+    flex: 1;
+    min-height: 300px;
+}
+
+/* Fullscreen mode */
+.ce-editor.ce-fullscreen .codemirror-container,
+.ce-editor.ce-fullscreen .cm-wrapper {
+    border-radius: 0;
+}
+
+/* ========================================
+   Line Wrap Modes
+   ======================================== */
+
+/* Full width wrapping (default) */
+.cm-wrap-full .cm-content {
+    max-width: none;
+}
+
+/* Narrow centered column */
+.cm-wrap-narrow .cm-content {
+    max-width: 70ch;
+    margin: 0 auto;
+    padding-left: var(--sp-4, 1rem);
+    padding-right: var(--sp-4, 1rem);
+}
+
+.cm-wrap-narrow .cm-line {
+    max-width: 70ch;
+}
+
+/* No wrapping - horizontal scroll */
+.cm-wrap-none .cm-content {
+    white-space: pre;
+    max-width: none;
+}
+
+.cm-wrap-none .cm-line {
+    white-space: pre;
+}

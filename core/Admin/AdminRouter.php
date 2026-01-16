@@ -529,6 +529,7 @@ final class AdminRouter
 
             // CSP tuned for the current admin templates (inline theme CSS + inline JS + Google font stylesheet).
             // If you later remove inline handlers/scripts, you can tighten script-src/style-src.
+            // esm.sh is allowed for CodeMirror editor loading via ESM CDN.
             'Content-Security-Policy' => implode('; ', [
                 "default-src 'self'",
                 "base-uri 'none'",
@@ -538,8 +539,8 @@ final class AdminRouter
                 "img-src 'self' data: blob:",
                 "font-src 'self' https://fonts.gstatic.com data:",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-                "script-src 'self' 'unsafe-inline'",
-                "connect-src 'self'",
+                "script-src 'self' 'unsafe-inline' https://esm.sh",
+                "connect-src 'self' https://esm.sh",
             ]),
         ];
 

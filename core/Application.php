@@ -399,16 +399,18 @@ final class Application
      * 
      * This serves:
      * - Core admin CSS from core/Admin/ (admin.css)
+     * - Core admin assets from core/Admin/assets/ (codemirror, etc.)
      * - Plugin assets from app/plugins/{name}/assets/
      * - Other public assets from public/assets/
      */
     private function registerAdminAssetsRoute(): void
     {
         $corePath = $this->path('core/Admin');
+        $coreAssetsPath = $this->path('core/Admin/assets');
         $publicPath = $this->path('public/assets');
         $pluginsPath = $this->configPath('plugins');
 
-        $this->router()->addPrefixRoute('/admin-assets/', function (Request $request) use ($corePath, $publicPath, $pluginsPath) {
+        $this->router()->addPrefixRoute('/admin-assets/', function (Request $request) use ($corePath, $coreAssetsPath, $publicPath, $pluginsPath) {
             $path = $request->path();
             // Remove /admin-assets/ prefix
             $assetPath = substr($path, 14);
@@ -420,6 +422,17 @@ final class Application
                     return $this->serveAsset($adminCssPath);
                 }
                 return null;
+            }
+
+            // Serve core assets from core/Admin/assets/ (e.g., codemirror)
+            $coreAssetsDir = realpath($coreAssetsPath);
+            if ($coreAssetsDir !== false) {
+                $fullPath = $coreAssetsDir . '/' . $assetPath;
+                $realPath = realpath($fullPath);
+                
+                if ($realPath !== false && str_starts_with($realPath, $coreAssetsDir . '/') && is_file($realPath)) {
+                    return $this->serveAsset($realPath);
+                }
             }
 
             // Check if this is a plugin asset request: /admin-assets/plugin-name/...

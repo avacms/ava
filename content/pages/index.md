@@ -2,10 +2,19 @@
 title: Home
 slug: index
 status: published
+order: 1
 excerpt: test
+meta_title: testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest
 subtitle: testtesttesttest
+arraytest:
+  test: test2test2
+  testtest: test2test2
 summary: testttt
-featured: false
+layout: full
+featured: true
+display_order: 4
+external_link: test
+contact_email: test@test.com
 ---
 
 # Welcome to Ava 👋

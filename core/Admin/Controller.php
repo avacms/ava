@@ -748,6 +748,7 @@ final class Controller
             'activePage' => 'content-' . $type,
             // Don't set alertError - the view handles error display inline
             'headerActions' => '<a href="https://ava.addy.zone" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">menu_book</span>Docs</a>',
+            'useCodeMirror' => true,
         ];
 
         return Response::html($this->render('content/content-create', $data, $layout));
@@ -811,8 +812,8 @@ final class Controller
                     // Check which editor mode was used
                     $editorMode = $request->post('_editor_mode', 'raw');
                     
-                    if ($editorMode === 'focused') {
-                        // Handle focused editor form submission
+                    if ($editorMode === 'focused' || $editorMode === 'visual') {
+                        // Handle visual/focused editor form submission (both use same field structure)
                         $result = $this->handleFocusedFormSubmission($request, $item, $type, $typeConfig, $file);
                         if ($result['success']) {
                             $successMessage = $result['message'];
@@ -940,13 +941,12 @@ final class Controller
         // For URLs, convert slashes back to pipes
         $fileParam = str_replace('/', '|', $file);
 
-        // Editor mode: 'raw' for raw file editing, 'focused' for structured fields
-        // Default to focused mode unless explicitly set or user prefers raw
-        $mode = $request->query('mode', 'raw');
+        // Editor mode: 'visual' (default field-based editor), 'raw' (raw YAML+MD file)
+        $mode = $request->query('mode', 'visual');
         
-        // Create field renderer for focused mode
+        // Create field renderer for visual mode
         $fieldRenderer = null;
-        if ($mode === 'focused') {
+        if ($mode === 'visual') {
             $fieldRenderer = new \Ava\Fields\FieldRenderer($this->app);
         }
         
@@ -978,13 +978,22 @@ final class Controller
             'icon' => 'edit',
             'activePage' => 'content-' . $type,
             // Don't set alertError - the view handles error display inline
-            'headerActions' => '<a href="https://ava.addy.zone" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">menu_book</span>Docs</a>',
+            'headerActions' => ($mode === 'raw') ? '' : '<a href="https://ava.addy.zone" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm"><span class="material-symbols-rounded">menu_book</span>Docs</a>',
+            'hidePageHeader' => ($mode !== 'raw'), // Visual editor has its own header
+            'useCodeMirror' => true,
         ];
 
-        // Choose view based on mode
-        $viewName = ($mode === 'focused') ? 'content/content-edit-focused' : 'content/content-edit';
+        // Choose view based on mode:
+        // - 'visual' = new unified field-based editor (default)
+        // - 'raw' = raw YAML + Markdown file editing
+        if ($mode === 'raw') {
+            $viewName = 'content/content-edit';
+        } else {
+            $viewName = 'content/content-editor';
+        }
 
         return Response::html($this->render($viewName, $data, $layout));
+
     }
 
     /**
@@ -1449,6 +1458,17 @@ final class Controller
             $frontmatter['date'] = $fields['date'];
         }
         
+        // Updated date
+        if (!empty($fields['updated'])) {
+            $frontmatter['updated'] = $fields['updated'];
+        }
+        
+        // Order (for manual sorting)
+        $usesOrder = ($typeConfig['sorting'] ?? '') === 'manual';
+        if ($usesOrder && isset($fields['order']) && $fields['order'] !== '') {
+            $frontmatter['order'] = (int) $fields['order'];
+        }
+        
         // Taxonomies
         foreach ($typeConfig['taxonomies'] ?? [] as $taxName) {
             $taxValue = $fields[$taxName] ?? [];
@@ -1480,6 +1500,9 @@ final class Controller
         if (!empty($fields['og_image'])) {
             $frontmatter['og_image'] = $fields['og_image'];
         }
+        if (!empty($fields['canonical'])) {
+            $frontmatter['canonical'] = $fields['canonical'];
+        }
         if (!empty($fields['noindex'])) {
             $frontmatter['noindex'] = true;
         }
@@ -1488,13 +1511,29 @@ final class Controller
         if (!empty($fields['template'])) {
             $frontmatter['template'] = $fields['template'];
         }
-        if (isset($fields['cache']) && !$fields['cache']) {
-            $frontmatter['cache'] = false;
+        if (!isset($fields['cache']) || !$fields['cache']) {
+            // Only set cache: false if explicitly unchecked
+            if (isset($fields['cache']) && !$fields['cache']) {
+                $frontmatter['cache'] = false;
+            }
         }
         if (!empty($fields['redirect_from'])) {
             $redirects = array_filter($fields['redirect_from'], fn($v) => !empty($v));
             if (!empty($redirects)) {
                 $frontmatter['redirect_from'] = array_values($redirects);
+            }
+        }
+        
+        // Per-page assets
+        $cssAssets = array_filter($fields['assets_css'] ?? [], fn($v) => !empty($v));
+        $jsAssets = array_filter($fields['assets_js'] ?? [], fn($v) => !empty($v));
+        if (!empty($cssAssets) || !empty($jsAssets)) {
+            $frontmatter['assets'] = [];
+            if (!empty($cssAssets)) {
+                $frontmatter['assets']['css'] = array_values($cssAssets);
+            }
+            if (!empty($jsAssets)) {
+                $frontmatter['assets']['js'] = array_values($jsAssets);
             }
         }
         
@@ -1523,7 +1562,7 @@ final class Controller
         }
         
         $this->auth->regenerateCsrf();
-        $this->logAction('INFO', "Updated {$type} '{$title}' (file: {$newFilename}.md, slug: {$newSlug}) via focused editor");
+        $this->logAction('INFO', "Updated {$type} '{$title}' (file: {$newFilename}.md, slug: {$newSlug}) via visual editor");
         
         // Return success with optional redirect
         $redirect = null;
@@ -1531,7 +1570,7 @@ final class Controller
             $dir = dirname($file);
             $newFile = ($dir === '.' ? '' : $dir . '/') . $newFilename;
             $newFileParam = str_replace('/', '|', $newFile);
-            $redirect = $this->adminUrl() . '/content/' . $type . '/edit?file=' . urlencode($newFileParam) . '&mode=focused&saved=1';
+            $redirect = $this->adminUrl() . '/content/' . $type . '/edit?file=' . urlencode($newFileParam) . '&saved=1';
         }
         
         return [
@@ -1953,17 +1992,27 @@ JS;
         }
 
         $folder = $request->query('folder', '');
-        $files = $uploader->listFiles($folder !== '' ? $folder : null);
+        
+        // If no folder specified, list all files recursively
+        // Otherwise list files in the specific folder only
+        if ($folder === '') {
+            $files = $uploader->listFilesRecursive();
+        } else {
+            $files = $uploader->listFiles($folder);
+        }
+        
         $folders = $uploader->getExistingFolders();
 
-        // Add URL to each file for media picker
-        $baseUrl = rtrim($this->app->config('site.base_url', ''), '/');
-        $mediaPath = ltrim($uploader->getMediaPath(), '/');
+        // Build relative URL for media files (relative to site root)
+        // Use relative path so it works regardless of base_url config
+        $mediaDir = $this->app->config('admin.media.path', 'public/media');
+        // Strip 'public/' prefix if present for URL
+        $mediaUrlPath = preg_replace('#^public/#', '', $mediaDir);
 
-        $fileData = array_map(function ($file) use ($baseUrl, $mediaPath) {
-            // Build URL from the file path
+        $fileData = array_map(function ($file) use ($mediaUrlPath) {
+            // Build relative URL from the file path
             $path = $file['path'] ?? $file['name'];
-            $url = $baseUrl . '/' . $mediaPath . '/' . ltrim($path, '/');
+            $url = '/' . $mediaUrlPath . '/' . ltrim($path, '/');
 
             return [
                 'name' => $file['name'],
@@ -2884,6 +2933,8 @@ JS;
                 'alertSuccess' => $layout['alertSuccess'] ?? null,
                 'alertError' => $layout['alertError'] ?? null,
                 'alertWarning' => $layout['alertWarning'] ?? null,
+                'hidePageHeader' => $layout['hidePageHeader'] ?? false,
+                'useCodeMirror' => $layout['useCodeMirror'] ?? false,
                 'pageContent' => $pageContent,
                 'pageScripts' => $layout['scripts'] ?? null,
             ]);

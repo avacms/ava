@@ -5,7 +5,11 @@
  * Required variables:
  * - $fileIcon: string (Material symbol name)
  * - $currentFilename: string
+ * 
+ * Optional variables:
+ * - $showEditorActions: bool (show wrap/fullscreen buttons)
  */
+$showEditorActions = $showEditorActions ?? true;
 ?>
 <div class="editor-header">
     <div class="editor-file-info">
@@ -19,13 +23,16 @@
                    autocomplete="off"
                    spellcheck="false">
             <span class="filename-ext">.md</span>
-            <button type="button" class="btn-icon-inline" onclick="generateFilenameFromContent()" title="Generate filename from date and slug">
-                <span class="material-symbols-rounded">auto_fix_high</span>
-            </button>
         </div>
-        <button type="button" class="btn-frontmatter" onclick="openFrontmatterGenerator()" title="Generate frontmatter fields">
-            <span class="material-symbols-rounded">edit_note</span>
-            <span>Frontmatter</span>
+    </div>
+    <?php if ($showEditorActions): ?>
+    <div class="editor-header-actions">
+        <button type="button" class="editor-action-btn" id="wrap-toggle" title="Line wrap: Full width">
+            <span class="material-symbols-rounded">wrap_text</span>
+        </button>
+        <button type="button" class="editor-action-btn" id="fullscreen-toggle" title="Fullscreen (Esc to exit)">
+            <span class="material-symbols-rounded">fullscreen</span>
         </button>
     </div>
+    <?php endif; ?>
 </div>

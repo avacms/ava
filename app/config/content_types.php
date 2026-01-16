@@ -61,6 +61,7 @@ return [
                 'label'       => 'Array Test',
                 'description' => 'An array field for testing',
                 'group'       => 'content',
+                'keyValue'    => true,
             ],
 
             // Textarea for longer content

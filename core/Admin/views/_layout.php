@@ -35,6 +35,14 @@ $adminCssFile = dirname(__DIR__) . '/admin.css';
 if (file_exists($adminCssFile)) {
     $adminCssPath .= '?v=' . filemtime($adminCssFile);
 }
+
+// CodeMirror assets (only loaded on editor pages when $useCodeMirror is true)
+$cmCssPath = '/admin-assets/codemirror/codemirror.css';
+$cmJsPath = '/admin-assets/codemirror/codemirror-init.js';
+$cmCssFile = dirname(__DIR__) . '/assets/codemirror/codemirror.css';
+if (file_exists($cmCssFile)) {
+    $cmCssPath .= '?v=' . filemtime($cmCssFile);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" data-accent="<?= htmlspecialchars($adminTheme ?? 'cyan') ?>">
@@ -45,6 +53,10 @@ if (file_exists($adminCssFile)) {
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
     <link rel="stylesheet" href="<?= htmlspecialchars($adminCssPath) ?>">
+    <?php if (!empty($useCodeMirror)): ?>
+    <link rel="stylesheet" href="<?= htmlspecialchars($cmCssPath) ?>">
+    <script type="module" src="<?= htmlspecialchars($cmJsPath) ?>"></script>
+    <?php endif; ?>
     <?php include __DIR__ . '/_theme.php'; ?>
 </head>
 <body>
@@ -116,6 +128,7 @@ if (file_exists($adminCssFile)) {
             </div>
             <?php endif; ?>
 
+            <?php if (empty($hidePageHeader)): ?>
             <div class="page-header">
                 <h1 class="page-title">
                     <span class="material-symbols-rounded"><?= htmlspecialchars($pageIcon ?? 'extension') ?></span>
@@ -127,6 +140,7 @@ if (file_exists($adminCssFile)) {
                 </div>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
 
             <?= $pageContent ?? '' ?>
             

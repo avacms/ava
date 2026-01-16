@@ -70,7 +70,8 @@ final class ArrayField extends AbstractFieldType
             return ValidationResult::error('Value must be an array.');
         }
 
-        $associative = $config['associative'] ?? false;
+        // Support both 'associative' and 'keyValue' config options
+        $associative = $config['associative'] ?? $config['keyValue'] ?? false;
         $allowEmptyValues = $config['allowEmptyValues'] ?? true;
         $count = count($value);
 
@@ -107,7 +108,8 @@ final class ArrayField extends AbstractFieldType
             return [];
         }
 
-        $associative = $config['associative'] ?? false;
+        // Support both 'associative' and 'keyValue' config options
+        $associative = $config['associative'] ?? $config['keyValue'] ?? false;
 
         if ($associative) {
             // Filter out entries with empty keys
@@ -139,7 +141,8 @@ final class ArrayField extends AbstractFieldType
             return [];
         }
 
-        $associative = $config['associative'] ?? false;
+        // Support both 'associative' and 'keyValue' config options
+        $associative = $config['associative'] ?? $config['keyValue'] ?? false;
 
         if ($associative) {
             // Convert to [['key' => k, 'value' => v], ...] for editing
