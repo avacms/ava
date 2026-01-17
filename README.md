@@ -199,7 +199,7 @@ Feedback and suggestions are always welcome! If you're trying Ava and face any f
 
 ## 📄 License
 
-**Ava CMS is provided as free, open-source software without warranty. It is under active development and may contain bugs or security issues. You are responsible for reviewing, testing, and securing any deployment.**
+**Ava CMS is provided as free, open-source software without warranty (GNU General Public License). It is under active development and may contain bugs or security issues. You are responsible for reviewing, testing, and securing any deployment.**
 
 Copyright (c) 2025-2026 Adam Greenough
 
