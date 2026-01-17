@@ -146,6 +146,7 @@ final class Application
         $this->commands['update'] = [$this, 'cmdUpdateCheck']; // Alias for update:check
         $this->commands['update:check'] = [$this, 'cmdUpdateCheck'];
         $this->commands['update:apply'] = [$this, 'cmdUpdateApply'];
+        $this->commands['update:stale'] = [$this, 'cmdUpdateStale'];
     }
 
     /**
@@ -1096,6 +1097,83 @@ final class Application
         });
         $this->success('Content index rebuilt.');
 
+        $this->writeln('');
+        return 0;
+    }
+
+    /**
+     * Detect stale files left from older releases.
+     *
+     * Options:
+     *   --dev    Compare against the latest commit on main branch
+     *   -d       Same as --dev
+     */
+    private function cmdUpdateStale(array $args): int
+    {
+        $this->writeln('');
+
+        $devMode = in_array('--dev', $args, true) || in_array('-d', $args, true);
+        $updater = new \Ava\Updater($this->app);
+
+        // Check for custom paths - detection is blocked entirely
+        $pathCheck = $updater->checkPathSafety();
+        if (!$pathCheck['safe']) {
+            $this->box('Stale file scan disabled', 'error');
+            $this->writeln('');
+            $this->writeln('  Your site uses custom paths that differ from Ava defaults:');
+            $this->writeln('');
+            foreach ($pathCheck['custom_paths'] as $key => $info) {
+                $this->writeln('    ' . $this->color($key, self::BOLD) . ': ' . $this->color($info['configured'], self::YELLOW));
+                $this->writeln('    ' . $this->color('Expected:', self::DIM) . ' ' . $info['default']);
+                $this->writeln('');
+            }
+            $this->writeln('  The stale file scan relies on default paths to compare files');
+            $this->writeln('  safely. Please scan manually if you use custom paths.');
+            $this->writeln('');
+            return 1;
+        }
+
+        $result = $this->withSpinner('Scanning for stale files', function () use ($updater, $devMode) {
+            return $updater->detectStaleFiles(null, $devMode);
+        });
+
+        if (!$result['success']) {
+            $this->error($result['message']);
+            return 1;
+        }
+
+        $this->keyValue('Compared to', $this->color($result['compared_to'], self::BOLD));
+
+        $staleFiles = $result['stale_files'] ?? [];
+        $count = count($staleFiles);
+
+        if ($count === 0) {
+            $this->writeln('');
+            $this->box('No stale files found', 'success');
+            $this->writeln('');
+            return 0;
+        }
+
+        $this->writeln('');
+        $this->box("Found {$count} stale file(s)", 'warning');
+        $this->writeln('');
+
+        $max = 200;
+        $shown = 0;
+        foreach ($staleFiles as $file) {
+            $this->writeln('  ' . $this->color('•', self::PRIMARY) . ' ' . $file);
+            $shown++;
+            if ($shown >= $max) {
+                $remaining = $count - $shown;
+                if ($remaining > 0) {
+                    $this->writeln('  ' . $this->color("... {$remaining} more", self::DIM));
+                }
+                break;
+            }
+        }
+
+        $this->writeln('');
+        $this->tip('Review before deleting any files');
         $this->writeln('');
         return 0;
     }
@@ -2535,6 +2613,7 @@ final class Application
         $this->sectionHeader('Updates');
         $this->commandItem('update:check (or update)', 'Check for updates');
         $this->commandItem('update:apply', 'Apply available update');
+        $this->commandItem('update:stale', 'Detect stale files from older releases');
 
         $this->sectionHeader('Testing');
         $this->commandItem('test [filter]', 'Run the test suite');

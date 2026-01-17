@@ -313,6 +313,156 @@ final class Updater
     }
 
     /**
+     * Detect stale files left from older releases.
+     *
+     * @param string|null $version Specific version to compare against (null = latest)
+     * @param bool $dev If true, compare against latest commit on main branch
+     * @return array{success: bool, message: string, compared_to: string, stale_files: string[]}
+     */
+    public function detectStaleFiles(?string $version = null, bool $dev = false): array
+    {
+        $pathCheck = $this->checkPathSafety();
+        if (!$pathCheck['safe']) {
+            return [
+                'success' => false,
+                'message' => 'Stale file scan blocked due to custom paths. Please scan manually.',
+                'compared_to' => $this->currentVersion(),
+                'stale_files' => [],
+            ];
+        }
+
+        $zipFile = null;
+        $extractDir = null;
+
+        try {
+            if ($dev) {
+                $commit = $this->fetchLatestCommit();
+                if ($commit === null) {
+                    return [
+                        'success' => false,
+                        'message' => 'Could not fetch latest commit from GitHub',
+                        'compared_to' => 'main (latest commit)',
+                        'stale_files' => [],
+                    ];
+                }
+                $shortSha = substr($commit['sha'], 0, 7);
+                $compareLabel = 'main (latest commit)';
+                $zipUrl = $this->getBranchZipUrl();
+                $tempSuffix = 'dev-' . $shortSha;
+            } else {
+                if ($version === null) {
+                    $release = $this->fetchLatestRelease();
+                } else {
+                    $release = $this->fetchRelease($version);
+                }
+
+                if ($release === null) {
+                    return [
+                        'success' => false,
+                        'message' => 'Could not fetch release from GitHub',
+                        'compared_to' => $this->currentVersion(),
+                        'stale_files' => [],
+                    ];
+                }
+
+                $newVersion = ltrim($release['tag_name'], 'v');
+                $compareLabel = $newVersion;
+                $zipUrl = $release['zipball_url'] ?? null;
+                $tempSuffix = $newVersion;
+            }
+
+            if (!$zipUrl) {
+                return [
+                    'success' => false,
+                    'message' => 'No download URL available for this release',
+                    'compared_to' => $this->currentVersion(),
+                    'stale_files' => [],
+                ];
+            }
+
+            $tempDir = $this->app->path('storage/tmp');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $safeSuffix = preg_replace('/[^A-Za-z0-9._-]/', '_', $tempSuffix ?? 'latest');
+            $zipFile = $tempDir . '/ava-stale-' . $safeSuffix . '.zip';
+            $extractDir = $tempDir . '/ava-stale-' . $safeSuffix;
+
+            $this->download($zipUrl, $zipFile);
+            $this->extract($zipFile, $extractDir);
+
+            $dirs = glob($extractDir . '/*', GLOB_ONLYDIR);
+            if (empty($dirs)) {
+                throw new \RuntimeException('Could not find extracted files');
+            }
+            $sourceDir = $dirs[0];
+
+            $rootDir = $this->app->path('');
+            $expected = [];
+            $actual = [];
+
+            foreach ($this->updateDirs as $path) {
+                $expected = array_merge($expected, $this->collectFiles($sourceDir . '/' . $path, $path));
+                $actual = array_merge($actual, $this->collectFiles($rootDir . '/' . $path, $path));
+            }
+
+            $pluginsSource = $sourceDir . '/app/plugins';
+            if (!is_dir($pluginsSource)) {
+                $pluginsSource = $sourceDir . '/plugins';
+            }
+
+            $releasePlugins = [];
+            if (is_dir($pluginsSource)) {
+                $releaseBundled = glob($pluginsSource . '/*', GLOB_ONLYDIR) ?: [];
+                foreach ($releaseBundled as $pluginDir) {
+                    $releasePlugins[] = basename($pluginDir);
+                }
+            }
+
+            if (empty($releasePlugins)) {
+                $releasePlugins = $this->bundledPlugins;
+            }
+
+            foreach ($releasePlugins as $plugin) {
+                $expected = array_merge($expected, $this->collectFiles($pluginsSource . '/' . $plugin, 'app/plugins/' . $plugin));
+            }
+
+            $pluginsToCheck = array_unique(array_merge($releasePlugins, $this->bundledPlugins));
+            foreach ($pluginsToCheck as $plugin) {
+                $actual = array_merge($actual, $this->collectFiles($rootDir . '/app/plugins/' . $plugin, 'app/plugins/' . $plugin));
+            }
+
+            $expected = array_values(array_unique($expected));
+            $actual = array_values(array_unique($actual));
+
+            $stale = array_values(array_diff($actual, $expected));
+            sort($stale, SORT_STRING);
+
+            return [
+                'success' => true,
+                'message' => 'Stale file scan completed',
+                'compared_to' => $compareLabel,
+                'stale_files' => $stale,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Stale file scan failed: ' . $e->getMessage(),
+                'compared_to' => $this->currentVersion(),
+                'stale_files' => [],
+            ];
+        } finally {
+            if ($zipFile && file_exists($zipFile)) {
+                @unlink($zipFile);
+            }
+            if ($extractDir && is_dir($extractDir)) {
+                $this->removeDirectory($extractDir);
+            }
+        }
+    }
+
+    /**
      * Fetch latest release from GitHub API.
      */
     private function fetchLatestRelease(): ?array
@@ -557,6 +707,45 @@ final class Updater
         if (!@copy($source, $dest)) {
             throw new \RuntimeException("Failed to copy file: {$source} -> {$dest}");
         }
+    }
+
+    /**
+     * Collect all files under a path and return normalized, prefixed paths.
+     *
+     * @return string[]
+     */
+    private function collectFiles(string $path, string $prefix): array
+    {
+        if (!file_exists($path)) {
+            return [];
+        }
+
+        if (is_file($path)) {
+            return [$this->normalizePath($prefix)];
+        }
+
+        $files = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                continue;
+            }
+            $relative = substr($item->getPathname(), strlen($path) + 1);
+            $files[] = $this->normalizePath($prefix . '/' . $relative);
+        }
+
+        return $files;
+    }
+
+    /**
+     * Normalize paths to use forward slashes.
+     */
+    private function normalizePath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 
     /**
