@@ -12,7 +12,7 @@
 
 ---
 
-![Ava CMS screenshots](https://ava.addy.zone/media/screenshots.png#1)
+![Ava CMS screenshots](https://ava.addy.zone/media/screenshots.webp)
 
 ---
 
@@ -29,7 +29,7 @@ Ava CMS is a modern flat-file CMS for people who want a website they can **under
 
 Your content lives on disk as plain files, not rows in a database or records in a proprietary system. Create a Markdown file and you have a page. Edit it, refresh your browser, and it’s live.
 
-Your site stays readable, portable, and fully yours:
+Your site stays readable, portable, and fully yours. No proprietary formats. No hidden layers. Just files in, website out.
 
 ```text
 your-site/
@@ -49,14 +49,12 @@ your-site/
 └── ava            # CLI tool
 ```
 
-No proprietary formats. No hidden layers. Just files in, website out.
-
 Ava CMS is not a “one-click” CMS, and it doesn’t try to be. It trades heavy admin interfaces and complex deployment pipelines for speed, clarity, and control. If you’re comfortable editing files, writing a little HTML, and checking documentation — or want a CMS that grows with you as you learn — Ava fits naturally into your workflow.
 
 ## ✨ Why Ava?
 
 - 📝 **Markdown & HTML** — Write fast in Markdown, drop into HTML when you need total control.
-- ⚡ **Instant feedback** — No build step or deploy queue. Edit a file, refresh, done.
+- ⚡ **Instant feedback** — No complicated build steps or deploy queue. Edit a file, refresh, done with automatic indexing.
 - 🎨 **Design freedom** — Plain PHP templates with standard HTML/CSS. Ava CMS stays out of your way.
 - 🧩 **Flexible content modeling** — Define blogs, portfolios, events, catalogs, or anything else using custom content types and fields.
 - 🚀 **Dynamic features without bloat** — Search, filtering, pagination and sorting work out of the box.
@@ -164,6 +162,7 @@ Documentation lives at **https://ava.addy.zone/**.
 
 - [Getting Started](https://ava.addy.zone/docs)
 - [Configuration](https://ava.addy.zone/docs/configuration)
+- [Admin Dashboard](https://ava.addy.zone/docs/admin)
 - [Theming](https://ava.addy.zone/docs/theming)
 - [CLI](https://ava.addy.zone/docs/cli)
 - [Plugin Development](https://ava.addy.zone/docs/creating-plugins)
@@ -180,7 +179,6 @@ Ava includes a simple hook-based plugin system, and theming is just PHP template
 
 Ava is designed to be blazing fast, whether you have 100 pages or 100,000:
 
-- **No manual build step**: publish instantly (indexing is automatic).
 - **Tiered caching**: avoid repeating expensive work on every request.
 - **Page caching** (optional): serve cached HTML to bypass PHP for most visitors.
 - **Switchable engines**: use the default binaries for best performance on most sites or seamlessly switch to SQLite for massive sites or low-memory environments.
