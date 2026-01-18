@@ -51,9 +51,13 @@ final class WebpageCache
     }
 
     /**
-     * Check if a request is cacheable.
+     * Check if a request is cacheable for READING from cache.
+     * 
+     * This is used to determine if we should serve a cached page.
+     * We serve cached pages to everyone, including admins - if the cache
+     * file exists, it was valid when generated.
      */
-    public function isCacheable(Request $request): bool
+    public function isCacheableForRead(Request $request): bool
     {
         if (!$this->enabled) {
             return false;
@@ -77,11 +81,6 @@ final class WebpageCache
             return false;
         }
 
-        // Don't cache if user is logged in
-        if ($this->isUserLoggedIn()) {
-            return false;
-        }
-
         // Check exclusion patterns
         $path = $request->path();
         foreach ($this->exclude as $pattern) {
@@ -94,11 +93,41 @@ final class WebpageCache
     }
 
     /**
+     * Check if a request is cacheable for WRITING to cache.
+     * 
+     * This is more restrictive than read - we don't cache when an admin
+     * is logged in because they might be viewing preview/draft content.
+     */
+    public function isCacheableForWrite(Request $request): bool
+    {
+        if (!$this->isCacheableForRead($request)) {
+            return false;
+        }
+
+        // Don't cache if user is logged in (they might see preview/draft content)
+        if ($this->isUserLoggedIn()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if a request is cacheable.
+     * 
+     * @deprecated Use isCacheableForRead() or isCacheableForWrite() for clarity
+     */
+    public function isCacheable(Request $request): bool
+    {
+        return $this->isCacheableForWrite($request);
+    }
+
+    /**
      * Get a cached response for the request.
      */
     public function get(Request $request): ?Response
     {
-        if (!$this->isCacheable($request)) {
+        if (!$this->isCacheableForRead($request)) {
             return null;
         }
 
@@ -171,8 +200,8 @@ final class WebpageCache
             return;
         }
 
-        // If content doesn't explicitly enable caching, check if request is cacheable
-        if ($contentCacheOverride !== true && !$this->isCacheable($request)) {
+        // If content doesn't explicitly enable caching, check if request is cacheable for writing
+        if ($contentCacheOverride !== true && !$this->isCacheableForWrite($request)) {
             return;
         }
 

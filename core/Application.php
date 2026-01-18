@@ -65,12 +65,10 @@ final class Application
             return null;
         }
 
-        // Check for admin session cookie (don't serve cache to logged-in users)
-        if (isset($_COOKIE['ava_admin'])) {
-            return null;
-        }
-
         // Try to get from cache
+        // Note: We serve cached pages to everyone, including admins, for static-site speeds.
+        // If the cache file exists, it was valid when generated (pages with cache:false don't get cached).
+        // Admin cookie only affects cache WRITES (to avoid caching preview/draft content).
         $webpageCache = $this->webpageCache();
         return $webpageCache->getWithoutFullCheck($request);
     }
