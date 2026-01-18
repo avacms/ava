@@ -83,6 +83,11 @@ final class AdminRouter
             return $this->handle('flushWebpageCache', $request);
         });
 
+        // Change index mode action (protected)
+        $router->addRoute($basePath . '/index-mode', function (Request $request) {
+            return $this->handle('changeIndexMode', $request);
+        });
+
         // System info (protected)
         $router->addRoute($basePath . '/system', function (Request $request) {
             return $this->handle('system', $request);
@@ -223,6 +228,7 @@ final class AdminRouter
             'dashboard' => $this->controller->dashboard($request),
             'rebuild' => $this->controller->rebuild($request),
             'flushWebpageCache' => $this->controller->flushWebpageCache($request),
+            'changeIndexMode' => $this->controller->changeIndexMode($request),
             'clearErrorLog' => $this->controller->clearErrorLog($request),
             'lint' => $this->controller->lint($request),
             'system' => $this->controller->system($request),

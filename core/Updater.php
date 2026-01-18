@@ -147,7 +147,16 @@ final class Updater
             }
 
             $latest = ltrim($release['tag_name'], 'v');
-            $available = version_compare($latest, $current, '>');
+            
+            // Special case: Version 25+ is assumed to be old CalVer format (2025, 2026, etc.)
+            // and should always be considered older than current semantic versions.
+            // If we ever reach version 25 in SemVer, we can revisit this logic!
+            $currentMajor = (int) explode('.', $current)[0];
+            if ($currentMajor >= 25) {
+                $available = false; // Treat CalVer versions as outdated
+            } else {
+                $available = version_compare($latest, $current, '>');
+            }
 
             $result = [
                 'available' => $available,

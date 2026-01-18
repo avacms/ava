@@ -322,6 +322,10 @@ final class Application
 
     /**
      * Register a route to serve theme assets with proper caching.
+     * 
+     * Security: Only serves files with allowed extensions (CSS, JS, images, fonts).
+     * Hidden files (dotfiles) and executable files (PHP, etc.) return 404.
+     * Treat your theme's assets/ folder as a public directory.
      */
     private function registerThemeAssetsRoute(string $theme): void
     {
@@ -331,6 +335,12 @@ final class Application
             $path = $request->path();
             // Remove /theme/ prefix
             $assetPath = substr($path, 7);
+
+            // Security: block hidden files (dotfiles like .env, .htaccess)
+            $filename = basename($assetPath);
+            if (str_starts_with($filename, '.')) {
+                return null; // 404
+            }
 
             // Security: prevent directory traversal using realpath validation
             // Note: str_replace('..', '') is insufficient as '....//etc/passwd' becomes '../etc/passwd'
@@ -351,36 +361,22 @@ final class Application
                 return null; // Let it 404
             }
 
-            $fullPath = $realPath;
+            // Security: only serve files with allowed extensions (allowlist)
+            // This prevents serving PHP source code or other sensitive files
+            $ext = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+            $allowedExtensions = $this->getAllowedAssetExtensions();
+            if (!isset($allowedExtensions[$ext])) {
+                return null; // 404 for disallowed extensions
+            }
 
-            // Determine content type
-            $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-            $contentTypes = [
-                'css' => 'text/css',
-                'js' => 'application/javascript',
-                'json' => 'application/json',
-                'svg' => 'image/svg+xml',
-                'png' => 'image/png',
-                'jpg' => 'image/jpeg',
-                'jpeg' => 'image/jpeg',
-                'gif' => 'image/gif',
-                'webp' => 'image/webp',
-                'woff' => 'font/woff',
-                'woff2' => 'font/woff2',
-                'ttf' => 'font/ttf',
-                'eot' => 'application/vnd.ms-fontobject',
-                'ico' => 'image/x-icon',
-            ];
-
-            $contentType = $contentTypes[$ext] ?? 'application/octet-stream';
-            $content = file_get_contents($fullPath);
-            $mtime = filemtime($fullPath);
+            $content = file_get_contents($realPath);
+            $mtime = filemtime($realPath);
 
             return new Response($content, 200, [
-                'Content-Type' => $contentType,
+                'Content-Type' => $allowedExtensions[$ext],
                 'Cache-Control' => 'public, max-age=31536000, immutable',
                 'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
-                'ETag' => '"' . md5_file($fullPath) . '"',
+                'ETag' => '"' . md5_file($realPath) . '"',
             ]);
         });
     }
@@ -471,33 +467,29 @@ final class Application
 
     /**
      * Serve a static asset file with appropriate headers.
+     * 
+     * Returns null for disallowed extensions or hidden files.
      */
-    private function serveAsset(string $fullPath): Response
+    private function serveAsset(string $fullPath): ?Response
     {
-        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-        $contentTypes = [
-            'css' => 'text/css',
-            'js' => 'application/javascript',
-            'json' => 'application/json',
-            'svg' => 'image/svg+xml',
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-            'woff' => 'font/woff',
-            'woff2' => 'font/woff2',
-            'ttf' => 'font/ttf',
-            'eot' => 'application/vnd.ms-fontobject',
-            'ico' => 'image/x-icon',
-        ];
+        // Security: block hidden files (dotfiles)
+        $filename = basename($fullPath);
+        if (str_starts_with($filename, '.')) {
+            return null;
+        }
 
-        $contentType = $contentTypes[$ext] ?? 'application/octet-stream';
+        // Security: only serve files with allowed extensions
+        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+        $allowedExtensions = $this->getAllowedAssetExtensions();
+        if (!isset($allowedExtensions[$ext])) {
+            return null;
+        }
+
         $content = file_get_contents($fullPath);
         $mtime = filemtime($fullPath);
 
         return new Response($content, 200, [
-            'Content-Type' => $contentType,
+            'Content-Type' => $allowedExtensions[$ext],
             'Cache-Control' => 'public, max-age=31536000, immutable',
             'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
             'ETag' => '"' . md5_file($fullPath) . '"',
@@ -563,5 +555,42 @@ final class Application
         }
 
         return $content . $comment;
+    }
+
+    /**
+     * Get the allowlist of permitted asset file extensions and their MIME types.
+     * 
+     * Only these file types can be served via /theme/ and /admin-assets/ routes.
+     * This prevents serving PHP source code, config files, or other sensitive files.
+     * 
+     * @return array<string, string> Extension => MIME type mapping
+     */
+    private function getAllowedAssetExtensions(): array
+    {
+        return [
+            // Stylesheets
+            'css'   => 'text/css',
+            // JavaScript
+            'js'    => 'application/javascript',
+            'mjs'   => 'application/javascript',
+            // Data formats
+            'json'  => 'application/json',
+            'map'   => 'application/json', // Source maps
+            // Images
+            'svg'   => 'image/svg+xml',
+            'png'   => 'image/png',
+            'jpg'   => 'image/jpeg',
+            'jpeg'  => 'image/jpeg',
+            'gif'   => 'image/gif',
+            'webp'  => 'image/webp',
+            'ico'   => 'image/x-icon',
+            'avif'  => 'image/avif',
+            // Fonts
+            'woff'  => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf'   => 'font/ttf',
+            'otf'   => 'font/otf',
+            'eot'   => 'application/vnd.ms-fontobject',
+        ];
     }
 }

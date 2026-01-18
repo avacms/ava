@@ -930,6 +930,7 @@ final class Indexer
      * Write a binary cache file atomically.
      * Uses igbinary if available and enabled (faster, smaller), otherwise PHP serialize.
      * Adds a format marker prefix for reliable deserialization.
+     * Includes HMAC signature to detect tampering.
      */
     private function writeBinaryCacheFile(string $filename, array $data): void
     {
@@ -949,14 +950,77 @@ final class Indexer
         if ($useIgbinary && extension_loaded('igbinary')) {
             /** @var callable $serialize */
             $serialize = 'igbinary_serialize';
-            $content = "IG:" . $serialize($data);
+            $payload = "IG:" . $serialize($data);
         } else {
-            $content = "SZ:" . serialize($data);
+            $payload = "SZ:" . serialize($data);
         }
+
+        // Sign the payload with HMAC to detect tampering
+        // Format: <32-byte HMAC><payload>
+        $key = self::getCacheSigningKey($cachePath);
+        $hmac = hash_hmac('sha256', $payload, $key, true);
+        $content = $hmac . $payload;
 
         file_put_contents($tmpPath, $content, LOCK_EX);
         rename($tmpPath, $targetPath);
         chmod($targetPath, 0644);
+    }
+
+    /**
+     * Get or create the cache signing key.
+     * The key is auto-generated and stored in the cache directory.
+     */
+    public static function getCacheSigningKey(string $cachePath): string
+    {
+        $keyFile = $cachePath . '/.cache_key';
+
+        if (file_exists($keyFile)) {
+            $key = file_get_contents($keyFile);
+            if ($key !== false && strlen($key) === 32) {
+                return $key;
+            }
+        }
+
+        // Generate a new 256-bit key
+        $key = random_bytes(32);
+
+        // Ensure cache directory exists
+        if (!is_dir($cachePath)) {
+            mkdir($cachePath, 0755, true);
+        }
+
+        // Write atomically
+        $tmpFile = $keyFile . '.tmp';
+        file_put_contents($tmpFile, $key, LOCK_EX);
+        rename($tmpFile, $keyFile);
+        chmod($keyFile, 0600); // Restrict permissions
+
+        return $key;
+    }
+
+    /**
+     * Verify HMAC signature and extract payload from a signed cache file.
+     * Returns null if verification fails.
+     */
+    public static function verifyAndExtractPayload(string $content, string $cachePath): ?string
+    {
+        // Minimum: 32 bytes HMAC + 3 bytes prefix + 1 byte data
+        if (strlen($content) < 36) {
+            return null;
+        }
+
+        $storedHmac = substr($content, 0, 32);
+        $payload = substr($content, 32);
+
+        $key = self::getCacheSigningKey($cachePath);
+        $expectedHmac = hash_hmac('sha256', $payload, $key, true);
+
+        // Timing-safe comparison
+        if (!hash_equals($expectedHmac, $storedHmac)) {
+            return null;
+        }
+
+        return $payload;
     }
 
     /**

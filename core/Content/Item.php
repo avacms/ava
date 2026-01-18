@@ -18,6 +18,9 @@ final class Item
     private string $filePath;
     private string $type;
 
+    /** @var array<string, \DateTimeImmutable|null|false> Cached parsed dates (false = not yet computed) */
+    private array $dateCache = [];
+
     public function __construct(
         array $frontmatter,
         string $rawContent,
@@ -71,7 +74,17 @@ final class Item
 
     public function date(): ?\DateTimeImmutable
     {
-        $date = $this->frontmatter['date'] ?? null;
+        if (!array_key_exists('date', $this->dateCache)) {
+            $this->dateCache['date'] = $this->parseDate($this->frontmatter['date'] ?? null);
+        }
+        return $this->dateCache['date'];
+    }
+
+    /**
+     * Parse a date value into DateTimeImmutable.
+     */
+    private function parseDate(mixed $date): ?\DateTimeImmutable
+    {
         if ($date === null) {
             return null;
         }
@@ -97,28 +110,16 @@ final class Item
 
     public function updated(): ?\DateTimeImmutable
     {
-        $updated = $this->frontmatter['updated'] ?? null;
-        if ($updated === null) {
-            return $this->date();
+        if (!array_key_exists('updated', $this->dateCache)) {
+            $updated = $this->frontmatter['updated'] ?? null;
+            if ($updated === null) {
+                $this->dateCache['updated'] = $this->date();
+            } else {
+                $parsed = $this->parseDate($updated);
+                $this->dateCache['updated'] = $parsed ?? $this->date();
+            }
         }
-
-        if ($updated instanceof \DateTimeImmutable) {
-            return $updated;
-        }
-
-        if ($updated instanceof \DateTime) {
-            return \DateTimeImmutable::createFromMutable($updated);
-        }
-
-        if (is_int($updated)) {
-            return (new \DateTimeImmutable())->setTimestamp($updated);
-        }
-
-        try {
-            return new \DateTimeImmutable((string) $updated);
-        } catch (\Exception) {
-            return $this->date();
-        }
+        return $this->dateCache['updated'];
     }
 
     // === Content ===

@@ -482,27 +482,35 @@ final class Repository
      */
     private function loadHtmlCache(): array
     {
-        $cachePath = $this->app->configPath('storage') . '/cache/html_cache.bin';
+        $cacheDir = $this->app->configPath('storage') . '/cache';
+        $cachePath = $cacheDir . '/html_cache.bin';
         
         if (!file_exists($cachePath)) {
             return [];
         }
         
         $content = file_get_contents($cachePath);
-        if ($content === false || strlen($content) < 4) {
+        if ($content === false || strlen($content) < 36) {
+            return [];
+        }
+        
+        // Verify HMAC signature before deserializing (prevents tampering)
+        $payload = Indexer::verifyAndExtractPayload($content, $cacheDir);
+        if ($payload === null) {
             return [];
         }
         
         // Check format prefix
-        $prefix = substr($content, 0, 3);
-        $data = substr($content, 3);
+        $prefix = substr($payload, 0, 3);
+        $data = substr($payload, 3);
         
         if ($prefix === 'IG:' && function_exists('igbinary_unserialize')) {
             return igbinary_unserialize($data) ?: [];
         }
 
         if ($prefix === 'SZ:') {
-            return unserialize($data) ?: [];
+            // Restrict to arrays only - no object instantiation for security
+            return unserialize($data, ['allowed_classes' => false]) ?: [];
         }
 
         return [];

@@ -111,6 +111,29 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
 </div>
 <?php endif; ?>
 
+<?php if (isset($_GET['action']) && $_GET['action'] === 'index_mode_changed'): ?>
+<div class="alert alert-success">
+    <span class="material-symbols-rounded">check_circle</span>
+    Index mode changed to <code><?= htmlspecialchars($_GET['mode'] ?? 'unknown') ?></code>
+</div>
+<?php endif; ?>
+
+<?php if ($cache['mode'] === 'always'): ?>
+<div class="alert alert-danger">
+    <span class="material-symbols-rounded">error</span>
+    <div class="flex-1">
+        <strong>Index mode: always</strong> — Rebuilds the entire index on <strong>every</strong> page load. This <strong>severely impacts performance</strong> and should only be used briefly for debugging. Switch back to <code>never</code> immediately when done.
+    </div>
+</div>
+<?php elseif ($cache['mode'] === 'auto'): ?>
+<div class="alert alert-info">
+    <span class="material-symbols-rounded">info</span>
+    <div class="flex-1">
+        <strong>Index mode: auto</strong> — Checks for file changes before serving. Good for development and editing, but switch to <code>never</code> in production for optimal performance.
+    </div>
+</div>
+<?php endif; ?>
+
 <?php if (isset($recentErrorCount) && $recentErrorCount > 0): ?>
 <div class="alert alert-warning">
     <span class="material-symbols-rounded">warning</span>
@@ -186,9 +209,24 @@ $renderTime = round((microtime(true) - $system['request_time']) * 1000, 2);
             </span>
         </div>
         <div class="card-body">
+            <?php
+            $modeClass = match($cache['mode']) {
+                'never' => 'index-mode-select-success',
+                'auto' => 'index-mode-select-info',
+                'always' => 'index-mode-select-danger',
+                default => 'index-mode-select-info',
+            };
+            ?>
             <div class="list-item">
                 <span class="list-label">Mode</span>
-                <code><?= htmlspecialchars($cache['mode']) ?></code>
+                <form method="POST" action="<?= htmlspecialchars($admin_url) ?>/index-mode" class="d-inline" id="index-mode-form">
+                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrf) ?>">
+                    <select name="mode" class="index-mode-select <?= $modeClass ?>" onchange="this.form.submit()">
+                        <option value="never" <?= $cache['mode'] === 'never' ? 'selected' : '' ?>>never (production)</option>
+                        <option value="auto" <?= $cache['mode'] === 'auto' ? 'selected' : '' ?>>auto (development)</option>
+                        <option value="always" <?= $cache['mode'] === 'always' ? 'selected' : '' ?>>always (debug)</option>
+                    </select>
+                </form>
             </div>
             <div class="list-item">
                 <span class="list-label">Last Built</span>

@@ -86,6 +86,22 @@ final class Response
     }
 
     /**
+     * Get a header value.
+     */
+    public function header(string $name): ?string
+    {
+        return $this->headers[$name] ?? null;
+    }
+
+    /**
+     * Get all headers.
+     */
+    public function headers(): array
+    {
+        return $this->headers;
+    }
+
+    /**
      * Set a header.
      */
     public function withHeader(string $name, string $value): self

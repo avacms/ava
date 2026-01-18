@@ -230,6 +230,76 @@ final class Controller
     }
 
     /**
+     * Change content index mode action.
+     *
+     * This securely modifies ONLY the content_index.mode setting in the config file.
+     * Uses a regex pattern that strictly matches the mode value within the content_index array.
+     */
+    public function changeIndexMode(Request $request): Response
+    {
+        if (!$request->isMethod('POST')) {
+            return Response::redirect($this->adminUrl());
+        }
+
+        // CSRF check
+        $csrf = $request->post('_csrf', '');
+        if (!$this->auth->verifyCsrf($csrf)) {
+            return Response::redirect($this->adminUrl() . '?error=csrf');
+        }
+
+        $newMode = $request->post('mode', '');
+
+        // STRICT validation: only allow these exact values
+        $allowedModes = ['never', 'auto', 'always'];
+        if (!in_array($newMode, $allowedModes, true)) {
+            return Response::redirect($this->adminUrl() . '?error=invalid_mode');
+        }
+
+        $configPath = $this->app->path('app/config/ava.php');
+
+        if (!file_exists($configPath) || !is_writable($configPath)) {
+            return Response::redirect($this->adminUrl() . '?error=config_not_writable');
+        }
+
+        $content = file_get_contents($configPath);
+        if ($content === false) {
+            return Response::redirect($this->adminUrl() . '?error=config_read_failed');
+        }
+
+        // Secure pattern: matches 'mode' => 'value' ONLY within content_index context
+        // This pattern:
+        // 1. Looks for 'content_index' array opening
+        // 2. Finds 'mode' => 'value' with flexible whitespace
+        // 3. Only replaces the mode value, not the surrounding structure
+        $pattern = "/('content_index'\s*=>\s*\[\s*(?:[^]]*?)'mode'\s*=>\s*')(?:never|auto|always)(')/s";
+
+        // Check if the pattern matches (safety check)
+        if (!preg_match($pattern, $content)) {
+            return Response::redirect($this->adminUrl() . '?error=config_pattern_not_found');
+        }
+
+        // Replace only the mode value
+        $newContent = preg_replace($pattern, '${1}' . $newMode . '${2}', $content, 1);
+
+        if ($newContent === null || $newContent === $content && $this->app->config('content_index.mode') !== $newMode) {
+            return Response::redirect($this->adminUrl() . '?error=config_update_failed');
+        }
+
+        // Write the updated config
+        if (file_put_contents($configPath, $newContent) === false) {
+            return Response::redirect($this->adminUrl() . '?error=config_write_failed');
+        }
+
+        // Clear OPcache for this file if available
+        if (function_exists('opcache_invalidate')) {
+            opcache_invalidate($configPath, true);
+        }
+
+        $this->auth->regenerateCsrf();
+        return Response::redirect($this->adminUrl() . '?action=index_mode_changed&mode=' . $newMode);
+    }
+
+    /**
      * Content list page.
      */
     public function contentList(Request $request, string $type): ?Response

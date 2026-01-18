@@ -252,11 +252,12 @@ final class Engine
     {
         $aliases = $this->app->config('paths.aliases', []);
 
-        foreach ($aliases as $alias => $path) {
-            $content = str_replace($alias, $path, $content);
+        if (empty($aliases)) {
+            return $content;
         }
 
-        return $content;
+        // Single-pass replacement is more efficient than multiple str_replace() calls
+        return strtr($content, $aliases);
     }
 
     /**

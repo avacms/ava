@@ -11,7 +11,7 @@ if (file_exists($adminCssFile)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login · Ava Admin</title>
+    <title>Sign In · Ava CMS</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
     <link rel="stylesheet" href="<?= htmlspecialchars($adminCssPath) ?>">
@@ -20,8 +20,8 @@ if (file_exists($adminCssFile)) {
 <body class="login-page">
 <div class="login-card">
     <div class="login-header">
-        <h1>✨ Ava</h1>
-        <p>Sign in to admin</p>
+        <h1>Sign in to continue</h1>
+        <p>Powered by Ava CMS</p>
     </div>
 
     <?php if (!$hasUsers): ?>

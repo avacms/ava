@@ -485,6 +485,12 @@ final class Query
                 $terms = $data['taxonomies'][$taxonomy] 
                     ?? $data['frontmatter'][$taxonomy] 
                     ?? [];
+                
+                // Normalize to array (taxonomy can be string or array in frontmatter)
+                if (!is_array($terms)) {
+                    $terms = [$terms];
+                }
+                
                 if (!in_array($term, $terms, true)) {
                     return false;
                 }

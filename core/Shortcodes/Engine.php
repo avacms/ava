@@ -20,6 +20,9 @@ use Ava\Application;
  */
 final class Engine
 {
+    /** Regex pattern for matching shortcodes (self-closing and paired) */
+    private const SHORTCODE_PATTERN = '/\[([a-zA-Z_][a-zA-Z0-9_-]*)((?:\s+[^]]+)?)\](?:([^[]*)\[\/\1\])?/';
+
     private Application $app;
 
     /** @var array<string, callable> */
@@ -44,11 +47,7 @@ final class Engine
      */
     public function process(string $content): string
     {
-        // Match shortcodes
-        // Pattern handles both self-closing and paired shortcodes
-        $pattern = '/\[([a-zA-Z_][a-zA-Z0-9_-]*)((?:\s+[^]]+)?)\](?:([^[]*)\[\/\1\])?/';
-
-        return preg_replace_callback($pattern, function ($matches) {
+        return preg_replace_callback(self::SHORTCODE_PATTERN, function ($matches) {
             $tag = strtolower($matches[1]);
             $attrString = $matches[2];
             $innerContent = $matches[3] ?? null;

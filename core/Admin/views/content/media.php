@@ -45,6 +45,10 @@ $formatDateShort = function($timestamp) {
     return date('M j, Y', $timestamp);
 };
 
+$formatTime = function($timestamp) {
+    return date('g:i A', $timestamp);
+};
+
 $extensionsString = implode(', ', $uploadLimits['allowed_extensions'] ?? ['jpg', 'png', 'gif', 'webp']);
 $acceptTypes = 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/avif';
 
@@ -284,10 +288,8 @@ $canUpload = $isWritable && ($uploadLimits['has_imagick'] || $uploadLimits['has_
             <div class="media-item-info">
                 <span class="media-item-name" title="<?= htmlspecialchars($file['name']) ?>"><?= htmlspecialchars($file['name']) ?></span>
                 <span class="media-item-meta">
-                    <?= $formatBytes($file['size']) ?>
-                    <?php if ($file['width'] && $file['height']): ?>
-                    · <?= $file['width'] ?>×<?= $file['height'] ?>
-                    <?php endif; ?>
+                    <span class="meta-primary"><?= $formatBytes($file['size']) ?><?php if ($file['width'] && $file['height']): ?> · <?= $file['width'] ?>×<?= $file['height'] ?><?php endif; ?></span>
+                    <span class="meta-secondary"><?= $formatDateShort($file['modified']) ?> · <?= $formatTime($file['modified']) ?></span>
                 </span>
             </div>
         </div>
@@ -300,9 +302,30 @@ $canUpload = $isWritable && ($uploadLimits['has_imagick'] || $uploadLimits['has_
             <thead>
                 <tr>
                     <th></th>
-                    <th>Name</th>
-                    <th>Size</th>
-                    <th>Modified</th>
+                    <th>
+                        <a href="<?= htmlspecialchars($buildUrl(['sort' => 'name', 'dir' => ($sortBy === 'name' && $sortDir === 'asc') ? 'desc' : 'asc', 'page' => 1])) ?>" class="sort-header<?= $sortBy === 'name' ? ' active' : '' ?>">
+                            Name
+                            <?php if ($sortBy === 'name'): ?>
+                            <span class="sort-indicator"><?= $sortDir === 'asc' ? '▲' : '▼' ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= htmlspecialchars($buildUrl(['sort' => 'size', 'dir' => ($sortBy === 'size' && $sortDir === 'desc') ? 'asc' : 'desc', 'page' => 1])) ?>" class="sort-header<?= $sortBy === 'size' ? ' active' : '' ?>">
+                            Size
+                            <?php if ($sortBy === 'size'): ?>
+                            <span class="sort-indicator"><?= $sortDir === 'asc' ? '▲' : '▼' ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= htmlspecialchars($buildUrl(['sort' => 'date', 'dir' => ($sortBy === 'date' && $sortDir === 'desc') ? 'asc' : 'desc', 'page' => 1])) ?>" class="sort-header<?= $sortBy === 'date' ? ' active' : '' ?>">
+                            Modified
+                            <?php if ($sortBy === 'date'): ?>
+                            <span class="sort-indicator"><?= $sortDir === 'asc' ? '▲' : '▼' ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -323,7 +346,10 @@ $canUpload = $isWritable && ($uploadLimits['has_imagick'] || $uploadLimits['has_
                         <span class="file-dimensions"><?= $file['width'] ?>×<?= $file['height'] ?></span>
                         <?php endif; ?>
                     </td>
-                    <td class="text-tertiary text-sm"><?= $formatDateShort($file['modified']) ?></td>
+                    <td class="media-file-date">
+                        <span class="file-date"><?= $formatDateShort($file['modified']) ?></span>
+                        <span class="file-time"><?= $formatTime($file['modified']) ?></span>
+                    </td>
                     <td class="file-actions">
                         <button type="button" class="btn btn-secondary btn-xs copy-btn" data-copy="<?= htmlspecialchars($file['url']) ?>" title="Copy URL">
                             <span class="material-symbols-rounded">link</span>
@@ -558,7 +584,17 @@ $canUpload = $isWritable && ($uploadLimits['has_imagick'] || $uploadLimits['has_
                 progressText.textContent = 'Complete! Refreshing...';
                 progressFill.style.width = '100%';
                 setTimeout(() => {
-                    window.location.reload();
+                    // Navigate to the upload folder with newest first sorting
+                    const targetFolder = folderSelect.value === '__date__' 
+                        ? '<?= htmlspecialchars($dateFolder) ?>' 
+                        : folderSelect.value;
+                    const url = new URL('<?= htmlspecialchars($admin_url) ?>/media', window.location.origin);
+                    if (targetFolder) {
+                        url.searchParams.set('folder', targetFolder);
+                    }
+                    url.searchParams.set('sort', 'date');
+                    url.searchParams.set('dir', 'desc');
+                    window.location = url;
                 }, 300);
             } else {
                 progressText.textContent = 'Upload failed. Please try again.';

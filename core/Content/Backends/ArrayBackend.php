@@ -533,13 +533,20 @@ final class ArrayBackend implements BackendInterface
         }
 
         $content = file_get_contents($binPath);
-        if ($content === false || strlen($content) < 4) {
+        if ($content === false || strlen($content) < 36) {
+            return [];
+        }
+
+        // Verify HMAC signature before deserializing (prevents tampering)
+        $cacheDir = $this->app->configPath('storage') . '/cache';
+        $payload = \Ava\Content\Indexer::verifyAndExtractPayload($content, $cacheDir);
+        if ($payload === null) {
             return [];
         }
 
         // Check format marker prefix
-        $prefix = substr($content, 0, 3);
-        $payload = substr($content, 3);
+        $prefix = substr($payload, 0, 3);
+        $serializedData = substr($payload, 3);
 
         if ($prefix === 'IG:') {
             if (!extension_loaded('igbinary')) {
@@ -547,9 +554,9 @@ final class ArrayBackend implements BackendInterface
             }
             /** @var callable $unserialize */
             $unserialize = 'igbinary_unserialize';
-            $data = @$unserialize($payload);
+            $data = @$unserialize($serializedData);
         } elseif ($prefix === 'SZ:') {
-            $data = @unserialize($payload, ['allowed_classes' => false]);
+            $data = @unserialize($serializedData, ['allowed_classes' => false]);
         } else {
             // Invalid format - cache needs rebuild
             return [];
