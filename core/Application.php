@@ -374,7 +374,7 @@ final class Application
                 'Content-Type' => $allowedExtensions[$ext],
                 'Cache-Control' => 'public, max-age=31536000, immutable',
                 'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
-                'ETag' => '"' . md5_file($realPath) . '"',
+                'ETag' => '"' . dechex($mtime) . '-' . dechex(filesize($realPath)) . '"',
             ]);
         });
     }
@@ -490,7 +490,7 @@ final class Application
             'Content-Type' => $allowedExtensions[$ext],
             'Cache-Control' => 'public, max-age=31536000, immutable',
             'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
-            'ETag' => '"' . md5_file($fullPath) . '"',
+            'ETag' => '"' . dechex($mtime) . '-' . dechex(filesize($fullPath)) . '"',
         ]);
     }
 

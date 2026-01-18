@@ -14,14 +14,83 @@ declare(strict_types=1);
 define('AVA_START', microtime(true));
 define('AVA_ROOT', dirname(__DIR__));
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ULTRA-FAST PATH: Serve cached HTML with minimal PHP overhead
+// ─────────────────────────────────────────────────────────────────────────────
+// This runs BEFORE composer autoload for maximum speed (~0.5ms).
+// Only applies to: GET requests, no query params, webpage_cache enabled.
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
+    // Quick config load (avoid full bootstrap)
+    $configPath = AVA_ROOT . '/app/config/ava.php';
+    if (file_exists($configPath)) {
+        $config = require $configPath;
+        
+        if (!empty($config['webpage_cache']['enabled'])) {
+            $uri = $_SERVER['REQUEST_URI'] ?? '/';
+            $path = parse_url($uri, PHP_URL_PATH) ?: '/';
+            
+            // Skip admin paths
+            $adminPath = $config['admin']['path'] ?? '/admin';
+            if (!str_starts_with($path, $adminPath)) {
+                // Skip if query params present (except UTM)
+                $query = $_GET;
+                unset($query['utm_source'], $query['utm_medium'], $query['utm_campaign'], $query['utm_term'], $query['utm_content']);
+                
+                if (empty($query)) {
+                    // Check exclusion patterns
+                    $excluded = false;
+                    foreach ($config['webpage_cache']['exclude'] ?? [] as $pattern) {
+                        $regex = '/^' . str_replace(['\\*', '\\?'], ['.*', '.'], preg_quote($pattern, '/')) . '$/';
+                        if (preg_match($regex, $path)) {
+                            $excluded = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!$excluded) {
+                        // Build cache file path
+                        $storagePath = AVA_ROOT . '/' . ($config['paths']['storage'] ?? 'storage');
+                        $hash = md5($path);
+                        $safeName = preg_replace('/[^a-zA-Z0-9\-_]/', '_', trim($path, '/'));
+                        $safeName = substr($safeName ?: 'index', 0, 50);
+                        $cacheFile = $storagePath . '/cache/pages/' . $safeName . '_' . substr($hash, 0, 8) . '.html';
+                        
+                        // Check cache file exists and TTL (single stat call)
+                        $mtime = @filemtime($cacheFile);
+                        if ($mtime !== false) {
+                            $ttl = $config['webpage_cache']['ttl'] ?? null;
+                            $age = time() - $mtime;
+                            
+                            if ($ttl === null || $age <= $ttl) {
+                                // Serve cached file directly!
+                                header('Content-Type: text/html; charset=utf-8');
+                                header('X-Page-Cache: HIT');
+                                header('X-Fast-Path: ultra');
+                                header('X-Cache-Age: ' . $age);
+                                readfile($cacheFile);
+                                exit;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STANDARD PATH: Full application boot
+// ─────────────────────────────────────────────────────────────────────────────
+
 $app = require AVA_ROOT . '/bootstrap.php';
 
 // Fast path: Try to serve a cached page without full boot
-// This skips plugin loading, theme loading, and cache freshness checks
+// This is a fallback if ultra-fast path didn't match (shouldn't happen often)
 $request = Ava\Http\Request::capture();
 $cached = $app->tryCachedResponse($request);
 if ($cached !== null) {
-    $cached->withHeader('X-Fast-Path', 'true')->send();
+    $cached->withHeader('X-Fast-Path', 'standard')->send();
     exit;
 }
 
