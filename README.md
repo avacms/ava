@@ -106,9 +106,6 @@ That’s it! Ava CMS is designed to run happily whether it's on modest shared ho
 
 - Download the latest release: https://github.com/avacms/ava/releases
 - Extract it into a folder on your machine or server
-### Download Latest Release (Command Line)
-
-If you have SSH access and prefer the terminal, downloading the latest release is the cleanest approach (no Git required).
 
 **Option B: GitHub CLI (`gh`)**
 
