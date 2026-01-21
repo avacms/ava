@@ -3,7 +3,7 @@ title: Home
 slug: index
 status: published
 order: 1
-excerpt: test
+excerpt: Congratulations! Your site is up and running. This is your homepage, rendered from a simple Markdown file.
 ---
 
 # Welcome to Ava 👋
