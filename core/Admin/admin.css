@@ -3174,27 +3174,6 @@ select[multiple].fm-tax-select {
     color: var(--text-tertiary);
 }
 
-/* Empty state */
-.empty-state {
-    padding: var(--sp-8);
-    text-align: center;
-    color: var(--text-tertiary);
-
-    & .material-symbols-rounded {
-        font-size: 48px;
-        opacity: 0.5;
-    }
-
-    & p {
-        margin-top: var(--sp-2);
-    }
-
-    & .empty-hint {
-        font-size: var(--text-sm);
-        margin-top: var(--sp-1);
-    }
-}
-
 /* Modal */
 .modal-backdrop {
     position: fixed;
