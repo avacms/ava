@@ -69,7 +69,9 @@ if (file_exists($cmCssFile)) {
 <body>
 <!-- Skip links for keyboard accessibility -->
 <a href="#main-content" class="skip-link">Skip to main content</a>
+<?php if (isset($cmJsPath)): ?>
 <a href="#editor-content" class="skip-link">Skip to editor <span class="skip-link-hint">(press Escape to exit editor)</span></a>
+<?php endif; ?>
 
 <div class="app-shell no-transition" id="app-shell">
     <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>

@@ -3186,9 +3186,17 @@ select[multiple].fm-tax-select {
         color: var(--text-secondary);
         text-decoration: none;
         transition: color 0.15s;
+        border-radius: var(--radius-sm);
+        padding: var(--sp-1) var(--sp-2);
+        margin: calc(-1 * var(--sp-1)) calc(-1 * var(--sp-2));
 
         &:hover {
             color: var(--accent);
+        }
+        
+        &:focus-visible {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
         }
 
         &.active {
@@ -4861,6 +4869,11 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
+    &:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+    }
+    
     &.selected {
         outline: 3px solid var(--accent);
         outline-offset: 2px;
@@ -5030,6 +5043,11 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     
     &:hover {
         border-color: var(--border-light);
+    }
+    
+    &:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
     }
     
     &.selected {
@@ -5444,9 +5462,17 @@ html[data-theme="dark"] .ce-input[type="datetime-local"] {
     color: var(--text-secondary);
     text-decoration: none;
     transition: color 0.15s ease;
+    border-radius: var(--radius-sm);
+    padding: var(--sp-1) var(--sp-2);
+    margin: calc(-1 * var(--sp-1)) calc(-1 * var(--sp-2));
     
     &:hover {
         color: var(--text-primary);
+    }
+    
+    &:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
     }
     
     &.active {
