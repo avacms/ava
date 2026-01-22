@@ -76,7 +76,7 @@ $jsConfig = [
         <?php include __DIR__ . '/_editor-file-header.php'; ?>
         
         <div class="editor-wrapper">
-            <div id="editor" class="codemirror-container" data-codemirror="yaml-frontmatter"></div>
+            <div id="editor" class="codemirror-container" data-codemirror="yaml-frontmatter" data-codemirror-manual="true"></div>
             <textarea id="file_content" name="file_content" class="editor-hidden-input" tabindex="-1"><?= htmlspecialchars($currentFileContent) ?></textarea>
         </div>
     </div>

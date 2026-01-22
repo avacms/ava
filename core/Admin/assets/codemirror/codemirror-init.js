@@ -423,11 +423,16 @@ window.AvaCodeMirror = {
 
 // Auto-initialize editors with data-codemirror attribute
 // Note: Manual initialization is preferred - this is for fallback/convenience
+// Set data-codemirror-manual="true" to disable auto-init for specific editors
 document.addEventListener('DOMContentLoaded', async () => {
     const editors = document.querySelectorAll('[data-codemirror]');
     for (const el of editors) {
-        // Skip if already initialized
+        // Skip if already initialized or if manual init is specified
         if (el._cmView) continue;
+        if (el.dataset.codemirrorManual === 'true') continue;
+        
+        // Skip if an editor element already exists inside (created by manual init)
+        if (el.querySelector('.cm-editor')) continue;
         
         // Find the hidden textarea that holds the value
         const parent = el.closest('.editor-wrapper') || el.closest('.ce-editor-wrapper') || el.parentElement;
