@@ -56,7 +56,7 @@ return [
     */
 
     'admin' => [
-        'enabled' => true,
+        'enabled' => false,
         'path'    => '/ava-admin',
         'theme'   => 'cyan',
 
@@ -98,7 +98,7 @@ return [
     */
 
     'content_index' => [
-        'mode'           => 'never',
+        'mode'           => 'auto',
         'backend'        => 'array',
         'use_igbinary'   => true,           // ~5x faster serialization if installed
         'prerender_html' => true,           // Pre-render markdown during rebuild
