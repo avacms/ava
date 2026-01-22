@@ -169,21 +169,27 @@ return [
             'allow_php_snippets' => true,
         ],
 
-        // Security headers applied to public (non-admin) responses.
-        // Override or relax these per site as needed.
+        // Secret for previewing drafts via ?preview=1&token=xxx (null = disabled)
+        // Use a long random string wrapped in single quotes - don't rely on previews for security, they are not rate limited
+        'preview_token' => null,
+
+        // Security headers for public responses. Defaults are permissive to support
+        // common use cases; tighten for hardened sites. Docs: https://ava.addy.zone/docs/configuration#content-security
         'headers' => [
             'content_security_policy' => [
                 "default-src 'self'",
                 "base-uri 'none'",
                 "object-src 'none'",
                 "frame-ancestors 'none'",
+                "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
                 "form-action 'self'",
-                "connect-src 'self'",
-                "img-src 'self' data:",
-                "font-src 'self' data:",
-                "style-src 'self' 'unsafe-inline'",
-                "script-src 'self'",
+                "connect-src 'self' https:",        // External APIs, analytics
+                "img-src 'self' data: https:",      // External images
+                "font-src 'self' data: https:",     // Google Fonts, CDNs
+                "style-src 'self' 'unsafe-inline' https:",
+                "script-src 'self' 'unsafe-inline' https:",
             ],
+
             'permissions_policy' => [
                 'camera=()',
                 'microphone=()',
@@ -192,12 +198,10 @@ return [
                 'usb=()',
                 'interest-cohort=()',
             ],
-            'strict_transport_security' => 'max-age=63072000; includeSubDomains; preload',
+            
+            // HSTS (Strict-Transport-Security) should be configured at your webserver,
+            // not here. See: https://ava.addy.zone/docs/security
         ],
-
-        // Secret for previewing drafts via ?preview=1&token=xxx (null = disabled)
-        // Use a long random string — preview URLs are not rate-limited.
-        'preview_token' => null,
     ],
 
     /*

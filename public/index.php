@@ -95,12 +95,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
                                         if ($corp = $normalizeHeader($securityHeaders['cross_origin_resource_policy'] ?? null)) {
                                             header('Cross-Origin-Resource-Policy: ' . $corp);
                                         }
-                                        if (!empty($securityHeaders['strict_transport_security'])) {
-                                            $isSecure = (($_SERVER['HTTPS'] ?? 'off') !== 'off') || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443');
-                                            if ($isSecure) {
-                                                header('Strict-Transport-Security: ' . $securityHeaders['strict_transport_security']);
-                                            }
-                                        }
                                         exit;
                                     }
                                 }
@@ -130,12 +124,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
                                 }
                                 if ($corp = $normalizeHeader($securityHeaders['cross_origin_resource_policy'] ?? null)) {
                                     header('Cross-Origin-Resource-Policy: ' . $corp);
-                                }
-                                if (!empty($securityHeaders['strict_transport_security'])) {
-                                    $isSecure = (($_SERVER['HTTPS'] ?? 'off') !== 'off') || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443');
-                                    if ($isSecure) {
-                                        header('Strict-Transport-Security: ' . $securityHeaders['strict_transport_security']);
-                                    }
                                 }
                                 readfile($cacheFile);
                                 exit;

@@ -595,11 +595,6 @@ final class Application
             }
         }
 
-        $hsts = $headerConfig['strict_transport_security'] ?? null;
-        if (is_string($hsts) && $hsts !== '' && $request->isSecure() && $response->header('Strict-Transport-Security') === null) {
-            $response = $response->withHeader('Strict-Transport-Security', $hsts);
-        }
-
         return $response;
     }
 
