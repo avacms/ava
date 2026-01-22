@@ -209,6 +209,12 @@ async function createEditorConfig(options = {}) {
  * @returns {Promise<EditorView>} The editor instance
  */
 async function createEditor(container, options = {}) {
+    // Prevent double initialization - set flag synchronously before async work
+    if (container._cmInitializing || container._cmView) {
+        return container._cmView;
+    }
+    container._cmInitializing = true;
+    
     const { extensions, EditorView, EditorState } = await createEditorConfig(options);
     
     // Support both 'content' and 'value' for initial content
@@ -227,6 +233,7 @@ async function createEditor(container, options = {}) {
     // Store reference for theme switching and API access
     container._cmView = view;
     container._cmOptions = options;
+    container._cmInitializing = false;
 
     return view;
 }
