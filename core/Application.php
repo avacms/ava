@@ -70,7 +70,8 @@ final class Application
         // If the cache file exists, it was valid when generated (pages with cache:false don't get cached).
         // Admin cookie only affects cache WRITES (to avoid caching preview/draft content).
         $webpageCache = $this->webpageCache();
-        return $webpageCache->getWithoutFullCheck($request);
+        $cached = $webpageCache->getWithoutFullCheck($request);
+        return $cached !== null ? $this->applyPublicSecurityHeaders($cached, $request) : null;
     }
 
     /**
@@ -113,7 +114,7 @@ final class Application
         if ($webpageCache->isEnabled()) {
             $cached = $webpageCache->get($request);
             if ($cached !== null) {
-                return $cached;
+                return $this->applyPublicSecurityHeaders($cached, $request);
             }
         }
 
@@ -126,24 +127,26 @@ final class Application
 
         // Handle redirect routes
         if ($match->isRedirect()) {
-            return Response::redirect($match->getRedirectUrl(), $match->getRedirectCode());
+            $redirect = Response::redirect($match->getRedirectUrl(), $match->getRedirectCode());
+            return $this->applyPublicSecurityHeaders($redirect, $request);
         }
 
         // Handle routes with embedded Response objects
         if ($match->hasResponse()) {
-            return $match->getResponse();
+            return $this->applyPublicSecurityHeaders($match->getResponse(), $request);
         }
 
         // Handle routes that return raw Response (admin, plugin routes)
         if (in_array($match->getType(), ['admin', 'plugin', 'response'], true)) {
             $response = $match->getParam('response');
             if ($response instanceof Response) {
-                return $response;
+                return $this->applyPublicSecurityHeaders($response, $request);
             }
         }
 
         // Render the matched route
         $response = $this->renderRoute($match, $request);
+        $response = $this->applyPublicSecurityHeaders($response, $request);
 
         // Store in webpage cache if enabled
         if ($webpageCache->isEnabled() && $response->status() === 200) {
@@ -372,23 +375,7 @@ final class Application
                 return null; // Let it 404
             }
 
-            // Security: only serve files with allowed extensions (allowlist)
-            // This prevents serving PHP source code or other sensitive files
-            $ext = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
-            $allowedExtensions = $this->getAllowedAssetExtensions();
-            if (!isset($allowedExtensions[$ext])) {
-                return null; // 404 for disallowed extensions
-            }
-
-            $content = file_get_contents($realPath);
-            $mtime = filemtime($realPath);
-
-            return new Response($content, 200, [
-                'Content-Type' => $allowedExtensions[$ext],
-                'Cache-Control' => 'public, max-age=31536000, immutable',
-                'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
-                'ETag' => '"' . dechex($mtime) . '-' . dechex(filesize($realPath)) . '"',
-            ]);
+            return $this->serveAsset($request, $realPath);
         });
     }
 
@@ -432,7 +419,7 @@ final class Application
             if ($assetPath === 'admin.css') {
                 $adminCssPath = $corePath . '/admin.css';
                 if (file_exists($adminCssPath)) {
-                    return $this->serveAsset($adminCssPath);
+                    return $this->serveAsset($request, $adminCssPath);
                 }
                 return null;
             }
@@ -443,8 +430,8 @@ final class Application
                 $fullPath = $coreAssetsDir . '/' . $assetPath;
                 $realPath = realpath($fullPath);
                 
-                if ($realPath !== false && str_starts_with($realPath, $coreAssetsDir . '/') && is_file($realPath)) {
-                    return $this->serveAsset($realPath);
+                    if ($realPath !== false && str_starts_with($realPath, $coreAssetsDir . '/') && is_file($realPath)) {
+                        return $this->serveAsset($request, $realPath);
                 }
             }
 
@@ -460,7 +447,7 @@ final class Application
                     $realPath = realpath($fullPath);
                     
                     if ($realPath !== false && str_starts_with($realPath, $pluginAssetsDir . '/') && is_file($realPath)) {
-                        return $this->serveAsset($realPath);
+                        return $this->serveAsset($request, $realPath);
                     }
                 }
             }
@@ -478,7 +465,7 @@ final class Application
                 return null;
             }
 
-            return $this->serveAsset($realPath);
+            return $this->serveAsset($request, $realPath);
         });
     }
 
@@ -487,7 +474,7 @@ final class Application
      * 
      * Returns null for disallowed extensions or hidden files.
      */
-    private function serveAsset(string $fullPath): ?Response
+    private function serveAsset(Request $request, string $fullPath): ?Response
     {
         // Security: block hidden files (dotfiles)
         $filename = basename($fullPath);
@@ -502,15 +489,40 @@ final class Application
             return null;
         }
 
-        $content = file_get_contents($fullPath);
-        $mtime = filemtime($fullPath);
+        $mtime = @filemtime($fullPath);
+        if ($mtime === false) {
+            return null;
+        }
 
-        return new Response($content, 200, [
+        $size = @filesize($fullPath);
+        $etag = '"' . dechex($mtime) . '-' . dechex($size !== false ? $size : 0) . '"';
+
+        $headers = [
             'Content-Type' => $allowedExtensions[$ext],
             'Cache-Control' => 'public, max-age=31536000, immutable',
             'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
-            'ETag' => '"' . dechex($mtime) . '-' . dechex(filesize($fullPath)) . '"',
-        ]);
+            'ETag' => $etag,
+        ];
+
+        $ifNoneMatch = $request->header('if-none-match');
+        if ($ifNoneMatch !== null && trim($ifNoneMatch) === $etag) {
+            return new Response('', 304, $headers);
+        }
+
+        $ifModifiedSince = $request->header('if-modified-since');
+        if ($ifModifiedSince !== null) {
+            $since = strtotime($ifModifiedSince);
+            if ($since !== false && $since >= $mtime) {
+                return new Response('', 304, $headers);
+            }
+        }
+
+        $content = @file_get_contents($fullPath);
+        if ($content === false) {
+            return null;
+        }
+
+        return new Response($content, 200, $headers);
     }
 
     private function render404(Request $request): Response
@@ -553,6 +565,34 @@ final class Application
         $content = $this->addGeneratorComment($content);
 
         return new Response($content, 200);
+    }
+
+    /**
+     * Apply public security headers from configuration without overriding existing headers.
+     */
+    private function applyPublicSecurityHeaders(Response $response, Request $request): Response
+    {
+        $headerConfig = $this->config('security.headers', []);
+
+        $map = [
+            'Content-Security-Policy' => $headerConfig['content_security_policy'] ?? null,
+            'Permissions-Policy' => $headerConfig['permissions_policy'] ?? null,
+            'Cross-Origin-Opener-Policy' => $headerConfig['cross_origin_opener_policy'] ?? null,
+            'Cross-Origin-Resource-Policy' => $headerConfig['cross_origin_resource_policy'] ?? null,
+        ];
+
+        foreach ($map as $name => $value) {
+            if (is_string($value) && $value !== '' && $response->header($name) === null) {
+                $response = $response->withHeader($name, $value);
+            }
+        }
+
+        $hsts = $headerConfig['strict_transport_security'] ?? null;
+        if (is_string($hsts) && $hsts !== '' && $request->isSecure() && $response->header('Strict-Transport-Security') === null) {
+            $response = $response->withHeader('Strict-Transport-Security', $hsts);
+        }
+
+        return $response;
     }
 
     /**

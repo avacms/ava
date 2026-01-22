@@ -57,26 +57,21 @@ return [
                 // Use publishedMeta() - we only need metadata, not full content
                 $items = $repository->publishedMeta($type);
                 $hasIndexable = false;
+                $lastMod = null;
                 foreach ($items as $item) {
-                    if (!$item->noindex()) {
-                        $hasIndexable = true;
-                        break;
+                    if ($item->noindex()) {
+                        continue;
+                    }
+                    $hasIndexable = true;
+                    $updated = $item->updated();
+                    if ($updated && ($lastMod === null || $updated > $lastMod)) {
+                        $lastMod = $updated;
                     }
                 }
 
                 if ($hasIndexable) {
                     $xml .= "  <sitemap>\n";
                     $xml .= "    <loc>{$baseUrl}/sitemap-{$type}.xml</loc>\n";
-                    
-                    // Get most recent update from this type
-                    $lastMod = null;
-                    foreach ($items as $item) {
-                        if ($item->noindex()) continue;
-                        $updated = $item->updated();
-                        if ($updated && ($lastMod === null || $updated > $lastMod)) {
-                            $lastMod = $updated;
-                        }
-                    }
                     if ($lastMod) {
                         $xml .= "    <lastmod>" . $lastMod->format('Y-m-d') . "</lastmod>\n";
                     }
@@ -95,6 +90,7 @@ return [
             $router->addRoute("/sitemap-{$type}.xml", function (Request $request) use ($app, $baseUrl, $type, $config, $contentTypes) {
                 $repository = $app->repository();
                 $routes = $repository->routes();
+                $reverseRoutes = $routes['reverse'] ?? [];
                 // Use publishedMeta() - sitemaps only need URL and lastmod, not body content
                 $items = $repository->publishedMeta($type);
 
@@ -107,14 +103,9 @@ return [
                         continue;
                     }
 
-                    // Find URL for this item from routes
-                    $url = null;
-                    foreach ($routes['exact'] ?? [] as $routeUrl => $routeData) {
-                        if (($routeData['content_type'] ?? '') === $type && ($routeData['slug'] ?? '') === $item->slug()) {
-                            $url = $routeUrl;
-                            break;
-                        }
-                    }
+                    // Find URL for this item from reverse routes (O(1))
+                    $key = $type . ':' . $item->slug();
+                    $url = $reverseRoutes[$key] ?? null;
 
                     // Fallback: generate from pattern
                     if ($url === null) {

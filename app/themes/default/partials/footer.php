@@ -26,21 +26,6 @@
         </div>
     </footer>
 
-    <?php
-    /**
-     * JavaScript
-     * 
-     * Inline JavaScript for the mobile navigation toggle. For larger
-     * scripts, create a .js file in assets/ and link it with:
-     * <script src="<?= $ava->asset('script.js') ?>"></script>
-     */
-    ?>
-    <script>
-    // Mobile nav toggle
-    document.querySelector('.nav-toggle')?.addEventListener('click', function() {
-        document.querySelector('.site-nav').classList.toggle('open');
-        this.classList.toggle('open');
-    });
-    </script>
+    <script src="<?= $ava->asset('script.js') ?>" defer></script>
 </body>
 </html>

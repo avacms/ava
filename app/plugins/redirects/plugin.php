@@ -46,6 +46,7 @@ return [
         $router = $app->router();
         $storagePath = $app->configPath('storage');
         $redirectsFile = $storagePath . '/redirects.json';
+        $adminPath = $app->config('admin.path', '/admin');
 
         // Load redirects with error handling
         $loadRedirects = function () use ($redirectsFile): array|string {
@@ -67,8 +68,44 @@ return [
             file_put_contents($redirectsFile, json_encode($redirects, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
         };
 
+        // Validate/sanitize redirect targets to prevent unsafe schemes.
+        $sanitizeRedirectTarget = function (string $to) use ($adminPath): ?string {
+            $to = trim($to);
+
+            if ($to === '') {
+                return '';
+            }
+
+            // Block dangerous schemes
+            if (preg_match('/^\s*(javascript|data|vbscript):/i', $to)) {
+                return null;
+            }
+
+            // Allow internal absolute paths
+            if (str_starts_with($to, '/')) {
+                // Block redirecting to admin paths
+                if (str_starts_with($to, $adminPath)) {
+                    return null;
+                }
+                return $to;
+            }
+
+            // Allow http(s) only for external redirects
+            $parts = parse_url($to);
+            if ($parts === false || !isset($parts['scheme'])) {
+                return null;
+            }
+
+            $scheme = strtolower($parts['scheme']);
+            if (!in_array($scheme, ['http', 'https'], true)) {
+                return null;
+            }
+
+            return $to;
+        };
+
         // Register redirects with router via hook (runs early in routing)
-        Hooks::addFilter('router.before_match', function ($match, Request $request) use ($loadRedirects) {
+        Hooks::addFilter('router.before_match', function ($match, Request $request) use ($loadRedirects, $sanitizeRedirectTarget) {
             if ($match !== null) {
                 return $match; // Already matched
             }
@@ -90,9 +127,13 @@ return [
                     
                     // Check if this is a true redirect or a status-only response
                     if ($codeInfo['redirect']) {
+                        $target = $sanitizeRedirectTarget((string) ($redirect['to'] ?? '/'));
+                        if ($target === null) {
+                            return null;
+                        }
                         return new \Ava\Routing\RouteMatch(
                             type: 'redirect',
-                            redirectUrl: $redirect['to'] ?? '/',
+                            redirectUrl: $target === '' ? '/' : $target,
                             redirectCode: $code
                         );
                     } else {
@@ -108,19 +149,18 @@ return [
         }, 5); // Priority 5 = run early
 
         // Register admin page
-        Hooks::addFilter('admin.register_pages', function (array $pages) use ($loadRedirects, $saveRedirects, $redirectsFile) {
+        Hooks::addFilter('admin.register_pages', function (array $pages) use ($loadRedirects, $saveRedirects, $redirectsFile, $adminPath, $sanitizeRedirectTarget) {
             $pages['redirects'] = [
                 'label' => 'Redirects',
                 'icon' => 'swap_horiz',
                 'section' => 'Plugins',
-                'handler' => function (Request $request, Application $app, $controller) use ($loadRedirects, $saveRedirects, $redirectsFile) {
+                'handler' => function (Request $request, Application $app, $controller) use ($loadRedirects, $saveRedirects, $redirectsFile, $adminPath, $sanitizeRedirectTarget) {
                     $redirectsData = $loadRedirects();
                     $message = null;
                     $error = null;
                     $jsonError = null;
                     $statusCodes = REDIRECT_STATUS_CODES;
                     $storagePath = $redirectsFile;
-                    $adminPath = $app->config('admin.path', '/admin');
                     
                     // Check for JSON parsing errors
                     if (is_string($redirectsData)) {
@@ -131,9 +171,14 @@ return [
                     }
 
                     // Security validation function for redirect paths
-                    $validateRedirectPath = function(string $from, ?string $to = null) use ($app, $adminPath): ?string {
+                    $validateRedirectPath = function(string $from, ?string $to = null) use ($app, $adminPath, $sanitizeRedirectTarget): ?string {
                         // Normalize path
                         $from = '/' . trim($from, '/');
+
+                        // Block scheme-based paths (e.g., http://...)
+                        if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $from)) {
+                            return 'Source path must be a relative URL (starting with /).';
+                        }
                         
                         // SECURITY: Block redirects from admin paths
                         if (str_starts_with($from, $adminPath)) {
@@ -170,15 +215,14 @@ return [
                         // Validate destination URL (if provided)
                         if ($to !== null && $to !== '') {
                             // Block redirecting to admin
-                            if (str_starts_with($to, $adminPath) || str_starts_with($to, 'http') && str_contains($to, $adminPath)) {
+                            if (str_starts_with($to, $adminPath) || (str_starts_with($to, 'http') && str_contains($to, $adminPath))) {
                                 return "Cannot redirect to admin paths.";
                             }
-                            
-                            // Validate URL format for external redirects
-                            if (str_starts_with($to, 'http')) {
-                                if (!filter_var($to, FILTER_VALIDATE_URL)) {
-                                    return "Invalid destination URL format.";
-                                }
+
+                            // Validate destination URL format and scheme
+                            $sanitized = $sanitizeRedirectTarget($to);
+                            if ($sanitized === null) {
+                                return 'Destination must be an absolute path or a valid http(s) URL.';
                             }
                         }
                         

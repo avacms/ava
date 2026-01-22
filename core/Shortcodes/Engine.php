@@ -47,6 +47,10 @@ final class Engine
      */
     public function process(string $content): string
     {
+        if ($content === '' || !str_contains($content, '[')) {
+            return $content;
+        }
+
         return preg_replace_callback(self::SHORTCODE_PATTERN, function ($matches) {
             $tag = strtolower($matches[1]);
             $attrString = $matches[2];

@@ -70,6 +70,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
                                         header('HTTP/1.1 304 Not Modified');
                                         header('X-Page-Cache: HIT');
                                         header('X-Fast-Path: ultra');
+                                        header('X-Content-Type-Options: nosniff');
+                                        header('X-Frame-Options: SAMEORIGIN');
+                                        header('Referrer-Policy: strict-origin-when-cross-origin');
+
+                                        $securityHeaders = $config['security']['headers'] ?? [];
+                                        if (!empty($securityHeaders['content_security_policy'])) {
+                                            header('Content-Security-Policy: ' . $securityHeaders['content_security_policy']);
+                                        }
+                                        if (!empty($securityHeaders['permissions_policy'])) {
+                                            header('Permissions-Policy: ' . $securityHeaders['permissions_policy']);
+                                        }
+                                        if (!empty($securityHeaders['cross_origin_opener_policy'])) {
+                                            header('Cross-Origin-Opener-Policy: ' . $securityHeaders['cross_origin_opener_policy']);
+                                        }
+                                        if (!empty($securityHeaders['cross_origin_resource_policy'])) {
+                                            header('Cross-Origin-Resource-Policy: ' . $securityHeaders['cross_origin_resource_policy']);
+                                        }
+                                        if (!empty($securityHeaders['strict_transport_security'])) {
+                                            $isSecure = (($_SERVER['HTTPS'] ?? 'off') !== 'off') || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443');
+                                            if ($isSecure) {
+                                                header('Strict-Transport-Security: ' . $securityHeaders['strict_transport_security']);
+                                            }
+                                        }
                                         exit;
                                     }
                                 }
@@ -80,6 +103,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
                                 header('X-Page-Cache: HIT');
                                 header('X-Fast-Path: ultra');
                                 header('X-Cache-Age: ' . $age);
+
+                                // Apply baseline security headers (match Response::send defaults)
+                                header('X-Content-Type-Options: nosniff');
+                                header('X-Frame-Options: SAMEORIGIN');
+                                header('Referrer-Policy: strict-origin-when-cross-origin');
+
+                                // Apply configured public security headers
+                                $securityHeaders = $config['security']['headers'] ?? [];
+                                if (!empty($securityHeaders['content_security_policy'])) {
+                                    header('Content-Security-Policy: ' . $securityHeaders['content_security_policy']);
+                                }
+                                if (!empty($securityHeaders['permissions_policy'])) {
+                                    header('Permissions-Policy: ' . $securityHeaders['permissions_policy']);
+                                }
+                                if (!empty($securityHeaders['cross_origin_opener_policy'])) {
+                                    header('Cross-Origin-Opener-Policy: ' . $securityHeaders['cross_origin_opener_policy']);
+                                }
+                                if (!empty($securityHeaders['cross_origin_resource_policy'])) {
+                                    header('Cross-Origin-Resource-Policy: ' . $securityHeaders['cross_origin_resource_policy']);
+                                }
+                                if (!empty($securityHeaders['strict_transport_security'])) {
+                                    $isSecure = (($_SERVER['HTTPS'] ?? 'off') !== 'off') || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443');
+                                    if ($isSecure) {
+                                        header('Strict-Transport-Security: ' . $securityHeaders['strict_transport_security']);
+                                    }
+                                }
                                 readfile($cacheFile);
                                 exit;
                             }

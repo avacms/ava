@@ -255,15 +255,55 @@ final class TemplateHelpers
 
         foreach ($item->css() as $css) {
             $url = $this->engine->expandAliases($css);
-            $tags[] = '<link rel="stylesheet" href="' . $this->escape($url) . '">';
+            $url = $this->sanitizeAssetUrl($url);
+            if ($url !== null) {
+                $tags[] = '<link rel="stylesheet" href="' . $this->escape($url) . '">';
+            }
         }
 
         foreach ($item->js() as $js) {
             $url = $this->engine->expandAliases($js);
-            $tags[] = '<script src="' . $this->escape($url) . '" defer></script>';
+            $url = $this->sanitizeAssetUrl($url);
+            if ($url !== null) {
+                $tags[] = '<script src="' . $this->escape($url) . '" defer></script>';
+            }
         }
 
         return implode("\n    ", $tags);
+    }
+
+    /**
+     * Validate asset URLs to prevent javascript: or data: injection.
+     *
+     * Allows:
+     * - Absolute paths ("/assets/app.css")
+     * - http/https URLs
+     *
+     * Returns null for disallowed schemes or malformed URLs.
+     */
+    private function sanitizeAssetUrl(string $url): ?string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+
+        // Block dangerous schemes
+        if (preg_match('/^\s*(javascript|data|vbscript):/i', $url)) {
+            return null;
+        }
+
+        // Allow absolute paths
+        if (str_starts_with($url, '/')) {
+            return $url;
+        }
+
+        // Allow http(s) URLs only
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
+
+        return null;
     }
 
     // === Pagination Helpers ===

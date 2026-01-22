@@ -112,7 +112,8 @@ final class MediaUploader
      */
     public function isEnabled(): bool
     {
-        return (bool) $this->app->config('media.enabled', true);
+        // Use the correct config namespace (admin.media.enabled).
+        return (bool) $this->app->config('admin.media.enabled', true);
     }
 
     /**

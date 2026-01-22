@@ -150,7 +150,7 @@ return [
             'format' => 'yaml',             // Only YAML supported currently
         ],
         'markdown' => [
-            'allow_html' => true,           // Allow raw HTML in Markdown
+            'allow_html' => true,
             'heading_ids' => true,          // Add id attributes to headings for deep links
             'disallowed_tags' => [          // Tags stripped even when allow_html is true
                 'script',                   // Prevents XSS attacks
@@ -170,7 +170,17 @@ return [
 
     'security' => [
         'shortcodes' => [
-            'allow_php_snippets' => true,   // Enable [snippet name="file"] shortcode
+            'allow_php_snippets' => true,
+        ],
+        // When false, raw_html is ignored even if set in content files.
+        'allow_raw_html' => true,
+        // Default public security headers (applied to non-admin responses).
+        // You can override or relax these per site as needed.
+        'headers' => [
+            'content_security_policy' => "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self'; script-src 'self'",
+            'permissions_policy' => 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+                . ', interest-cohort=()',
+            'strict_transport_security' => 'max-age=63072000; includeSubDomains; preload',
         ],
         // Preview token for accessing draft content via ?preview=1&token=xxx
         // ⚠️  IMPORTANT: Generate a secure random token for production!
