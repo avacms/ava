@@ -1,0 +1,19 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# AVA CMS - APACHE REWRITE RULES
+# ══════════════════════════════════════════════════════════════════════════════
+# Routes all requests through index.php for clean URLs.
+# Required for Apache; Nginx uses try_files directive instead.
+# ══════════════════════════════════════════════════════════════════════════════
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Handle Authorization Header (needed for some setups)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    
+    # Route requests to front controller
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
