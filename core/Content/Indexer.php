@@ -446,6 +446,7 @@ final class Indexer
                     'id' => $item->id(),
                     'slug' => $item->slug(),
                     'title' => $item->title(),
+                    'type' => $typeName,
                     'date' => $item->date()?->format('c'),
                     'status' => $item->status(),
                     'excerpt' => mb_substr($item->excerpt() ?? '', 0, 200),
