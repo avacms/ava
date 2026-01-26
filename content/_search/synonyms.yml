@@ -1,0 +1,18 @@
+# Search Synonyms
+# Groups of words that should be treated as equivalent in search.
+
+- [photo, image, picture, photograph]
+- [quick, fast, rapid, speedy]
+- [start, begin, commence]
+- [end, finish, complete, conclude]
+- [help, assist, support, aid]
+- [buy, purchase, acquire]
+- [make, create, build, construct]
+- [show, display, present, demonstrate]
+- [find, search, locate, discover]
+- [big, large, huge, enormous]
+- [small, little, tiny, compact]
+- [good, great, excellent, outstanding]
+- [bad, poor, terrible, awful]
+- [easy, simple, straightforward]
+- [hard, difficult, challenging, complex]

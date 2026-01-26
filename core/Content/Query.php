@@ -535,7 +535,12 @@ final class Query
         $phrase = strtolower($this->search);
         $tokens = preg_split('/\s+/', $phrase, -1, PREG_SPLIT_NO_EMPTY);
 
-        // Expand tokens with synonyms (each token becomes [original, syn1, syn2, ...])
+        // Filter stop words, expand with synonyms
+        $stopWords = $this->repository->getStopWords();
+        $tokens = array_values(array_filter($tokens, fn($t) => !isset($stopWords[$t])));
+        if (empty($tokens)) {
+            return []; // All tokens were stop words
+        }
         $synonyms = $this->repository->getSynonyms();
         $expandedTokens = array_map(
             fn($t) => array_unique(array_merge([$t], $synonyms[$t] ?? [])),

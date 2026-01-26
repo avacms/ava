@@ -526,46 +526,53 @@ final class Repository
 
     /** @var array<string, array<string>>|null */
     private ?array $synonymsCache = null;
+    private ?array $stopWordsCache = null;
 
     /**
      * Get search synonyms map (word => [synonyms]).
-     * Loaded from storage/cache/synonyms.bin, built during ./ava rebuild.
      */
     public function getSynonyms(): array
     {
-        if ($this->synonymsCache !== null) {
-            return $this->synonymsCache;
-        }
+        return $this->synonymsCache ??= $this->loadSearchCache('synonyms.bin');
+    }
 
+    /**
+     * Get stop words set (word => true for fast lookup).
+     */
+    public function getStopWords(): array
+    {
+        return $this->stopWordsCache ??= $this->loadSearchCache('stopwords.bin');
+    }
+
+    /**
+     * Load a search cache file.
+     */
+    private function loadSearchCache(string $filename): array
+    {
         $cacheDir = $this->app->configPath('storage') . '/cache';
-        $cachePath = $cacheDir . '/synonyms.bin';
+        $path = $cacheDir . '/' . $filename;
         
-        if (!file_exists($cachePath)) {
-            return $this->synonymsCache = [];
+        if (!file_exists($path)) {
+            return [];
         }
         
-        $content = file_get_contents($cachePath);
+        $content = file_get_contents($path);
         if ($content === false || strlen($content) < 36) {
-            return $this->synonymsCache = [];
+            return [];
         }
         
         $payload = Indexer::verifyAndExtractPayload($content, $cacheDir);
         if ($payload === null) {
-            return $this->synonymsCache = [];
+            return [];
         }
         
         $prefix = substr($payload, 0, 3);
         $data = substr($payload, 3);
         
         if ($prefix === 'IG:' && function_exists('igbinary_unserialize')) {
-            return $this->synonymsCache = igbinary_unserialize($data) ?: [];
+            return igbinary_unserialize($data) ?: [];
         }
-
-        if ($prefix === 'SZ:') {
-            return $this->synonymsCache = unserialize($data, ['allowed_classes' => false]) ?: [];
-        }
-
-        return $this->synonymsCache = [];
+        return $prefix === 'SZ:' ? unserialize($data, ['allowed_classes' => false]) ?: [] : [];
     }
 
     // === Cache Management ===
@@ -578,5 +585,6 @@ final class Repository
         $this->backend()->clearMemoryCache();
         $this->htmlCache = null;
         $this->synonymsCache = null;
+        $this->stopWordsCache = null;
     }
 }

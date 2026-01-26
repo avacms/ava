@@ -103,17 +103,9 @@ final class Indexer
         $this->writeBinaryCacheFile('slug_lookup.bin', $slugLookup);
         $this->writeJsonCacheFile('fingerprint.json', $fingerprint);
 
-        // Build search synonyms cache if file exists
-        $synonyms = $this->buildSynonymsCache();
-        if (!empty($synonyms)) {
-            $this->writeBinaryCacheFile('synonyms.bin', $synonyms);
-        } else {
-            // Clean up stale synonyms cache
-            $synonymsPath = $this->getCachePath('synonyms.bin');
-            if (file_exists($synonymsPath)) {
-                @unlink($synonymsPath);
-            }
-        }
+        // Build search config caches (synonyms and stop words)
+        $this->writeSearchCache('synonyms.bin', $this->buildSynonymsCache());
+        $this->writeSearchCache('stopwords.bin', $this->loadStopWords());
 
         // Pre-render HTML if enabled (trades rebuild time for faster page loads)
         if ($this->app->config('content_index.prerender_html', false)) {
@@ -1141,8 +1133,44 @@ final class Indexer
     }
 
     /**
+     * Write a search cache file, or delete if empty.
+     */
+    private function writeSearchCache(string $filename, array $data): void
+    {
+        $path = $this->getCachePath($filename);
+        if (!empty($data)) {
+            $this->writeBinaryCacheFile($filename, $data);
+        } elseif (file_exists($path)) {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * Load stop words from content/_search/stopwords.yml.
+     */
+    private function loadStopWords(): array
+    {
+        $path = $this->app->configPath('content') . '/_search/stopwords.yml';
+        if (!file_exists($path)) {
+            return [];
+        }
+        try {
+            $words = \Symfony\Component\Yaml\Yaml::parseFile($path, \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+            if (!is_array($words)) {
+                return [];
+            }
+            return array_flip(array_filter(array_map(
+                fn($w) => is_string($w) ? strtolower(trim($w)) : '',
+                $words
+            )));
+        } catch (\Throwable $e) {
+            $this->logErrors(['Failed to parse stopwords.yml: ' . $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
      * Build search synonyms from content/_search/synonyms.yml.
-     * Each group like [photo, image, picture] creates bidirectional mappings.
      */
     private function buildSynonymsCache(): array
     {
