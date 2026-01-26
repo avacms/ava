@@ -241,7 +241,9 @@ final class ArrayBackend implements BackendInterface
         $expected = $filter['value'];
         $operator = $filter['operator'];
 
-        $value = $data['meta'][$field] ?? $data[$field] ?? null;
+        // Check both meta and frontmatter for compatibility
+        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
+        $value = $meta[$field] ?? $data[$field] ?? null;
 
         return match ($operator) {
             '=' => $value === $expected,
@@ -284,8 +286,9 @@ final class ArrayBackend implements BackendInterface
     private function scoreItem(array $data, string $phrase, array $tokens): int
     {
         $score = 0;
+        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
         $title = strtolower($data['title'] ?? '');
-        $excerpt = strtolower($data['meta']['excerpt'] ?? $data['excerpt'] ?? '');
+        $excerpt = strtolower($meta['excerpt'] ?? $data['excerpt'] ?? '');
 
         // Title phrase match: +80
         if (str_contains($title, $phrase)) {
@@ -324,7 +327,7 @@ final class ArrayBackend implements BackendInterface
         $score += min(15, $excerptHits * 3);
 
         // Featured boost: +15
-        if (!empty($data['meta']['featured']) || !empty($data['featured'])) {
+        if (!empty($meta['featured']) || !empty($data['featured'])) {
             $score += 15;
         }
 
@@ -362,12 +365,13 @@ final class ArrayBackend implements BackendInterface
      */
     private function getSortValue(array $data, string $orderBy): mixed
     {
+        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
         return match ($orderBy) {
             'date' => $data['date'] ?? 0,
             'updated' => $data['updated'] ?? $data['date'] ?? 0,
             'title' => strtolower($data['title'] ?? ''),
-            'order', 'menu_order' => $data['meta']['order'] ?? $data['order'] ?? 0,
-            default => $data['meta'][$orderBy] ?? $data[$orderBy] ?? '',
+            'order', 'menu_order' => $meta['order'] ?? $data['order'] ?? 0,
+            default => $meta[$orderBy] ?? $data[$orderBy] ?? '',
         };
     }
 

@@ -509,8 +509,9 @@ final class Query
         $expected = $filter['value'];
         $operator = $filter['operator'];
 
-        // Get value from nested data
-        $value = $data['meta'][$field] ?? $data[$field] ?? null;
+        // Get value from nested data (check both meta and frontmatter for compatibility)
+        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
+        $value = $meta[$field] ?? $data[$field] ?? null;
 
         return match ($operator) {
             '=' => $value === $expected,
@@ -581,9 +582,10 @@ final class Query
     private function scoreItemRaw(array $data, string $phrase, array $expandedTokens): int
     {
         $score = 0;
+        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
         $title = strtolower($data['title'] ?? '');
-        $excerpt = strtolower($data['meta']['excerpt'] ?? $data['excerpt'] ?? '');
-        $body = strtolower($data['body'] ?? $data['meta']['body'] ?? '');
+        $excerpt = strtolower($meta['excerpt'] ?? $data['excerpt'] ?? '');
+        $body = strtolower($data['body'] ?? $meta['body'] ?? '');
 
         // Get weights with defaults
         $w = array_merge([
@@ -653,9 +655,8 @@ final class Query
             $score += min($w['body_token_max'], $hits * $w['body_token']);
         }
 
-        // Custom field matches
+        // Custom field matches (use $meta already defined above)
         if (!empty($w['fields'])) {
-            $meta = $data['meta'] ?? [];
             foreach ($w['fields'] as $field) {
                 $value = strtolower((string) ($meta[$field] ?? ''));
                 if ($value !== '') {
@@ -669,7 +670,7 @@ final class Query
         }
 
         // Featured boost
-        if ($w['featured'] > 0 && (!empty($data['meta']['featured']) || !empty($data['featured']))) {
+        if ($w['featured'] > 0 && (!empty($meta['featured']) || !empty($data['featured']))) {
             $score += $w['featured'];
         }
 
@@ -708,12 +709,13 @@ final class Query
      */
     private function getSortValueRaw(array $data): mixed
     {
+        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
         return match ($this->orderBy) {
             'date' => $data['date'] ?? 0,
             'updated' => $data['updated'] ?? $data['date'] ?? 0,
             'title' => strtolower($data['title'] ?? ''),
-            'order', 'menu_order' => $data['meta']['order'] ?? $data['order'] ?? 0,
-            default => $data['meta'][$this->orderBy] ?? $data[$this->orderBy] ?? '',
+            'order', 'menu_order' => $meta['order'] ?? $data['order'] ?? 0,
+            default => $meta[$this->orderBy] ?? $data[$this->orderBy] ?? '',
         };
     }
 }
