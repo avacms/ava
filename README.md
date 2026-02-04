@@ -1,4 +1,8 @@
-❗ **Ava CMS is under very early and active development and may contain bugs or security issues. You are responsible for reviewing, testing, and securing any deployment. Ava CMS is provided as free, open-source software without warranty (GNU General Public License), see LICENSE.** ❗
+## ❗ Project Status
+
+ This project is under **very early, active development** and **may contain bugs or security issues**. It is likely not ready for production websites. 
+ 
+ You are responsible for reviewing, testing, and securing any deployment. Ava CMS is provided as free, open-source software without warranty (GNU General Public License), see LICENSE.
 
 ---
 
