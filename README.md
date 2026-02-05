@@ -1,3 +1,11 @@
+## ❗ Project Status
+
+ This project is under **very early, active development** and **may contain bugs or security issues**. It is likely not ready for production websites. 
+ 
+ You are responsible for reviewing, testing, and securing any deployment. Ava CMS is provided as free, open-source software without warranty (GNU General Public License), see LICENSE.
+
+---
+
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://ava.addy.zone/media/dark.png">
@@ -108,6 +116,7 @@ That’s it! Ava CMS is designed to run happily whether it's on modest shared ho
 
 - Download the latest release: https://github.com/avacms/ava/releases
 - Extract it into a folder on your machine or server
+- Point your **public** root to /public
 
 **Option B: GitHub CLI (`gh`)**
 
@@ -118,7 +127,7 @@ unzip -q ./*.zip -d /path/to/your/site
 cd /path/to/your/site
 composer install
 ```
-Then [configure](https://ava.addy.zone/docs/configuration) your site by editing `app/config/ava.php` and visit your site.
+- Point your **public** root to /public
 
 ### 2) Configure
 
