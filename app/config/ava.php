@@ -56,7 +56,7 @@ return [
     */
 
     'admin' => [
-        'enabled' => true,
+        'enabled' => false,
         'path'    => '/ava-admin',
         'theme'   => 'cyan',
 
