@@ -57,11 +57,13 @@ return [
             $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
             $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">' . "\n";
             $xml .= "<channel>\n";
+            $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
+            $safeFeedUrl = htmlspecialchars($feedUrl, ENT_XML1, 'UTF-8');
             $xml .= "  <title>" . htmlspecialchars($title) . "</title>\n";
-            $xml .= "  <link>{$baseUrl}</link>\n";
+            $xml .= "  <link>{$safeBaseUrl}</link>\n";
             $xml .= "  <description>" . htmlspecialchars($description) . "</description>\n";
             $xml .= "  <language>en</language>\n";
-            $xml .= "  <atom:link href=\"{$baseUrl}{$feedUrl}\" rel=\"self\" type=\"application/rss+xml\"/>\n";
+            $xml .= "  <atom:link href=\"{$safeBaseUrl}{$safeFeedUrl}\" rel=\"self\" type=\"application/rss+xml\"/>\n";
             
             // Build date from most recent item
             if (!empty($items)) {
@@ -94,10 +96,11 @@ return [
                     $url = str_replace('{slug}', $item->slug(), $pattern);
                 }
 
+                $safeUrl = htmlspecialchars($url, ENT_XML1, 'UTF-8');
                 $xml .= "  <item>\n";
                 $xml .= "    <title>" . htmlspecialchars($item->title()) . "</title>\n";
-                $xml .= "    <link>{$baseUrl}{$url}</link>\n";
-                $xml .= "    <guid isPermaLink=\"true\">{$baseUrl}{$url}</guid>\n";
+                $xml .= "    <link>{$safeBaseUrl}{$safeUrl}</link>\n";
+                $xml .= "    <guid isPermaLink=\"true\">{$safeBaseUrl}{$safeUrl}</guid>\n";
 
                 $date = $item->date();
                 if ($date) {
@@ -109,7 +112,9 @@ return [
                     ? $app->renderer()->renderItem($item) 
                     : $item->excerpt();
                 if ($content) {
-                    $xml .= "    <description><![CDATA[" . $content . "]]></description>\n";
+                    // Escape ]]> inside CDATA to prevent premature closure
+                    $safeCdata = str_replace(']]>', ']]]]><![CDATA[>', $content);
+                    $xml .= "    <description><![CDATA[" . $safeCdata . "]]></description>\n";
                 }
 
                 $xml .= "  </item>\n";

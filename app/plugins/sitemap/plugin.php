@@ -49,6 +49,7 @@ return [
             $repository = $app->repository();
             $types = $repository->types();
 
+            $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
             $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
             $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
@@ -70,8 +71,9 @@ return [
                 }
 
                 if ($hasIndexable) {
+                    $safeType = htmlspecialchars($type, ENT_XML1, 'UTF-8');
                     $xml .= "  <sitemap>\n";
-                    $xml .= "    <loc>{$baseUrl}/sitemap-{$type}.xml</loc>\n";
+                    $xml .= "    <loc>{$safeBaseUrl}/sitemap-{$safeType}.xml</loc>\n";
                     if ($lastMod) {
                         $xml .= "    <lastmod>" . $lastMod->format('Y-m-d') . "</lastmod>\n";
                     }
@@ -94,6 +96,7 @@ return [
                 // Use publishedMeta() - sitemaps only need URL and lastmod, not body content
                 $items = $repository->publishedMeta($type);
 
+                $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
                 $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
                 $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
@@ -115,8 +118,9 @@ return [
                         $url = str_replace('{slug}', $item->slug(), $pattern);
                     }
 
+                    $safeUrl = htmlspecialchars($url, ENT_XML1, 'UTF-8');
                     $xml .= "  <url>\n";
-                    $xml .= "    <loc>{$baseUrl}{$url}</loc>\n";
+                    $xml .= "    <loc>{$safeBaseUrl}{$safeUrl}</loc>\n";
                     
                     $updated = $item->updated();
                     if ($updated) {
