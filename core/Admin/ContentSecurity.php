@@ -103,19 +103,20 @@ final class ContentSecurity
         $errors = [];
         $warnings = [];
 
-        // Check for blocked tags
-        foreach (self::BLOCKED_TAGS as $tag) {
-            // Check for tag start followed by space, slash, or closing bracket
-            // Handle: <script>, <script src="...">, <script/>, <script/src="...">
-            if (preg_match('/<' . preg_quote($tag, '/') . '([\s\/>]|$)/i', $content)) {
+        // Check for blocked tags (single combined regex instead of per-tag loop)
+        $tagPattern = '/<(' . implode('|', array_map(fn($t) => preg_quote($t, '/'), self::BLOCKED_TAGS)) . ')([\s\/>]|$)/i';
+        if (preg_match_all($tagPattern, $content, $tagMatches)) {
+            $foundTags = array_unique(array_map('strtolower', $tagMatches[1]));
+            foreach ($foundTags as $tag) {
                 $errors[] = "Blocked tag <{$tag}> detected. For security, this tag cannot be added via the admin interface. Use the file system to add this content.";
             }
         }
 
-        // Check for blocked event handler attributes
-        foreach (self::BLOCKED_ATTRIBUTES as $attr) {
-            // Check for attribute preceded by space or slash (e.g. <img/onload=...>)
-            if (preg_match('/[\s\/]' . preg_quote($attr, '/') . '\s*=/i', $content)) {
+        // Check for blocked event handler attributes (single combined regex)
+        $attrPattern = '/[\s\/](' . implode('|', array_map(fn($a) => preg_quote($a, '/'), self::BLOCKED_ATTRIBUTES)) . ')\s*=/i';
+        if (preg_match_all($attrPattern, $content, $attrMatches)) {
+            $foundAttrs = array_unique(array_map('strtolower', $attrMatches[1]));
+            foreach ($foundAttrs as $attr) {
                 $errors[] = "Blocked attribute '{$attr}' detected. JavaScript event handlers are not allowed via the admin interface.";
             }
         }
