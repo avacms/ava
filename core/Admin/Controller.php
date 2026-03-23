@@ -21,6 +21,12 @@ final class Controller
     private Application $app;
     private Auth $auth;
 
+    /** @var array|null Memoized content type config */
+    private ?array $contentTypeConfigCache = null;
+
+    /** @var array|null Memoized taxonomy config */
+    private ?array $taxonomyConfigCache = null;
+
     public function __construct(Application $app)
     {
         $this->app = $app;
@@ -440,11 +446,12 @@ final class Controller
         $offset = ($page - 1) * $perPage;
         $items = array_slice($allItems, $offset, $perPage);
 
-        // Calculate total file size (filesystem metadata only, no content reading)
+        // Calculate file size for current page only (avoids stat()ing every file on disk)
         $totalSize = 0;
-        foreach ($allItems as $item) {
-            if (file_exists($item->filePath())) {
-                $totalSize += filesize($item->filePath());
+        foreach ($items as $item) {
+            $size = @filesize($item->filePath());
+            if ($size !== false) {
+                $totalSize += $size;
             }
         }
 
@@ -984,7 +991,8 @@ final class Controller
                         $this->auth->regenerateCsrf();
                         $this->logAction('INFO', "Created {$type} '{$result['title']}' (file: {$result['filename']}.md, slug: {$result['slug']})");
                         $this->app->indexer()->rebuild();
-                        return Response::redirect($this->adminUrl() . '/content/' . $type . '?created=' . urlencode($result['title']));
+                        $fileParam = str_replace('/', '|', $result['filename']);
+                        return Response::redirect($this->adminUrl() . '/content/' . $type . '/edit?file=' . urlencode($fileParam) . '&created=1');
                     } else {
                         $error = $result['error'];
                         $securityWarnings = $result['warnings'] ?? [];
@@ -1055,7 +1063,8 @@ final class Controller
                                                 $this->auth->regenerateCsrf();
                                                 $this->logAction('INFO', "Created {$type} '{$title}' (file: {$filename}.md, slug: {$slug})");
                                                 $this->app->indexer()->rebuild();
-                                                return Response::redirect($this->adminUrl() . '/content/' . $type . '?created=' . urlencode($title));
+                                                $fileParam = str_replace('/', '|', $filename);
+                                                return Response::redirect($this->adminUrl() . '/content/' . $type . '/edit?file=' . urlencode($fileParam) . '&created=1');
                                             } else {
                                                 $error = $result;
                                             }
@@ -2967,8 +2976,8 @@ JS;
     private function getSearchableAdminPages(): array
     {
         $repository = $this->app->repository();
-        $contentTypes = $this->app->config('content_types', []);
-        $taxonomyConfig = require $this->app->path('app/config/taxonomies.php');
+        $contentTypes = $this->getContentTypeConfig();
+        $taxonomyConfig = $this->getTaxonomyConfig();
         
         $pages = [
             // Core pages
@@ -3090,10 +3099,22 @@ JS;
         $stats = [];
 
         foreach ($repository->types() as $type) {
+            // Single pass over items instead of 3 separate count() calls
+            $items = $repository->allRaw($type);
+            $published = 0;
+            $draft = 0;
+            foreach ($items as $data) {
+                $status = $data['status'] ?? 'published';
+                if ($status === 'published') {
+                    $published++;
+                } elseif ($status === 'draft') {
+                    $draft++;
+                }
+            }
             $stats[$type] = [
-                'total' => $repository->count($type),
-                'published' => $repository->count($type, 'published'),
-                'draft' => $repository->count($type, 'draft'),
+                'total' => count($items),
+                'published' => $published,
+                'draft' => $draft,
             ];
         }
 
@@ -3102,19 +3123,24 @@ JS;
 
     private function getTaxonomyStats(): array
     {
-        $repository = $this->app->repository();
+        // Derive stats from the already-fetched terms to avoid double-fetching
+        $allTerms = $this->getTaxonomyTerms();
         $stats = [];
-
-        foreach ($repository->taxonomies() as $taxonomy) {
-            $terms = $repository->terms($taxonomy);
+        foreach ($allTerms as $taxonomy => $terms) {
             $stats[$taxonomy] = count($terms);
         }
-
         return $stats;
     }
 
+    /** @var array|null Memoized taxonomy terms */
+    private ?array $taxonomyTermsCache = null;
+
     private function getTaxonomyTerms(): array
     {
+        if ($this->taxonomyTermsCache !== null) {
+            return $this->taxonomyTermsCache;
+        }
+
         $repository = $this->app->repository();
         $allTerms = [];
 
@@ -3122,25 +3148,30 @@ JS;
             $allTerms[$taxonomy] = $repository->terms($taxonomy);
         }
 
+        $this->taxonomyTermsCache = $allTerms;
         return $allTerms;
     }
 
     private function getContentTypeConfig(): array
     {
-        $configPath = $this->app->path('app/config/content_types.php');
-        if (file_exists($configPath)) {
-            return require $configPath;
+        if ($this->contentTypeConfigCache !== null) {
+            return $this->contentTypeConfigCache;
         }
-        return [];
+
+        $configPath = $this->app->path('app/config/content_types.php');
+        $this->contentTypeConfigCache = file_exists($configPath) ? require $configPath : [];
+        return $this->contentTypeConfigCache;
     }
 
     private function getTaxonomyConfig(): array
     {
-        $configPath = $this->app->path('app/config/taxonomies.php');
-        if (file_exists($configPath)) {
-            return require $configPath;
+        if ($this->taxonomyConfigCache !== null) {
+            return $this->taxonomyConfigCache;
         }
-        return [];
+
+        $configPath = $this->app->path('app/config/taxonomies.php');
+        $this->taxonomyConfigCache = file_exists($configPath) ? require $configPath : [];
+        return $this->taxonomyConfigCache;
     }
 
     private function getAvaConfig(): array
@@ -4049,29 +4080,40 @@ JS;
     {
         $errorLogPath = $this->app->path('storage/logs/error.log');
         
-        if (!file_exists($errorLogPath)) {
+        $size = @filesize($errorLogPath);
+        if ($size === false || $size === 0) {
             return 0;
         }
         
         $cutoff = time() - 86400; // 24 hours ago
         $count = 0;
         
+        // Read from the end of the file (recent entries are at the bottom)
+        // Read at most 256KB to avoid loading huge log files
+        $readSize = min($size, 256 * 1024);
         $fp = @fopen($errorLogPath, 'r');
         if (!$fp) {
             return 0;
         }
         
-        while (($line = fgets($fp)) !== false) {
-            // Parse log line: [timestamp] LEVEL: message
-            if (preg_match('/^\[([^\]]+)\]\s+(\w+):/', $line, $m)) {
-                $timestamp = strtotime($m[1]);
+        fseek($fp, -$readSize, SEEK_END);
+        $tail = fread($fp, $readSize);
+        fclose($fp);
+        
+        if ($tail === false) {
+            return 0;
+        }
+        
+        // Count log entries within the cutoff window
+        if (preg_match_all('/^\[([^\]]+)\]\s+\w+:/m', $tail, $matches)) {
+            foreach ($matches[1] as $dateStr) {
+                $timestamp = strtotime($dateStr);
                 if ($timestamp !== false && $timestamp >= $cutoff) {
                     $count++;
                 }
             }
         }
         
-        fclose($fp);
         return $count;
     }
 
