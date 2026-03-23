@@ -119,8 +119,8 @@ $previewUrlDisplay = str_replace($baseUrl, '', $previewUrl);
 $previewUrl .= '?preview=1';
 
 // Check for success message
-$saved = isset($_GET['saved']) || isset($successMessage);
-$successMsg = $successMessage ?? 'Changes saved successfully.';
+$saved = isset($_GET['saved']) || isset($_GET['created']) || isset($successMessage);
+$successMsg = isset($_GET['created']) ? 'Content created successfully.' : ($successMessage ?? 'Changes saved successfully.');
 
 // Context for field renderer
 $context = [
