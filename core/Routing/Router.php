@@ -209,6 +209,12 @@ final class Router
             return null;
         }
 
+        // Normalize leading double-slashes to prevent protocol-relative open redirect
+        // (e.g., //evil.com/ would be interpreted by browsers as http://evil.com/)
+        if (str_starts_with($path, '//')) {
+            $path = '/' . ltrim($path, '/');
+        }
+
         $hasTrailingSlash = str_ends_with($path, '/');
 
         if ($trailingSlash && !$hasTrailingSlash) {
