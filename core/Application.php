@@ -677,39 +677,44 @@ final class Application
     }
 
     /**
-     * Get the allowlist of permitted asset file extensions and their MIME types.
+     * Allowlist of permitted asset file extensions and their MIME types.
      * 
      * Only these file types can be served via /theme/ and {admin_path}/assets/ routes.
      * This prevents serving PHP source code, config files, or other sensitive files.
      * 
+     * Defined as a constant to avoid re-creating the array on every asset request.
+     */
+    private const ALLOWED_ASSET_EXTENSIONS = [
+        // Stylesheets
+        'css'   => 'text/css',
+        // JavaScript
+        'js'    => 'application/javascript',
+        'mjs'   => 'application/javascript',
+        // Data formats
+        'json'  => 'application/json',
+        'map'   => 'application/json', // Source maps
+        // Images
+        'svg'   => 'image/svg+xml',
+        'png'   => 'image/png',
+        'jpg'   => 'image/jpeg',
+        'jpeg'  => 'image/jpeg',
+        'gif'   => 'image/gif',
+        'webp'  => 'image/webp',
+        'ico'   => 'image/x-icon',
+        'avif'  => 'image/avif',
+        // Fonts
+        'woff'  => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf'   => 'font/ttf',
+        'otf'   => 'font/otf',
+        'eot'   => 'application/vnd.ms-fontobject',
+    ];
+
+    /**
      * @return array<string, string> Extension => MIME type mapping
      */
     private function getAllowedAssetExtensions(): array
     {
-        return [
-            // Stylesheets
-            'css'   => 'text/css',
-            // JavaScript
-            'js'    => 'application/javascript',
-            'mjs'   => 'application/javascript',
-            // Data formats
-            'json'  => 'application/json',
-            'map'   => 'application/json', // Source maps
-            // Images
-            'svg'   => 'image/svg+xml',
-            'png'   => 'image/png',
-            'jpg'   => 'image/jpeg',
-            'jpeg'  => 'image/jpeg',
-            'gif'   => 'image/gif',
-            'webp'  => 'image/webp',
-            'ico'   => 'image/x-icon',
-            'avif'  => 'image/avif',
-            // Fonts
-            'woff'  => 'font/woff',
-            'woff2' => 'font/woff2',
-            'ttf'   => 'font/ttf',
-            'otf'   => 'font/otf',
-            'eot'   => 'application/vnd.ms-fontobject',
-        ];
+        return self::ALLOWED_ASSET_EXTENSIONS;
     }
 }
