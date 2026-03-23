@@ -136,9 +136,21 @@ final class Path
 
     /**
      * Check if a path is inside another path.
+     * 
+     * Uses realpath() when both paths exist on disk (resolves symlinks),
+     * falls back to string comparison for paths that don't exist yet.
      */
     public static function isInside(string $path, string $base): bool
     {
+        // When both paths exist, use realpath() to resolve symlinks
+        $realPath = realpath($path);
+        $realBase = realpath($base);
+        if ($realPath !== false && $realBase !== false) {
+            $realBase = rtrim($realBase, '/') . '/';
+            return str_starts_with($realPath, $realBase) || $realPath === rtrim($realBase, '/');
+        }
+
+        // Fallback to string comparison for paths that don't exist yet
         $path = self::normalize($path);
         $base = rtrim(self::normalize($base), '/') . '/';
 
