@@ -301,17 +301,31 @@ final class FieldRenderer
             }
         }
 
-        // Add content items for content reference fields
+        // Add content items for content reference fields (only if needed)
         if (!isset($context['contentItems'])) {
             $context['contentItems'] = [];
-            $repository = $this->app->repository();
-            foreach ($repository->types() as $type) {
-                $items = $repository->allMeta($type);
-                $context['contentItems'][$type] = array_map(fn($item) => [
-                    'slug' => $item->slug(),
-                    'title' => $item->title(),
-                    'id' => $item->id(),
-                ], $items);
+            
+            // Only load content items if there are content-type fields configured
+            $contentTypes = $this->app->config('content_types', []);
+            $typeConfig = $contentTypes[$contentType] ?? [];
+            $hasContentField = false;
+            foreach ($typeConfig['fields'] ?? [] as $fieldDef) {
+                if (($fieldDef['type'] ?? '') === 'content') {
+                    $hasContentField = true;
+                    break;
+                }
+            }
+            
+            if ($hasContentField) {
+                $repository = $this->app->repository();
+                foreach ($repository->types() as $type) {
+                    $items = $repository->allMeta($type);
+                    $context['contentItems'][$type] = array_map(fn($item) => [
+                        'slug' => $item->slug(),
+                        'title' => $item->title(),
+                        'id' => $item->id(),
+                    ], $items);
+                }
             }
         }
 

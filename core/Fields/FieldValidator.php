@@ -17,6 +17,9 @@ final class FieldValidator
     private FieldRegistry $registry;
     private Application $app;
 
+    /** @var array<string, array<string, Field>> Cached fields by content type */
+    private array $fieldsCache = [];
+
     public function __construct(Application $app)
     {
         $this->app = $app;
@@ -139,6 +142,10 @@ final class FieldValidator
      */
     public function getFields(string $contentType): array
     {
+        if (isset($this->fieldsCache[$contentType])) {
+            return $this->fieldsCache[$contentType];
+        }
+
         $definitions = $this->getFieldDefinitions($contentType);
         $fields = [];
 
@@ -149,6 +156,7 @@ final class FieldValidator
             }
         }
 
+        $this->fieldsCache[$contentType] = $fields;
         return $fields;
     }
 
