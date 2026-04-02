@@ -55,6 +55,19 @@ final class Application
         if ($command === 'version' || $command === '--version' || $command === '-v') {
             $this->output->showBanner(showVersion: true);
             $this->output->writeln('');
+            
+            // Quick stale file check
+            $updater = new \Ava\Updater($this->app);
+            if ($updater->checkPathSafety()['safe']) {
+                $staleResult = $updater->detectStaleFiles();
+                if ($staleResult['success'] && !empty($staleResult['stale_files'])) {
+                    $count = count($staleResult['stale_files']);
+                    $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' ' . $this->output->color("{$count} stale file(s) from previous version", Output::YELLOW));
+                    $this->output->nextStep('./ava update:stale --clean', 'Review and remove');
+                    $this->output->writeln('');
+                }
+            }
+            
             return 0;
         }
 

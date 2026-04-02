@@ -152,6 +152,18 @@ final class StatusCommand
             }
         }
 
+        // Check for stale files
+        $updater = new \Ava\Updater($this->app);
+        if ($updater->checkPathSafety()['safe']) {
+            $staleResult = $updater->detectStaleFiles();
+            if ($staleResult['success'] && !empty($staleResult['stale_files'])) {
+                $count = count($staleResult['stale_files']);
+                $this->output->sectionHeader('Maintenance');
+                $this->output->writeln('  ' . $this->output->color('⚠', Output::YELLOW) . ' ' . $this->output->color("{$count} stale file(s) from previous version", Output::YELLOW));
+                $this->output->nextStep('./ava update:stale --clean', 'Review and remove');
+            }
+        }
+
         $this->output->writeln('');
         return 0;
     }
