@@ -142,8 +142,7 @@ final class Item
      * processed.
      * 
      * Security note: This is safe for file-based content since content
-     * authors have filesystem access anyway. The admin editor blocks
-     * high-risk HTML regardless of this setting.
+     * authors have filesystem access anyway.
      */
     public function rawHtml(): bool
     {

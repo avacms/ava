@@ -575,7 +575,7 @@ final class Application
     /**
      * Allowlist of permitted asset file extensions and their MIME types.
      * 
-     * Only these file types can be served via /theme/ and {admin_path}/assets/ routes.
+     * Only these file types can be served via /theme/ routes.
      * This prevents serving PHP source code, config files, or other sensitive files.
      * 
      * Defined as a constant to avoid re-creating the array on every asset request.

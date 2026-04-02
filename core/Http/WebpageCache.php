@@ -46,7 +46,7 @@ final class WebpageCache
      * Check if a request is cacheable for READING from cache.
      * 
      * This is used to determine if we should serve a cached page.
-     * We serve cached pages to everyone, including admins - if the cache
+     * We serve cached pages to everyone - if the cache
      * file exists, it was valid when generated.
      */
     public function isCacheableForRead(Request $request): bool

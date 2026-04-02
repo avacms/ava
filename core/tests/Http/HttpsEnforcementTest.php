@@ -15,7 +15,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsSecureReturnsTrueForHttps(): void
     {
         $_SERVER['HTTPS'] = 'on';
-        $request = new Request('GET', '/admin', []);
+        $request = new Request('GET', '/test', []);
         
         $this->assertTrue($request->isSecure());
         
@@ -25,7 +25,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsSecureReturnsFalseForHttp(): void
     {
         $_SERVER['HTTPS'] = 'off';
-        $request = new Request('GET', '/admin', []);
+        $request = new Request('GET', '/test', []);
         
         $this->assertFalse($request->isSecure());
         
@@ -35,7 +35,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsSecureDoesNotTrustXForwardedProtoByDefault(): void
     {
         $_SERVER['HTTPS'] = 'off';
-        $request = new Request('GET', '/admin', [], ['X-Forwarded-Proto' => 'https']);
+        $request = new Request('GET', '/test', [], ['X-Forwarded-Proto' => 'https']);
         
         $this->assertFalse($request->isSecure());
         
@@ -45,7 +45,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsLocalhostReturnsTrueForIPv4Loopback(): void
     {
         $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
-        $request = new Request('GET', '/admin', []);
+        $request = new Request('GET', '/test', []);
         
         $this->assertTrue($request->isLocalhost());
         
@@ -55,7 +55,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsLocalhostReturnsTrueForIPv6Loopback(): void
     {
         $_SERVER['REMOTE_ADDR'] = '::1';
-        $request = new Request('GET', '/admin', []);
+        $request = new Request('GET', '/test', []);
         
         $this->assertTrue($request->isLocalhost());
         
@@ -65,7 +65,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsLocalhostReturnsFalseForPublicIP(): void
     {
         $_SERVER['REMOTE_ADDR'] = '192.168.1.1';
-        $request = new Request('GET', '/admin', [], ['Host' => 'example.com']);
+        $request = new Request('GET', '/test', [], ['Host' => 'example.com']);
         
         $this->assertFalse($request->isLocalhost());
         
@@ -75,7 +75,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsLocalhostReturnsTrueForLocalhostHostname(): void
     {
         $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
-        $request = new Request('GET', '/admin', [], ['Host' => 'localhost']);
+        $request = new Request('GET', '/test', [], ['Host' => 'localhost']);
         
         $this->assertTrue($request->isLocalhost());
         
@@ -85,7 +85,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsLocalhostReturnsTrueForLocalhostWithPort(): void
     {
         $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
-        $request = new Request('GET', '/admin', [], ['Host' => 'localhost:8080']);
+        $request = new Request('GET', '/test', [], ['Host' => 'localhost:8080']);
         
         $this->assertTrue($request->isLocalhost());
         
@@ -95,7 +95,7 @@ final class HttpsEnforcementTest extends TestCase
     public function testIsLocalhostReturnsFalseForProductionDomain(): void
     {
         $_SERVER['REMOTE_ADDR'] = '1.2.3.4';
-        $request = new Request('GET', '/admin', [], ['Host' => 'example.com']);
+        $request = new Request('GET', '/test', [], ['Host' => 'example.com']);
         
         $this->assertFalse($request->isLocalhost());
         

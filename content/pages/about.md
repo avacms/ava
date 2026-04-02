@@ -45,7 +45,7 @@ Ava is perfect if you:
 - Value **clarity and simplicity** over feature bloat
 - Want to **understand** the tools you use
 
-Ava might not be right if you need a visual page builder, a WordPress-like admin for non-technical users, or complex e-commerce out of the box.
+Ava probably won't be the right choice if you need a visual page builder, a GUI for non-technical users, or e-commerce out of the box.
 
 ---
 

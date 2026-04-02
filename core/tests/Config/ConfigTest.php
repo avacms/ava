@@ -50,7 +50,7 @@ final class ConfigTest extends TestCase
             'webpage_cache' => [
                 'enabled' => false,
                 'ttl' => 3600,
-                'exclude' => ['/api/*', '/admin/*'],
+                'exclude' => ['/api/*'],
             ],
             'content' => [
                 'per_page' => 10,
@@ -207,7 +207,7 @@ final class ConfigTest extends TestCase
     {
         $exclude = Arr::get($this->config, 'webpage_cache.exclude');
         $this->assertIsArray($exclude);
-        $this->assertCount(2, $exclude);
+        $this->assertCount(1, $exclude);
         $this->assertContains('/api/*', $exclude);
     }
 

@@ -14,10 +14,8 @@ defined('AVA_ROOT') || exit;
  *   - Where Markdown files live (content_dir)
  *   - How URLs are generated (url.type: 'hierarchical' or 'pattern')
  *   - Which templates render the content (templates)
- *   - Custom fields for validation and admin UI (fields)
  *
  * Docs: https://ava.addy.zone/docs/configuration
- * Fields: https://ava.addy.zone/docs/fields
  */
 
 return [
@@ -36,7 +34,7 @@ return [
     */
 
     'page' => [
-        'label'       => 'Pages',           // Display name in admin UI
+        'label'       => 'Pages',           // Display name
         'icon'        => 'description',     // Material icon (see fonts.google.com/icons)
         'content_dir' => 'pages',           // Folder inside content/
 
@@ -100,115 +98,6 @@ return [
         // Optional: Cache extra frontmatter fields for fast archive queries
         // 'cache_fields' => ['author', 'featured_image'],
     ],
-
-    /*
-    |═══════════════════════════════════════════════════════════════════════════
-    | EXAMPLE: RECIPES 
-    |═══════════════════════════════════════════════════════════════════════════
-    | This example shows a content type with custom fields for validation
-    | and admin UI. Uncomment and adapt for your own content types.
-    |
-    | To use: Create content/recipes/ folder and recipe.php template.
-    |
-    | Field types available:
-    |   text, textarea, number, checkbox, select, date, color,
-    |   image, file, gallery, array, content, taxonomy
-    |
-    | See: https://ava.addy.zone/docs/fields
-    */
-
-    // 'recipe' => [
-    //     'label'       => 'Recipes',
-    //     'icon'        => 'restaurant',
-    //     'content_dir' => 'recipes',
-    //
-    //     'url' => [
-    //         'type'    => 'pattern',
-    //         'pattern' => '/recipes/{slug}',
-    //         'archive' => '/recipes',
-    //     ],
-    //
-    //     'templates' => [
-    //         'single'  => 'recipe.php',
-    //         'archive' => 'recipes-archive.php',
-    //     ],
-    //
-    //     'taxonomies' => ['category'],   // e.g., "Breakfast", "Desserts"
-    //     'sorting'    => 'date_desc',
-    //
-    //     'fields' => [
-    //         // Text field with validation
-    //         'author' => [
-    //             'type'      => 'text',
-    //             'label'     => 'Recipe Author',
-    //             'required'  => true,
-    //             'maxLength' => 100,
-    //         ],
-    //
-    //         // Number fields for cooking info
-    //         'prep_time' => [
-    //             'type'  => 'number',
-    //             'label' => 'Prep Time (minutes)',
-    //             'min'   => 0,
-    //             'max'   => 480,
-    //         ],
-    //         'cook_time' => [
-    //             'type'  => 'number',
-    //             'label' => 'Cook Time (minutes)',
-    //             'min'   => 0,
-    //             'max'   => 480,
-    //         ],
-    //         'servings' => [
-    //             'type'    => 'number',
-    //             'label'   => 'Servings',
-    //             'min'     => 1,
-    //             'max'     => 100,
-    //             'default' => 4,
-    //         ],
-    //
-    //         // Dropdown selection
-    //         'difficulty' => [
-    //             'type'    => 'select',
-    //             'label'   => 'Difficulty',
-    //             'options' => [
-    //                 'easy'         => 'Easy',
-    //                 'intermediate' => 'Intermediate',
-    //                 'advanced'     => 'Advanced',
-    //             ],
-    //             'default' => 'easy',
-    //         ],
-    //
-    //         // Image with preview in admin
-    //         'featured_image' => [
-    //             'type'        => 'image',
-    //             'label'       => 'Recipe Photo',
-    //             'description' => 'Recommended: 1200×800px',
-    //         ],
-    //
-    //         // Dynamic list (ingredients, steps, etc.)
-    //         'ingredients' => [
-    //             'type'     => 'array',
-    //             'label'    => 'Ingredients',
-    //             'minItems' => 1,
-    //             'maxItems' => 50,
-    //         ],
-    //
-    //         // Boolean toggle
-    //         'featured' => [
-    //             'type'    => 'checkbox',
-    //             'label'   => 'Featured Recipe',
-    //             'default' => false,
-    //         ],
-    //     ],
-    //
-    //     // Include these fields in archive cache for fast listing access
-    //     'cache_fields' => ['author', 'prep_time', 'cook_time', 'difficulty', 'featured_image'],
-    //
-    //     'search' => [
-    //         'enabled' => true,
-    //         'fields'  => ['title', 'body', 'ingredients'],
-    //     ],
-    // ],
 
     /*
     |───────────────────────────────────────────────────────────────────────────

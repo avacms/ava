@@ -84,8 +84,7 @@ final class RawHtmlTest extends TestCase
      * 
      * raw_html is safe because:
      * 1. Content authors have filesystem access anyway (flat-file CMS)
-     * 2. The admin editor still blocks high-risk HTML (script, iframe, etc.)
-     * 3. This only affects content body, not user-submitted data
+     * 2. This only affects content body, not user-submitted data
      */
     public function testSecurityModelDocumentation(): void
     {
