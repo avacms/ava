@@ -213,7 +213,7 @@ return [
         [
             'name' => 'feed:stats',
             'description' => 'Show RSS feed statistics',
-            'handler' => function (array $args, $cli, \Ava\Application $app) {
+            'handler' => function (array $args, $output, \Ava\Application $app) {
                 $repository = $app->repository();
                 $types = $repository->types();
                 $baseUrl = rtrim($app->config('site.base_url', ''), '/');
@@ -225,7 +225,7 @@ return [
                     'types' => null,
                 ], $app->config('feed', []));
 
-                $cli->header('RSS Feed Statistics');
+                $output->header('RSS Feed Statistics');
                 
                 $tableData = [];
                 $totalItems = 0;
@@ -261,26 +261,26 @@ return [
                 }
 
                 if (empty($tableData)) {
-                    $cli->warning('No content available for feeds.');
+                    $output->warning('No content available for feeds.');
                     return 0;
                 }
 
                 // Display table with colors
-                $cli->writeln('');
+                $output->writeln('');
                 $headers = ['Content Type', 'Total Items', 'In Feed', 'Feed URL'];
                 $rows = array_map(fn($d) => [
-                    $cli->primary($d['type']),
+                    $output->primary($d['type']),
                     (string)$d['total'],
-                    $cli->green((string)$d['in_feed']),
-                    $cli->cyan($d['file']),
+                    $output->green((string)$d['in_feed']),
+                    $output->cyan($d['file']),
                 ], $tableData);
-                $cli->table($headers, $rows);
+                $output->table($headers, $rows);
 
-                $cli->writeln('');
-                $cli->info("Items per feed: " . $cli->bold((string)$config['items_per_feed']));
-                $cli->info("Content mode: " . ($config['full_content'] ? $cli->green('Full HTML') : $cli->yellow('Excerpt only')));
-                $cli->info("Main feed: " . $cli->primary("{$baseUrl}/feed.xml"));
-                $cli->writeln('');
+                $output->writeln('');
+                $output->info("Items per feed: " . $output->bold((string)$config['items_per_feed']));
+                $output->info("Content mode: " . ($config['full_content'] ? $output->green('Full HTML') : $output->yellow('Excerpt only')));
+                $output->info("Main feed: " . $output->primary("{$baseUrl}/feed.xml"));
+                $output->writeln('');
 
                 return 0;
             },

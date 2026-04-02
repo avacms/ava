@@ -136,7 +136,7 @@ return [
             });
         }
 
-        // Add sitemap to robots.txt on content rebuild (CLI, auto, or admin)
+        // Add sitemap to robots.txt on content rebuild
         Hooks::addAction('indexer.rebuild', function (Application $app) use ($baseUrl) {
             $robotsFile = $app->path('public/robots.txt');
             $sitemapUrl = $baseUrl . '/sitemap.xml';
@@ -193,12 +193,12 @@ return [
         [
             'name' => 'sitemap:stats',
             'description' => 'Show sitemap statistics',
-            'handler' => function (array $args, $cli, \Ava\Application $app) {
+            'handler' => function (array $args, $output, \Ava\Application $app) {
                 $repository = $app->repository();
                 $types = $repository->types();
                 $baseUrl = rtrim($app->config('site.base_url', ''), '/');
 
-                $cli->header('Sitemap Statistics');
+                $output->header('Sitemap Statistics');
                 
                 $totalUrls = 0;
                 $tableData = [];
@@ -229,25 +229,25 @@ return [
                 }
 
                 if (empty($tableData)) {
-                    $cli->warning('No content types with published content found.');
+                    $output->warning('No content types with published content found.');
                     return 0;
                 }
 
                 // Display table with colors
-                $cli->writeln('');
+                $output->writeln('');
                 $headers = ['Content Type', 'Indexable', 'Noindex', 'Sitemap File'];
                 $rows = array_map(fn($d) => [
-                    $cli->primary($d['type']),
-                    $cli->green((string)$d['indexable']),
-                    $d['noindex'] > 0 ? $cli->yellow((string)$d['noindex']) : $cli->dim('0'),
-                    $cli->cyan($d['file']),
+                    $output->primary($d['type']),
+                    $output->green((string)$d['indexable']),
+                    $d['noindex'] > 0 ? $output->yellow((string)$d['noindex']) : $output->dim('0'),
+                    $output->cyan($d['file']),
                 ], $tableData);
-                $cli->table($headers, $rows);
+                $output->table($headers, $rows);
 
-                $cli->writeln('');
-                $cli->info("Total URLs in sitemap: " . $cli->bold((string)$totalUrls));
-                $cli->info("Main sitemap: " . $cli->primary("{$baseUrl}/sitemap.xml"));
-                $cli->writeln('');
+                $output->writeln('');
+                $output->info("Total URLs in sitemap: " . $output->bold((string)$totalUrls));
+                $output->info("Main sitemap: " . $output->primary("{$baseUrl}/sitemap.xml"));
+                $output->writeln('');
 
                 return 0;
             },
