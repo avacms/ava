@@ -149,6 +149,7 @@
                 <a href="/about"<?= $currentPath === '/about' ? ' class="active"' : '' ?>>About</a>
                 <a href="/blog"<?= str_starts_with($currentPath, '/blog') ? ' class="active"' : '' ?>>Blog</a>
                 <a href="/search"<?= $currentPath === '/search' ? ' class="active"' : '' ?>>Search</a>
+                <a href="https://ava.addy.zone" target="_blank" rel="noopener">Docs</a>
             </nav>
             
             <?php /* Mobile navigation toggle - see style.css for responsive styles */ ?>

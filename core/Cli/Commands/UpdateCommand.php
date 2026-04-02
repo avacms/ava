@@ -224,6 +224,15 @@ final class UpdateCommand
         });
         $this->output->success('Content index rebuilt.');
 
+        // Check for stale files after update
+        $staleResult = $updater->detectStaleFiles();
+        if ($staleResult['success'] && !empty($staleResult['stale_files'])) {
+            $count = count($staleResult['stale_files']);
+            $this->output->writeln('');
+            $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' ' . $this->output->color("Found {$count} stale file(s) from previous version", Output::YELLOW));
+            $this->output->nextStep('./ava update:stale --clean', 'Review and remove them');
+        }
+
         $this->output->writeln('');
         return 0;
     }
@@ -233,6 +242,8 @@ final class UpdateCommand
         $this->output->writeln('');
 
         $devMode = in_array('--dev', $args, true) || in_array('-d', $args, true);
+        $cleanMode = in_array('--clean', $args, true) || in_array('-c', $args, true);
+        $forceClean = in_array('--yes', $args, true) || in_array('-y', $args, true);
         $updater = new \Ava\Updater($this->app);
 
         // Check for custom paths
@@ -293,7 +304,45 @@ final class UpdateCommand
         }
 
         $this->output->writeln('');
-        $this->output->tip('Review before deleting any files');
+
+        // Clean mode: remove the stale files
+        if ($cleanMode) {
+            if (!$forceClean) {
+                $this->output->writeln('  ' . $this->output->color('⚠️  This will permanently delete these files.', Output::YELLOW, Output::BOLD));
+                echo '  Continue? [' . $this->output->color('y', Output::GREEN) . '/N]: ';
+                $answer = trim(fgets(STDIN));
+                if (strtolower($answer) !== 'y') {
+                    $this->output->writeln('');
+                    $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Cancelled.');
+                    $this->output->writeln('');
+                    return 0;
+                }
+                $this->output->writeln('');
+            }
+
+            $removeResult = $this->output->withSpinner('Removing stale files', function () use ($updater, $staleFiles) {
+                return $updater->removeStaleFiles($staleFiles);
+            });
+
+            if ($removeResult['success']) {
+                $this->output->success('Removed ' . count($removeResult['removed']) . ' stale file(s)');
+            } else {
+                $this->output->warning($removeResult['message']);
+                if (!empty($removeResult['failed'])) {
+                    $this->output->writeln('');
+                    $this->output->writeln('  ' . $this->output->color('Failed to remove:', Output::BOLD));
+                    foreach (array_slice($removeResult['failed'], 0, 10) as $file) {
+                        $this->output->writeln('    ' . $this->output->color('•', Output::RED) . ' ' . $file);
+                    }
+                    if (count($removeResult['failed']) > 10) {
+                        $this->output->writeln('    ' . $this->output->color('... ' . (count($removeResult['failed']) - 10) . ' more', Output::DIM));
+                    }
+                }
+            }
+        } else {
+            $this->output->tip('Run with --clean to remove these files');
+        }
+
         $this->output->writeln('');
         return 0;
     }

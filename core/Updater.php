@@ -805,6 +805,80 @@ final class Updater
     }
 
     /**
+     * Remove stale files from the installation.
+     *
+     * @param string[] $files Array of relative file paths to remove
+     * @return array{success: bool, removed: string[], failed: string[], message: string}
+     */
+    public function removeStaleFiles(array $files): array
+    {
+        $rootDir = $this->app->path('');
+        $removed = [];
+        $failed = [];
+
+        foreach ($files as $file) {
+            $fullPath = $rootDir . '/' . $file;
+            
+            // Security: ensure file is within root and in updateable directories
+            $realPath = realpath($fullPath);
+            if ($realPath === false) {
+                // File doesn't exist, skip
+                continue;
+            }
+            
+            $realRoot = realpath($rootDir);
+            if (!str_starts_with($realPath, $realRoot . '/')) {
+                $failed[] = $file . ' (outside root)';
+                continue;
+            }
+
+            // Only allow removal from updateable paths
+            $allowed = false;
+            foreach ($this->updateDirs as $dir) {
+                if (str_starts_with($file, rtrim($dir, '/') . '/') || $file === $dir) {
+                    $allowed = true;
+                    break;
+                }
+            }
+            // Also allow bundled plugin files
+            foreach ($this->bundledPlugins as $plugin) {
+                if (str_starts_with($file, 'app/plugins/' . $plugin . '/')) {
+                    $allowed = true;
+                    break;
+                }
+            }
+
+            if (!$allowed) {
+                $failed[] = $file . ' (protected path)';
+                continue;
+            }
+
+            if (@unlink($realPath)) {
+                $removed[] = $file;
+                
+                // Remove empty parent directories up to updateDirs root
+                $dir = dirname($realPath);
+                while ($dir !== $realRoot && is_dir($dir) && count(scandir($dir)) === 2) {
+                    @rmdir($dir);
+                    $dir = dirname($dir);
+                }
+            } else {
+                $failed[] = $file;
+            }
+        }
+
+        $total = count($removed) + count($failed);
+        return [
+            'success' => empty($failed),
+            'removed' => $removed,
+            'failed' => $failed,
+            'message' => empty($failed)
+                ? "Removed {$total} stale file(s)"
+                : "Removed " . count($removed) . " file(s), " . count($failed) . " failed",
+        ];
+    }
+
+    /**
      * Recursively remove a directory.
      */
     private function removeDirectory(string $dir): void
