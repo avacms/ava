@@ -123,6 +123,7 @@ final class Application
         $this->commands['update:check'] = [$update, 'check'];
         $this->commands['update:apply'] = [$update, 'apply'];
         $this->commands['update:stale'] = [$update, 'stale'];
+        $this->commands['update:finalize'] = [$update, 'finalize'];
     }
 
     /**

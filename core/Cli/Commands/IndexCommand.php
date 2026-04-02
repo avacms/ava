@@ -22,6 +22,10 @@ final class IndexCommand
     {
         $keepWebpageCache = in_array('--keep-webpage-cache', $args, true) || in_array('--keep-webcache', $args, true);
 
+        // Clean up stale directories from previous versions
+        // This runs on every rebuild to ensure upgrades are clean
+        $this->cleanupStaleDirectories();
+
         // Load plugins so they can hook into the rebuild process
         $this->app->loadPlugins();
 
@@ -45,6 +49,51 @@ final class IndexCommand
         }
         $this->output->writeln('');
         return 0;
+    }
+
+    /**
+     * Remove directories that were removed in newer versions.
+     * 
+     * Silent operation - only cleans if directories exist.
+     * Critical for security when upgrading from versions that had admin panel.
+     */
+    private function cleanupStaleDirectories(): void
+    {
+        $rootDir = $this->app->path('');
+        
+        // Directories removed in v26.3 that should be cleaned up
+        $staleDirectories = [
+            'core/Admin',      // Admin panel removed
+            'core/Fields',     // Field types removed (admin dependency)
+        ];
+
+        foreach ($staleDirectories as $dir) {
+            $fullPath = $rootDir . '/' . $dir;
+            if (is_dir($fullPath)) {
+                $this->removeDirectoryRecursive($fullPath);
+            }
+        }
+    }
+
+    /**
+     * Recursively remove a directory.
+     */
+    private function removeDirectoryRecursive(string $dir): void
+    {
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @rmdir($item->getPathname());
+            } else {
+                @unlink($item->getPathname());
+            }
+        }
+
+        @rmdir($dir);
     }
 
     public function lint(array $args): int

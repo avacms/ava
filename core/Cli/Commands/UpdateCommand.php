@@ -154,9 +154,10 @@ final class UpdateCommand
 
         // Confirm unless --yes flag
         if (!in_array('--yes', $args) && !in_array('-y', $args)) {
-            $this->output->writeln($this->output->color('  Will be updated:', Output::BOLD));
-            echo "    " . $this->output->color('▸', Output::GREEN) . " Core files (core/, bootstrap.php)\n";
-            echo "    " . $this->output->color('▸', Output::GREEN) . " Bundled plugins in app/plugins/ (sitemap, feed, redirects)\n";
+            $this->output->writeln($this->output->color('  Will be replaced:', Output::BOLD));
+            echo "    " . $this->output->color('▸', Output::GREEN) . " core/ directory (fully replaced)\n";
+            echo "    " . $this->output->color('▸', Output::GREEN) . " Bundled plugins (sitemap, feed, redirects)\n";
+            echo "    " . $this->output->color('▸', Output::GREEN) . " bootstrap.php, composer.json, ava CLI\n";
             $this->output->writeln('');
             $this->output->writeln($this->output->color('  Will NOT be modified:', Output::BOLD));
             echo "    " . $this->output->color('•', Output::DIM) . " Your content (content/)\n";
@@ -210,6 +211,17 @@ final class UpdateCommand
             $this->output->tip('Add them to your plugins array in app/config/ava.php to activate');
         }
 
+        // Finalize update using NEW code (handles stale file cleanup for upgrades from older versions)
+        $this->output->writeln('');
+        $this->output->withSpinner('Finalizing update', function () {
+            $avaScript = $this->app->path('ava');
+            $result = [];
+            $exitCode = 0;
+            exec('php ' . escapeshellarg($avaScript) . ' update:finalize 2>&1', $result, $exitCode);
+            // Don't fail if finalize doesn't exist (old->new transition)
+            return true;
+        });
+
         $this->output->writeln('');
         $this->output->withSpinner('Rebuilding content index', function () {
             // Spawn a new PHP process to ensure updated code is loaded
@@ -222,20 +234,69 @@ final class UpdateCommand
             }
             return true;
         });
-        $this->output->success('Content index rebuilt.');
-
-        // Check for stale files after update (compare to same source: dev or release)
-        $staleResult = $updater->detectStaleFiles(null, $devMode);
-        if ($staleResult['success'] && !empty($staleResult['stale_files'])) {
-            $count = count($staleResult['stale_files']);
-            $version = $staleResult['compared_to'];
-            $this->output->writeln('');
-            $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' ' . $this->output->color("{$count} file(s) not in v{$version}", Output::YELLOW));
-            $this->output->nextStep('./ava update:stale --clean', 'Review and remove them');
-        }
+        $this->output->success('Update complete.');
 
         $this->output->writeln('');
         return 0;
+    }
+
+    /**
+     * Finalize an update by removing stale directories.
+     * 
+     * This is called as a separate PHP process AFTER files are copied,
+     * ensuring the NEW code handles cleanup. Critical for upgrades that
+     * remove entire directories (like core/Admin).
+     */
+    public function finalize(array $args): int
+    {
+        $rootDir = $this->app->path('');
+        $removed = [];
+
+        // Directories that were removed in v26.3 and should be cleaned up
+        $staleDirectories = [
+            'core/Admin',      // Admin panel removed
+            'core/Fields',     // Field types removed (admin dependency)
+        ];
+
+        foreach ($staleDirectories as $dir) {
+            $fullPath = $rootDir . '/' . $dir;
+            if (is_dir($fullPath)) {
+                $this->removeDirectoryRecursive($fullPath);
+                $removed[] = $dir;
+            }
+        }
+
+        // Output for the spinner context
+        if (!empty($removed)) {
+            echo "Cleaned: " . implode(', ', $removed);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Recursively remove a directory.
+     */
+    private function removeDirectoryRecursive(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @rmdir($item->getPathname());
+            } else {
+                @unlink($item->getPathname());
+            }
+        }
+
+        @rmdir($dir);
     }
 
     public function stale(array $args): int

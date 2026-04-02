@@ -55,7 +55,6 @@ final class Updater
 
     /**
      * Directories/files that should NEVER be touched.
-     * Reserved for future use in update safety checks.
      *
      * @var string[]
      */
@@ -280,7 +279,7 @@ final class Updater
             // Get current active plugins before update
             $currentPlugins = $this->app->config('plugins', []);
 
-            // Apply updates
+            // Apply updates (clean sync - deletes old directories first)
             $this->applyUpdates($sourceDir);
 
             // Check for new bundled plugins
@@ -647,6 +646,10 @@ final class Updater
             }
 
             if (is_dir($sourcePath)) {
+                // For directories, delete first for clean sync (removes stale files)
+                if (is_dir($destPath)) {
+                    $this->removeDirectory($destPath);
+                }
                 $this->syncDirectory($sourcePath, $destPath);
             } else {
                 $this->syncFile($sourcePath, $destPath);
@@ -665,7 +668,12 @@ final class Updater
             foreach ($this->bundledPlugins as $plugin) {
                 $pluginSource = $pluginsSource . '/' . $plugin;
                 if (is_dir($pluginSource)) {
-                    $this->syncDirectory($pluginSource, $pluginsDest . '/' . $plugin);
+                    // Clean sync for bundled plugins too
+                    $pluginDest = $pluginsDest . '/' . $plugin;
+                    if (is_dir($pluginDest)) {
+                        $this->removeDirectory($pluginDest);
+                    }
+                    $this->syncDirectory($pluginSource, $pluginDest);
                 }
             }
 

@@ -145,7 +145,7 @@ final class Output
      */
     public function keyValue(string $key, string $value, string $indent = '  '): void
     {
-        $paddedKey = str_pad($key . ':', 12);
+        $paddedKey = str_pad($key . ':', 13);
         echo $indent . $this->color($paddedKey, self::DIM);
         echo $value . "\n";
     }
