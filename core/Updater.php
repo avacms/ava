@@ -32,9 +32,9 @@ final class Updater
     /** @var string[] Directories/files that should be updated */
     private array $updateDirs = [
         'core',
-        'docs',
-        'ava',
         'public/index.php',
+        'public/.htaccess',
+        'ava',
         'bootstrap.php',
         'composer.json',
     ];

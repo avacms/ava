@@ -224,8 +224,8 @@ final class UpdateCommand
         });
         $this->output->success('Content index rebuilt.');
 
-        // Check for stale files after update
-        $staleResult = $updater->detectStaleFiles();
+        // Check for stale files after update (compare to same source: dev or release)
+        $staleResult = $updater->detectStaleFiles(null, $devMode);
         if ($staleResult['success'] && !empty($staleResult['stale_files'])) {
             $count = count($staleResult['stale_files']);
             $version = $staleResult['compared_to'];
