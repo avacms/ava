@@ -48,58 +48,6 @@ return [
 
     /*
     |───────────────────────────────────────────────────────────────────────────
-    | ADMIN DASHBOARD
-    |───────────────────────────────────────────────────────────────────────────
-    | Web-based dashboard for site overview and content browsing.
-    | Create users first with: ./ava user:add
-    | theme: cyan, pink, purple, green, blue, amber
-    */
-
-    'admin' => [
-        'enabled' => false,
-        'path'    => '/ava-admin',
-        'theme'   => 'cyan',
-
-        // Session security settings
-        'session' => [
-            // Bind sessions to IP address - if enabled, a session cookie cannot
-            // be used from a different IP than the one that logged in.
-            // Protects against session hijacking if cookie is stolen.
-            // 
-            // WARNING: Can cause unexpected logouts for:
-            //   - Mobile users switching WiFi ↔ cellular
-            //   - Users behind load balancers or corporate proxies
-            //   - VPN users when connection drops/reconnects
-            //   - ISPs using carrier-grade NAT (CGNAT)
-            //
-            // Default: false (opt-in). Enable only if your admin users have stable IPs.
-            'ip_binding' => false,
-            
-            // Session idle timeout in seconds (null = no timeout)
-            // User will be logged out after this many seconds of inactivity.
-            // Protects against forgotten sessions on shared computers.
-            'timeout' => 1800,  // 30 minutes
-        ],
-
-        // Image uploader (sanitizes via ImageMagick/GD to strip hidden payloads)
-        'media' => [
-            'enabled'          => true,
-            'path'             => 'public/media',
-            'organize_by_date' => true,             // /year/month/ folders
-            'max_file_size'    => 10 * 1024 * 1024, // 10 MB
-            'allowed_types'    => [
-                'image/jpeg',
-                'image/png',
-                'image/gif',
-                'image/webp',
-                'image/svg+xml',
-                'image/avif',
-            ],
-        ],
-    ],
-
-    /*
-    |───────────────────────────────────────────────────────────────────────────
     | PERFORMANCE — CONTENT INDEX
     |───────────────────────────────────────────────────────────────────────────
     | Binary cache of content metadata for fast lookups.

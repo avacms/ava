@@ -47,7 +47,6 @@ return [
         $router = $app->router();
         $storagePath = $app->configPath('storage');
         $redirectsFile = $storagePath . '/redirects.json';
-        $adminPath = $app->config('admin.path', '/admin');
 
         // Load redirects with error handling
         $loadRedirects = function () use ($redirectsFile): array|string {
@@ -70,7 +69,7 @@ return [
         };
 
         // Validate/sanitize redirect targets to prevent unsafe schemes.
-        $sanitizeRedirectTarget = function (string $to) use ($adminPath): ?string {
+        $sanitizeRedirectTarget = function (string $to): ?string {
             $to = trim($to);
 
             if ($to === '') {
@@ -84,10 +83,6 @@ return [
 
             // Allow internal absolute paths
             if (str_starts_with($to, '/')) {
-                // Block redirecting to admin paths
-                if (str_starts_with($to, $adminPath)) {
-                    return null;
-                }
                 return $to;
             }
 
@@ -148,188 +143,6 @@ return [
 
             return null;
         }, 5); // Priority 5 = run early
-
-        // Register admin page
-        Hooks::addFilter('admin.register_pages', function (array $pages) use ($loadRedirects, $saveRedirects, $redirectsFile, $adminPath, $sanitizeRedirectTarget) {
-            $pages['redirects'] = [
-                'label' => 'Redirects',
-                'icon' => 'swap_horiz',
-                'section' => 'Plugins',
-                'handler' => function (Request $request, Application $app, $controller) use ($loadRedirects, $saveRedirects, $redirectsFile, $adminPath, $sanitizeRedirectTarget) {
-                    $redirectsData = $loadRedirects();
-                    $message = null;
-                    $error = null;
-                    $jsonError = null;
-                    $statusCodes = REDIRECT_STATUS_CODES;
-                    $storagePath = $redirectsFile;
-                    
-                    // Check for JSON parsing errors
-                    if (is_string($redirectsData)) {
-                        $jsonError = $redirectsData;
-                        $redirects = [];
-                    } else {
-                        $redirects = $redirectsData;
-                    }
-
-                    // Security validation function for redirect paths
-                    $validateRedirectPath = function(string $from, ?string $to = null) use ($app, $adminPath, $sanitizeRedirectTarget): ?string {
-                        // Normalize path
-                        $from = '/' . trim($from, '/');
-
-                        // Block scheme-based paths (e.g., http://...)
-                        if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $from)) {
-                            return 'Source path must be a relative URL (starting with /).';
-                        }
-                        
-                        // SECURITY: Block redirects from admin paths
-                        if (str_starts_with($from, $adminPath)) {
-                            return "Cannot create redirects for admin paths (starts with '{$adminPath}').";
-                        }
-                        
-                        // SECURITY: Block redirects for system paths
-                        $systemPaths = ['/robots.txt', '/sitemap.xml', '/feed', '/feed.xml', '/.well-known'];
-                        foreach ($systemPaths as $sysPath) {
-                            if ($from === $sysPath || str_starts_with($from, $sysPath . '/')) {
-                                return "Cannot create redirects for system path '{$sysPath}'.";
-                            }
-                        }
-                        
-                        // SECURITY: Check if path matches existing routable content
-                        $repository = $app->repository();
-                        $routes = $repository->routes();
-                        
-                        // Check exact routes (published content)
-                        if (isset($routes['exact'][$from])) {
-                            $routeData = $routes['exact'][$from];
-                            $contentType = $routeData['content_type'] ?? 'content';
-                            return "Cannot redirect '{$from}' - it matches published {$contentType} content. Delete or unpublish the content first.";
-                        }
-                        
-                        // Check taxonomy routes
-                        foreach ($routes['taxonomy'] ?? [] as $taxName => $taxRoute) {
-                            $base = rtrim($taxRoute['base'], '/');
-                            if ($from === $base || str_starts_with($from, $base . '/')) {
-                                return "Cannot redirect '{$from}' - it matches the {$taxName} taxonomy archive.";
-                            }
-                        }
-                        
-                        // Validate destination URL (if provided)
-                        if ($to !== null && $to !== '') {
-                            // Block redirecting to admin
-                            if (str_starts_with($to, $adminPath) || (str_starts_with($to, 'http') && str_contains($to, $adminPath))) {
-                                return "Cannot redirect to admin paths.";
-                            }
-
-                            // Validate destination URL format and scheme
-                            $sanitized = $sanitizeRedirectTarget($to);
-                            if ($sanitized === null) {
-                                return 'Destination must be an absolute path or a valid http(s) URL.';
-                            }
-                        }
-                        
-                        return null; // Valid
-                    };
-
-                    // Handle form submissions
-                    if ($request->isMethod('POST')) {
-                        $csrf = $request->post('_csrf', '');
-                        $auth = $controller->auth();
-
-                        if (!$auth->verifyCsrf($csrf)) {
-                            $error = 'Invalid request. Please try again.';
-                        } else {
-                            $action = $request->post('action', '');
-
-                            if ($action === 'delete') {
-                                $from = $request->post('from', '');
-                                $redirects = array_filter($redirects, fn($r) => $r['from'] !== $from);
-                                $redirects = array_values($redirects);
-                                $saveRedirects($redirects);
-                                $message = 'Redirect deleted.';
-                                $controller->logAction('INFO', "Deleted redirect: {$from}");
-                            } elseif ($action === 'create') {
-                                $from = trim($request->post('from', ''));
-                                $to = trim($request->post('to', ''));
-                                $code = (int) $request->post('code', 301);
-                                
-                                // Validate inputs
-                                if (empty($from)) {
-                                    $error = 'Source path is required.';
-                                } elseif (!isset(REDIRECT_STATUS_CODES[$code])) {
-                                    $error = 'Invalid status code.';
-                                } else {
-                                    $codeInfo = REDIRECT_STATUS_CODES[$code];
-                                    
-                                    // Require destination for redirect codes
-                                    if ($codeInfo['redirect'] && empty($to)) {
-                                        $error = 'Destination URL is required for redirect status codes.';
-                                    } else {
-                                        // Normalize from path
-                                        $from = '/' . ltrim($from, '/');
-                                        
-                                        // Security validation
-                                        $validationError = $validateRedirectPath($from, $to);
-                                        if ($validationError) {
-                                            $error = $validationError;
-                                        } else {
-                                            // Check for duplicate
-                                            $exists = false;
-                                            foreach ($redirects as $r) {
-                                                if (($r['from'] ?? '') === $from) {
-                                                    $exists = true;
-                                                    break;
-                                                }
-                                            }
-                                            
-                                            if ($exists) {
-                                                $error = "A redirect from '{$from}' already exists. Delete it first to replace.";
-                                            } else {
-                                                // Add new redirect
-                                                $redirects[] = [
-                                                    'from' => $from,
-                                                    'to' => $to ?: '',
-                                                    'code' => $code,
-                                                    'created' => date('Y-m-d H:i:s'),
-                                                ];
-                                                $saveRedirects($redirects);
-                                                $message = "Redirect created: {$from} → " . ($to ?: "[{$code}]");
-                                                $controller->logAction('INFO', "Created redirect: {$from} → " . ($to ?: "[{$code}]"));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            $auth->regenerateCsrf();
-                        }
-                    }
-
-                    $csrf = $controller->auth()->csrfToken();
-                    $admin_url = $app->config('admin.path', '/admin');
-
-                    // Render content-only view
-                    ob_start();
-                    include __DIR__ . '/views/content.php';
-                    $content = ob_get_clean();
-
-                    // Use the admin layout wrapper
-                    return $controller->renderPluginPage([
-                        'title' => 'Redirects',
-                        'heading' => 'Redirects & Status Responses',
-                        'icon' => 'swap_horiz',
-                        'activePage' => 'redirects',
-                        'alertSuccess' => $message,
-                        'alertError' => $error,
-                        'headerActions' => '<span class="badge badge-muted">' . count($redirects) . ' entr' . (count($redirects) !== 1 ? 'ies' : 'y') . '</span>' .
-                            '<a href="https://ava.addy.zone/docs/bundled-plugins" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-                                <span class="material-symbols-rounded">menu_book</span>
-                                <span class="hide-mobile">Docs</span>
-                            </a>',
-                    ], $content);
-                },
-            ];
-            return $pages;
-        });
     },
 
     'commands' => [

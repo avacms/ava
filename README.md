@@ -41,7 +41,7 @@ Your site stays readable, portable, and fully yours. No proprietary formats. No 
 ```text
 your-site/
 ├── app/           # Your code
-│   ├── config/        # Configuration (site settings, content types, taxonomies, users)
+│   ├── config/        # Configuration (site settings, content types, taxonomies)
 │   ├── plugins/       # Enabled plugins
 │   ├── snippets/      # Reusable HTML/PHP content blocks
 │   └── themes/        # Your HTML/PHP templates
@@ -56,14 +56,14 @@ your-site/
 └── ava            # CLI tool
 ```
 
-Ava CMS is not a “one-click” CMS, and it doesn’t try to be. It trades heavy admin interfaces and complex deployment pipelines for speed, clarity, and control. If you’re comfortable editing files, writing a little HTML, and checking documentation — or want a CMS that grows with you as you learn — Ava fits naturally into your workflow.
+Ava CMS is not a "one-click" CMS, and it doesn't try to be. It trades complexity and deployment pipelines for speed, clarity, and control. If you're comfortable editing files, writing a little HTML, and checking documentation — or want a CMS that grows with you as you learn — Ava fits naturally into your workflow.
 
 ## ✨ Why Ava CMS?
 
 - 📝 **Markdown & HTML** — Write fast in Markdown, drop into HTML when you need total control.
 - ⚡ **Instant feedback** — No complicated build steps or deploy queue. Edit a file, refresh, done with automatic indexing.
 - 🎨 **Design freedom** — Plain PHP templates with standard HTML/CSS. Ava CMS stays out of your way.
-- 🧩 **Flexible content modeling** — Define blogs, portfolios, events, catalogs, or anything else using custom content types and fields.
+- 🧩 **Flexible content modeling** — Define blogs, portfolios, events, catalogs, or anything else using custom content types and taxonomies.
 - 🚀 **Dynamic features without bloat** — Search, filtering, pagination and sorting work out of the box.
 - 🛠️ **Power when you want it** — A CLI, plugin system, and hooks keep put advanced features at hand.
 - 📈 **Seamless scaling** — Switch engines with a single setting, optional SQLite keeps sites with tens of thousands of posts snappy. 
@@ -71,13 +71,12 @@ Ava CMS is not a “one-click” CMS, and it doesn’t try to be. It trades heav
 
 ## 📦 What’s included
 
-- **Content types**, **custom fields** and **taxonomies** for modeling your site your way
-- **Optional admin dashboard** for structured content editing and site monitoring
+- **Content types** and **taxonomies** for modeling your site your way
 - **Smart routing** based on your content structure or configured patterns
 - **Shortcodes** and **snippets** for reusable dynamic blocks inside Markdown
 - **Search** across your content with configurable weighting
 - **Plugins + hooks** (with bundled plugins like sitemap, redirects, and feeds)
-- **CLI tool** for everyday tasks (cache, users, diagnostics, and more)
+- **CLI tool** for everyday tasks (cache, diagnostics, and more)
 - **SEO features** like customisable meta tags, sitemaps, and clean URLs
 - **Caching** (two-tier content indexing + configurable full-page caching for static-speed delivery)
 
@@ -171,9 +170,7 @@ Documentation lives at **https://ava.addy.zone/**.
 - [Hosting](https://ava.addy.zone/docs/hosting)
 - [Configuration](https://ava.addy.zone/docs/configuration)
 - [Updating](https://ava.addy.zone/docs/updating)
-- [Admin Dashboard](https://ava.addy.zone/docs/admin)
 - [Content](https://ava.addy.zone/docs/content)
-- [Fields](https://ava.addy.zone/docs/fields)
 - [Theming](https://ava.addy.zone/docs/theming)
 - [CLI](https://ava.addy.zone/docs/cli)
 - [API](https://ava.addy.zone/docs/api)

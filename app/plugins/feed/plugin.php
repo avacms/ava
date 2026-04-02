@@ -207,52 +207,6 @@ return [
             return new Response($xml, 200, ['Content-Type' => 'application/rss+xml; charset=utf-8']);
         });
 
-        // Register admin page
-        Hooks::addFilter('admin.register_pages', function (array $pages) use ($baseUrl, $config) {
-            $pages['feeds'] = [
-                'label' => 'RSS Feeds',
-                'icon' => 'rss_feed',
-                'section' => 'Plugins',
-                'handler' => function (Request $request, Application $app, $controller) use ($baseUrl, $config) {
-                    $repository = $app->repository();
-                    $types = $repository->types();
-
-                    // Gather stats (metadata only, no file I/O needed for admin display)
-                    $feeds = [];
-                    $totalItems = 0;
-                    foreach ($types as $type) {
-                        $items = $repository->publishedMeta($type);
-                        $indexable = count(array_filter($items, fn($i) => !$i->noindex()));
-                        $feeds[$type] = [
-                            'count' => min($indexable, $config['items_per_feed']),
-                            'total' => $indexable,
-                        ];
-                        $totalItems += $indexable;
-                    }
-
-                    // Render content-only view
-                    ob_start();
-                    include __DIR__ . '/views/content.php';
-                    $content = ob_get_clean();
-
-                    // Use the admin layout wrapper
-                    return $controller->renderPluginPage([
-                        'title' => 'RSS Feeds',
-                        'icon' => 'rss_feed',
-                        'activePage' => 'feeds',
-                        'headerActions' => '<a href="' . htmlspecialchars($baseUrl) . '/feed.xml" target="_blank" class="btn btn-primary btn-sm">
-                            <span class="material-symbols-rounded">open_in_new</span>
-                            View Main Feed
-                        </a>' .
-                        '<a href="https://ava.addy.zone/docs/bundled-plugins" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-                            <span class="material-symbols-rounded">menu_book</span>
-                            <span class="hide-mobile">Docs</span>
-                        </a>',
-                    ], $content);
-                },
-            ];
-            return $pages;
-        });
     },
 
     'commands' => [

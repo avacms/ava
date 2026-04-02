@@ -50,7 +50,6 @@ return [
         ],
 
         'taxonomies' => [],                 // Pages typically don't need categories/tags
-        'fields'     => [],                 // Add custom fields here (see 'fields' docs)
         'sorting'    => 'manual',           // manual | date_desc | date_asc | title
 
         'search' => [
@@ -88,7 +87,6 @@ return [
         ],
 
         'taxonomies' => ['category', 'tag'], // Enable categories and tags
-        'fields'     => [],                  // Define custom fields below
         'sorting'    => 'date_desc',         // Newest first
 
         'search' => [

@@ -67,12 +67,6 @@ final class WebpageCache
             return false;
         }
 
-        // Don't cache admin paths
-        $adminPath = $this->app->config('admin.path', '/admin');
-        if (str_starts_with($request->path(), $adminPath)) {
-            return false;
-        }
-
         // Check exclusion patterns
         $path = $request->path();
         foreach ($this->exclude as $pattern) {
@@ -89,8 +83,6 @@ final class WebpageCache
      * 
      * This has the same rules as read - preview/draft content is already
      * protected by the query parameter check (preview uses ?preview=1&token=xxx).
-     * Admin login status doesn't affect caching since published content
-     * should be identical for all users.
      */
     public function isCacheableForWrite(Request $request): bool
     {
@@ -328,21 +320,6 @@ final class WebpageCache
         $filename = ($safeName ?: 'index') . '_' . substr($hash, 0, 8) . '.html';
 
         return $this->cachePath . '/' . $filename;
-    }
-
-    /**
-     * Check if user is logged in as admin.
-     */
-    private function isUserLoggedIn(): bool
-    {
-        // Only check if session is already active - don't start one.
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            return isset($_SESSION['ava_admin_user']);
-        }
-
-        // If the admin session cookie exists, be conservative and assume the user might be logged in.
-        // We intentionally do NOT start the session here to avoid session fixation and DoS risks.
-        return isset($_COOKIE['ava_admin']);
     }
 
     /**

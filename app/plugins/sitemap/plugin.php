@@ -136,62 +136,6 @@ return [
             });
         }
 
-        // Register admin page
-        Hooks::addFilter('admin.register_pages', function (array $pages) use ($baseUrl) {
-            $pages['sitemap'] = [
-                'label' => 'Sitemap',
-                'icon' => 'map',
-                'section' => 'Plugins',
-                'handler' => function (Request $request, Application $app, $controller) use ($baseUrl) {
-                    $repository = $app->repository();
-                    $types = $repository->types();
-
-                    // Gather stats (metadata only, no file I/O needed)
-                    $stats = [];
-                    $totalUrls = 0;
-                    foreach ($types as $type) {
-                        $items = $repository->publishedMeta($type);
-                        $indexable = 0;
-                        $noindex = 0;
-                        foreach ($items as $item) {
-                            if ($item->noindex()) {
-                                $noindex++;
-                            } else {
-                                $indexable++;
-                            }
-                        }
-                        $stats[$type] = [
-                            'indexable' => $indexable,
-                            'noindex' => $noindex,
-                            'total' => count($items),
-                        ];
-                        $totalUrls += $indexable;
-                    }
-
-                    // Render content-only view
-                    ob_start();
-                    include __DIR__ . '/views/content.php';
-                    $content = ob_get_clean();
-
-                    // Use the admin layout wrapper
-                    return $controller->renderPluginPage([
-                        'title' => 'Sitemap',
-                        'icon' => 'map',
-                        'activePage' => 'sitemap',
-                        'headerActions' => '<a href="' . htmlspecialchars($baseUrl) . '/sitemap.xml" target="_blank" class="btn btn-primary btn-sm">
-                            <span class="material-symbols-rounded">open_in_new</span>
-                            View Sitemap
-                        </a>' .
-                        '<a href="https://ava.addy.zone/docs/bundled-plugins" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-                            <span class="material-symbols-rounded">menu_book</span>
-                            <span class="hide-mobile">Docs</span>
-                        </a>',
-                    ], $content);
-                },
-            ];
-            return $pages;
-        });
-
         // Add sitemap to robots.txt on content rebuild (CLI, auto, or admin)
         Hooks::addAction('indexer.rebuild', function (Application $app) use ($baseUrl) {
             $robotsFile = $app->path('public/robots.txt');

@@ -58,12 +58,6 @@ final class Application
             return null;
         }
 
-        // Don't serve cache for admin paths
-        $adminPath = $this->config('admin.path', '/admin');
-        if (str_starts_with($request->path(), $adminPath)) {
-            return null;
-        }
-
         // Check for query parameters (skip UTM params)
         $query = $request->query();
         unset($query['utm_source'], $query['utm_medium'], $query['utm_campaign'], $query['utm_term'], $query['utm_content']);
@@ -72,9 +66,8 @@ final class Application
         }
 
         // Try to get from cache
-        // Note: We serve cached pages to everyone, including admins, for static-site speeds.
+        // Note: We serve cached pages to everyone for static-site speeds.
         // If the cache file exists, it was valid when generated (pages with cache:false don't get cached).
-        // Admin cookie only affects cache WRITES (to avoid caching preview/draft content).
         $webpageCache = $this->webpageCache();
         $cached = $webpageCache->getWithoutFullCheck($request);
         return $cached !== null ? $this->applyPublicSecurityHeaders($cached, $request) : null;
@@ -103,9 +96,6 @@ final class Application
 
         // Load theme
         $this->loadTheme();
-
-        // Register admin routes
-        $this->registerAdminRoutes();
 
         $this->booted = true;
     }
@@ -142,8 +132,8 @@ final class Application
             return $this->applyPublicSecurityHeaders($match->getResponse(), $request);
         }
 
-        // Handle routes that return raw Response (admin, plugin routes)
-        if (in_array($match->getType(), ['admin', 'plugin', 'response'], true)) {
+        // Handle routes that return raw Response (plugin routes)
+        if (in_array($match->getType(), ['plugin', 'response'], true)) {
             $response = $match->getParam('response');
             if ($response instanceof Response) {
                 return $this->applyPublicSecurityHeaders($response, $request);
@@ -432,101 +422,7 @@ final class Application
         });
     }
 
-    private function registerAdminRoutes(): void
-    {
-        if ($this->config('admin.enabled', false)) {
-            $adminRouter = new Admin\AdminRouter($this);
-            $adminRouter->register();
-            $this->registerAdminAssetsRoute();
-        }
-    }
 
-    /**
-     * Register a route to serve admin assets with cache busting.
-     * 
-     * This serves:
-     * - Core admin CSS from core/Admin/ (admin.css)
-     * - Core admin assets from core/Admin/assets/ (codemirror, etc.)
-     * - Plugin assets from app/plugins/{name}/assets/
-     * - Other public assets from public/assets/
-     * 
-     * Assets are served under {admin_path}/assets/ to avoid revealing
-     * the existence of an admin panel at a fixed URL.
-     */
-    private function registerAdminAssetsRoute(): void
-    {
-        $corePath = $this->path('core/Admin');
-        $coreAssetsPath = $this->path('core/Admin/assets');
-        $publicPath = $this->path('public/assets');
-        $pluginsPath = $this->configPath('plugins');
-        $adminPath = $this->config('admin.path', '/admin');
-        $assetsPrefix = $adminPath . '/assets/';
-        $prefixLength = strlen($assetsPrefix);
-
-        $this->router()->addPrefixRoute($assetsPrefix, function (Request $request) use ($corePath, $coreAssetsPath, $publicPath, $pluginsPath, $prefixLength) {
-            $path = $request->path();
-            // Remove {admin_path}/assets/ prefix
-            $assetPath = substr($path, $prefixLength);
-
-            // Serve core admin.css from core/Admin/
-            if ($assetPath === 'admin.css') {
-                $adminCssPath = $corePath . '/admin.css';
-                if (file_exists($adminCssPath)) {
-                    return $this->serveAsset($request, $adminCssPath);
-                }
-                return null;
-            }
-
-            // Serve core assets from core/Admin/assets/ (e.g., codemirror)
-            $coreAssetsDir = realpath($coreAssetsPath);
-            if ($coreAssetsDir !== false) {
-                // Normalize path separators for Windows compatibility
-                $normalizedAssetPath = str_replace('/', DIRECTORY_SEPARATOR, $assetPath);
-                $fullPath = $coreAssetsDir . DIRECTORY_SEPARATOR . $normalizedAssetPath;
-                $realPath = realpath($fullPath);
-                
-                    if ($realPath !== false && str_starts_with($realPath, $coreAssetsDir . DIRECTORY_SEPARATOR) && is_file($realPath)) {
-                        return $this->serveAsset($request, $realPath);
-                }
-            }
-
-            // Check if this is a plugin asset request: {admin_path}/assets/plugin-name/...
-            $parts = explode('/', $assetPath, 2);
-            if (count($parts) === 2) {
-                $pluginName = $parts[0];
-                $pluginAssetPath = $parts[1];
-                $pluginAssetsDir = realpath($pluginsPath . '/' . $pluginName . '/assets');
-                
-                if ($pluginAssetsDir !== false) {
-                    // Normalize path separators for Windows compatibility
-                    $normalizedPluginAssetPath = str_replace('/', DIRECTORY_SEPARATOR, $pluginAssetPath);
-                    $fullPath = $pluginAssetsDir . DIRECTORY_SEPARATOR . $normalizedPluginAssetPath;
-                    $realPath = realpath($fullPath);
-                    
-                    if ($realPath !== false && str_starts_with($realPath, $pluginAssetsDir . DIRECTORY_SEPARATOR) && is_file($realPath)) {
-                        return $this->serveAsset($request, $realPath);
-                    }
-                }
-            }
-
-            // Otherwise, serve from public/assets/
-            $assetsDir = realpath($publicPath);
-            if ($assetsDir === false) {
-                return null;
-            }
-
-            // Normalize path separators for Windows compatibility
-            $normalizedAssetPath = str_replace('/', DIRECTORY_SEPARATOR, $assetPath);
-            $fullPath = $assetsDir . DIRECTORY_SEPARATOR . $normalizedAssetPath;
-            $realPath = realpath($fullPath);
-
-            if ($realPath === false || !str_starts_with($realPath, $assetsDir . DIRECTORY_SEPARATOR) || !is_file($realPath)) {
-                return null;
-            }
-
-            return $this->serveAsset($request, $realPath);
-        });
-    }
 
     /**
      * Serve a static asset file with appropriate headers.

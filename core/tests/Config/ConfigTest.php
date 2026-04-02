@@ -38,10 +38,9 @@ final class ConfigTest extends TestCase
                     '@assets' => '/assets',
                 ],
             ],
-            'admin' => [
+            'debug' => [
                 'enabled' => true,
-                'path' => '/ava-admin',
-                'require_login' => true,
+                'display_errors' => true,
             ],
             'plugins' => [
                 'feed' => ['enabled' => true],
@@ -135,7 +134,7 @@ final class ConfigTest extends TestCase
 
     public function testBooleanTrue(): void
     {
-        $this->assertTrue(Arr::get($this->config, 'admin.enabled'));
+        $this->assertTrue(Arr::get($this->config, 'debug.enabled'));
     }
 
     public function testBooleanFalse(): void
@@ -176,9 +175,9 @@ final class ConfigTest extends TestCase
         $this->assertEquals('/media', Arr::get($this->config, 'paths.aliases.@media'));
     }
 
-    public function testAdminPath(): void
+    public function testDebugPath(): void
     {
-        $this->assertEquals('/ava-admin', Arr::get($this->config, 'admin.path'));
+        $this->assertTrue(Arr::get($this->config, 'debug.display_errors'));
     }
 
     // =========================================================================

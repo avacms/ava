@@ -22,19 +22,6 @@ final class ReleaseChecksTest extends TestCase
     // =========================================================================
 
     /**
-     * Test that users.php is in .gitignore
-     */
-    public function testUsersFileIsGitignored(): void
-    {
-        $gitignore = file_get_contents(AVA_ROOT . '/.gitignore');
-        
-        $this->assertTrue(
-            str_contains($gitignore, 'app/config/users.php') || str_contains($gitignore, 'users.php'),
-            'users.php should be listed in .gitignore to prevent credential leaks'
-        );
-    }
-
-    /**
      * Test that .env files are gitignored
      */
     public function testEnvFilesAreGitignored(): void
@@ -88,47 +75,6 @@ final class ReleaseChecksTest extends TestCase
             'default',
             $config['theme'] ?? '',
             'Theme should be set to "default" for release'
-        );
-    }
-
-    /**
-     * Test that admin is disabled by default
-     */
-    public function testAdminIsDisabledByDefault(): void
-    {
-        $config = require AVA_ROOT . '/app/config/ava.php';
-        
-        $this->assertFalse(
-            $config['admin']['enabled'] ?? true,
-            'Admin should be disabled (admin.enabled = false) for release'
-        );
-    }
-
-    /**
-     * Test that admin path is /ava-admin
-     */
-    public function testAdminPathIsDefault(): void
-    {
-        $config = require AVA_ROOT . '/app/config/ava.php';
-        
-        $this->assertEquals(
-            '/ava-admin',
-            $config['admin']['path'] ?? '',
-            'Admin path should be "/ava-admin" for release'
-        );
-    }
-
-    /**
-     * Test that admin theme is cyan
-     */
-    public function testAdminThemeIsCyan(): void
-    {
-        $config = require AVA_ROOT . '/app/config/ava.php';
-        
-        $this->assertEquals(
-            'cyan',
-            $config['admin']['theme'] ?? '',
-            'Admin theme should be "cyan" for release'
         );
     }
 
@@ -317,26 +263,6 @@ final class ReleaseChecksTest extends TestCase
         $this->assertTrue(
             file_exists($indexPage),
             'Example index page should exist at content/pages/index.md'
-        );
-    }
-
-    /**
-     * Test that users.php is either absent or gitignored (fresh install)
-     */
-    public function testUsersFileAbsentOrGitignored(): void
-    {
-        $usersFile = AVA_ROOT . '/app/config/users.php';
-        
-        if (!file_exists($usersFile)) {
-            $this->assertTrue(true, 'users.php does not exist (clean release)');
-            return;
-        }
-
-        // If it exists, it must be gitignored
-        $gitignore = file_get_contents(AVA_ROOT . '/.gitignore');
-        $this->assertTrue(
-            str_contains($gitignore, 'app/config/users.php') || str_contains($gitignore, 'users.php'),
-            'users.php exists but is not gitignored - it should be created by user:add and never committed'
         );
     }
 

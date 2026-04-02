@@ -6,7 +6,6 @@ namespace Ava\Content;
 
 use Ava\Application;
 use Ava\Content\Backends\SqliteBackend;
-use Ava\Fields\FieldValidator;
 use Ava\Plugins\Hooks;
 use Ava\Support\Path;
 
@@ -24,7 +23,6 @@ final class Indexer
 {
     private Application $app;
     private Parser $parser;
-    private FieldValidator $fieldValidator;
 
     /** @var array<string, string> Track IDs during indexing */
     private array $seenIds = [];
@@ -39,7 +37,6 @@ final class Indexer
     {
         $this->app = $app;
         $this->parser = new Parser();
-        $this->fieldValidator = new FieldValidator($app);
         $this->backendOverride = $backendOverride;
         $this->igbinaryOverride = $igbinaryOverride;
     }
@@ -296,12 +293,6 @@ final class Indexer
                 // Validate item (core fields: title, slug, status)
                 $itemErrors = $this->parser->validate($item);
                 foreach ($itemErrors as $error) {
-                    $errors[] = "{$filePath}: {$error}";
-                }
-
-                // Validate custom fields defined in content type config
-                $fieldErrors = $this->fieldValidator->getErrors($item->toArray(), $typeName);
-                foreach ($fieldErrors as $error) {
                     $errors[] = "{$filePath}: {$error}";
                 }
 
