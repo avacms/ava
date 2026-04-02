@@ -17,21 +17,22 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # If requesting the root or a non-existent file, redirect to public/
+    # If requesting the root, show misconfiguration error page
     RewriteCond %{REQUEST_URI} ^/$
-    RewriteRule ^$ public/index.php [L]
+    RewriteRule ^$ index.php [L]
     
     # Block direct access to sensitive directories
-    RewriteRule ^(app|core|storage|vendor)(/.*)?$ - [F,L]
+    RewriteRule ^(app|core|storage|vendor|content)(/.*)?$ - [F,L]
     
     # Block sensitive files (CLI script, bootstrap, composer files, git/env)
-    RewriteRule ^(ava|bootstrap\.php|composer\.(json|lock)|\.git.*|\.env.*)$ - [F,L]
+    RewriteRule ^(ava|bootstrap\.php|composer\.(json|lock)|\.git.*|\.env.*|nginx\.conf.*)$ - [F,L]
     
-    # Allow public directory
+    # For any other request in a misconfigured setup, show the error page
+    # rather than silently proxying to public/
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ public/index.php [L]
+    RewriteRule ^(.*)$ index.php [L]
 </IfModule>
 
 # Block direct access to PHP files outside public (backup if rewrite is off)

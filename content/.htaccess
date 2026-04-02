@@ -1,0 +1,13 @@
+# Deny all access to content directory
+# This protects raw Markdown files if the server is misconfigured
+
+<IfModule mod_authz_core.c>
+    # Apache 2.4+
+    Require all denied
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    # Apache 2.2
+    Order deny,allow
+    Deny from all
+</IfModule>

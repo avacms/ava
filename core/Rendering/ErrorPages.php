@@ -28,43 +28,46 @@ final class ErrorPages
             align-items: center;
             justify-content: center;
             padding: 2rem;
-            line-height: 1.5;
+            line-height: 1.6;
         }
         .error {
             text-align: center;
             max-width: 420px;
         }
         .error-code {
-            font-size: 4rem;
+            font-size: 3.5rem;
             font-weight: 700;
-            color: #94a3b8;
+            color: #8b5cf6;
             line-height: 1;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
         }
         .error-title {
             font-size: 1.25rem;
             font-weight: 600;
             color: #1e293b;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
         .error-message {
             color: #64748b;
             margin-bottom: 1.5rem;
+            font-size: 0.9375rem;
         }
         .error-message code {
-            background: #e2e8f0;
+            background: #f1f5f9;
             padding: 0.125rem 0.375rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
+            border-radius: 4px;
+            font-size: 0.8125rem;
+            color: #334155;
         }
         .btn {
             display: inline-block;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem 1.25rem;
             background: #1e293b;
             color: #fff;
             text-decoration: none;
-            border-radius: 0.375rem;
+            border-radius: 6px;
             font-size: 0.875rem;
+            font-weight: 500;
         }
         .btn:hover { background: #334155; }
         .error-hint {
@@ -74,7 +77,8 @@ final class ErrorPages
             font-size: 0.75rem;
             color: #94a3b8;
         }
-        .error-hint a { color: #64748b; }
+        .error-hint a { color: #8b5cf6; text-decoration: none; }
+        .error-hint a:hover { text-decoration: underline; }
 CSS;
     }
 
@@ -148,11 +152,12 @@ HTML;
     <div class="error">
         <div class="error-code">500</div>
         <h1 class="error-title">Something Went Wrong</h1>
-        <p class="error-message">An error occurred while processing your request.</p>
+        <p class="error-message">
+            An unexpected error occurred.{$errorRef}
+        </p>
         {$homeLink}
         <div class="error-hint">
-            {$logHint}{$errorRef}<br>
-            <a href="https://ava.addy.zone/">Ava CMS</a>
+            {$logHint}
         </div>
     </div>
 </body>
@@ -161,14 +166,14 @@ HTML;
     }
 
     /**
-     * Render a 503 Service Unavailable page (for maintenance mode).
+     * Render a 503 Service Unavailable page.
      */
     public static function render503(?string $message = null): string
     {
         $styles = self::styles();
-        $customMessage = $message 
-            ? '<p class="error-message">' . htmlspecialchars($message) . '</p>' 
-            : '<p class="error-message">This site is temporarily unavailable for maintenance.</p>';
+        $messageText = $message 
+            ? htmlspecialchars($message)
+            : 'This site is temporarily unavailable. Please try again later.';
         
         return <<<HTML
 <!DOCTYPE html>
@@ -177,18 +182,16 @@ HTML;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <meta http-equiv="refresh" content="60">
-    <title>Maintenance</title>
+    <title>Temporarily Unavailable</title>
     <style>{$styles}</style>
 </head>
 <body>
     <div class="error">
         <div class="error-code">503</div>
-        <h1 class="error-title">Under Maintenance</h1>
-        {$customMessage}
+        <h1 class="error-title">Temporarily Unavailable</h1>
+        <p class="error-message">{$messageText}</p>
         <div class="error-hint">
-            This page will refresh automatically.<br>
-            <a href="https://ava.addy.zone/">Ava CMS</a>
+            Powered by <a href="https://ava.addy.zone/">Ava CMS</a>
         </div>
     </div>
 </body>

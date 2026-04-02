@@ -190,7 +190,8 @@ final class Engine
     private function renderTemplate(string $templatePath, array $context): string
     {
         // Extract context variables for the template
-        extract($context);
+        // EXTR_SKIP prevents variable collisions in nested template contexts
+        extract($context, EXTR_SKIP);
 
         // Capture output
         ob_start();

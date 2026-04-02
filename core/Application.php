@@ -348,6 +348,12 @@ final class Application
         $pluginsPath = $this->configPath('plugins');
 
         foreach ($plugins as $plugin) {
+            // Security: Validate plugin name to prevent path traversal
+            // Even though config is filesystem-based, this is defense-in-depth
+            if (!is_string($plugin) || !preg_match('/^[a-z0-9_-]+$/i', $plugin)) {
+                continue;
+            }
+            
             $pluginFile = $pluginsPath . '/' . $plugin . '/plugin.php';
             if (file_exists($pluginFile)) {
                 $manifest = require $pluginFile;
@@ -361,6 +367,12 @@ final class Application
     private function loadTheme(): void
     {
         $theme = $this->config('theme', 'default');
+        
+        // Security: Validate theme name to prevent path traversal
+        if (!is_string($theme) || !preg_match('/^[a-z0-9_-]+$/i', $theme)) {
+            $theme = 'default';
+        }
+        
         $themePath = $this->configPath('themes') . '/' . $theme . '/theme.php';
 
         if (file_exists($themePath)) {

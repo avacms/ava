@@ -193,7 +193,8 @@ final class Engine
         ];
 
         // Render snippet in isolation
-        extract($context);
+        // EXTR_SKIP prevents variable collisions
+        extract($context, EXTR_SKIP);
 
         ob_start();
         try {

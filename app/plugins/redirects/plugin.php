@@ -53,6 +53,14 @@ return [
             if (!file_exists($redirectsFile)) {
                 return [];
             }
+            
+            // Security: Limit file size to prevent memory exhaustion DoS
+            $size = filesize($redirectsFile);
+            if ($size === false || $size > 1024 * 1024) { // 1MB limit
+                error_log('Redirects file too large or unreadable: ' . $redirectsFile);
+                return [];
+            }
+            
             $contents = file_get_contents($redirectsFile);
             $data = json_decode($contents, true);
             

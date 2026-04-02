@@ -73,21 +73,19 @@ return [
                 }
             }
 
+            // Build reverse route index for O(1) lookups
+            $reverseRoutes = $routes['reverse'] ?? [];
+
             foreach ($items as $item) {
                 // Skip noindex items
                 if ($item->noindex()) {
                     continue;
                 }
 
-                // Find URL for this item
-                $url = null;
+                // Find URL for this item using reverse routes (O(1) lookup)
                 $type = $item->type();
-                foreach ($routes['exact'] ?? [] as $routeUrl => $routeData) {
-                    if (($routeData['content_type'] ?? '') === $type && ($routeData['slug'] ?? '') === $item->slug()) {
-                        $url = $routeUrl;
-                        break;
-                    }
-                }
+                $key = $type . ':' . $item->slug();
+                $url = $reverseRoutes[$key] ?? null;
 
                 if ($url === null) {
                     $typeConfig = $contentTypes[$type] ?? [];
