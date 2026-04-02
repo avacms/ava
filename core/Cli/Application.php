@@ -62,7 +62,8 @@ final class Application
                 $staleResult = $updater->detectStaleFiles();
                 if ($staleResult['success'] && !empty($staleResult['stale_files'])) {
                     $count = count($staleResult['stale_files']);
-                    $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' ' . $this->output->color("{$count} stale file(s) from previous version", Output::YELLOW));
+                    $version = $staleResult['compared_to'];
+                    $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' ' . $this->output->color("{$count} file(s) not in v{$version}", Output::YELLOW));
                     $this->output->nextStep('./ava update:stale --clean', 'Review and remove');
                     $this->output->writeln('');
                 }
