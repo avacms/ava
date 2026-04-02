@@ -431,11 +431,33 @@ final class Query
         }
 
         // Apply filters on raw arrays
-        $rawItems = $this->applyFiltersRaw($rawItems);
+        $rawItems = QueryProcessor::applyFilters(
+            $rawItems,
+            $this->status,
+            $this->taxonomyFilters,
+            $this->fieldFilters
+        );
 
         // Apply search if present
         if ($this->search !== null && $this->search !== '') {
-            $rawItems = $this->applySearchRaw($rawItems);
+            $tokens = QueryProcessor::tokenize($this->search);
+            $expandedTokens = QueryProcessor::expandTokens(
+                $tokens,
+                $this->repository->getStopWords(),
+                $this->repository->getSynonyms()
+            );
+
+            if (empty($expandedTokens)) {
+                // All tokens were stop words
+                $rawItems = [];
+            } else {
+                $rawItems = QueryProcessor::applySearch(
+                    $rawItems,
+                    $this->search,
+                    $expandedTokens,
+                    $this->searchWeights
+                );
+            }
         }
 
         // Store total count before pagination
@@ -443,7 +465,7 @@ final class Query
 
         // Sort on raw arrays (skip if search is active - already sorted by relevance)
         if ($this->search === null || $this->search === '') {
-            $rawItems = $this->applySortRaw($rawItems);
+            $rawItems = QueryProcessor::applySort($rawItems, $this->orderBy, $this->order);
         }
 
         // Paginate - get just the slice we need
@@ -455,267 +477,5 @@ final class Query
             fn(array $data) => Item::fromArray($data, ''),
             $slice
         );
-    }
-
-    /**
-     * Apply filters to raw item arrays.
-     */
-    private function applyFiltersRaw(array $items): array
-    {
-        return array_filter($items, function (array $data) {
-            // Status filter
-            if ($this->status !== null) {
-                $itemStatus = $data['status'] ?? 'published';
-                if ($itemStatus !== $this->status) {
-                    return false;
-                }
-            }
-
-            // Taxonomy filters
-            foreach ($this->taxonomyFilters as $taxonomy => $term) {
-                // Check both locations: top-level 'taxonomies' (recent_cache format)
-                // and frontmatter (content_index format)
-                $terms = $data['taxonomies'][$taxonomy] 
-                    ?? $data['frontmatter'][$taxonomy] 
-                    ?? [];
-                
-                // Normalize to array (taxonomy can be string or array in frontmatter)
-                if (!is_array($terms)) {
-                    $terms = [$terms];
-                }
-                
-                if (!in_array($term, $terms, true)) {
-                    return false;
-                }
-            }
-
-            // Field filters
-            foreach ($this->fieldFilters as $filter) {
-                if (!$this->matchesFieldFilterRaw($data, $filter)) {
-                    return false;
-                }
-            }
-
-            return true;
-        });
-    }
-
-    /**
-     * Check if raw item data matches a field filter.
-     */
-    private function matchesFieldFilterRaw(array $data, array $filter): bool
-    {
-        $field = $filter['field'];
-        $expected = $filter['value'];
-        $operator = $filter['operator'];
-
-        // Get value from nested data (check both meta and frontmatter for compatibility)
-        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
-        $value = $meta[$field] ?? $data[$field] ?? null;
-
-        return match ($operator) {
-            '=' => $value === $expected,
-            '!=' => $value !== $expected,
-            '>' => $value > $expected,
-            '>=' => $value >= $expected,
-            '<' => $value < $expected,
-            '<=' => $value <= $expected,
-            'in' => is_array($expected) && in_array($value, $expected, true),
-            'not_in' => is_array($expected) && !in_array($value, $expected, true),
-            'like' => is_string($value) && str_contains(strtolower($value), strtolower($expected)),
-            default => false,
-        };
-    }
-
-    /**
-     * Apply search to raw item arrays.
-     */
-    private function applySearchRaw(array $items): array
-    {
-        // Compute search phrase and tokens once, outside the per-item loop
-        $phrase = strtolower($this->search);
-        $tokens = preg_split('/\s+/', $phrase, -1, PREG_SPLIT_NO_EMPTY);
-
-        // Filter stop words, expand with synonyms
-        $stopWords = $this->repository->getStopWords();
-        $tokens = array_values(array_filter($tokens, fn($t) => !isset($stopWords[$t])));
-        if (empty($tokens)) {
-            return []; // All tokens were stop words
-        }
-        $synonyms = $this->repository->getSynonyms();
-        $expandedTokens = array_map(
-            fn($t) => array_unique(array_merge([$t], $synonyms[$t] ?? [])),
-            $tokens
-        );
-
-        // Score each item
-        $scored = [];
-        foreach ($items as $data) {
-            $score = $this->scoreItemRaw($data, $phrase, $expandedTokens);
-            if ($score > 0) {
-                $scored[] = ['data' => $data, 'score' => $score];
-            }
-        }
-
-        // Sort by score descending if search is active
-        usort($scored, fn($a, $b) => $b['score'] <=> $a['score']);
-
-        return array_map(fn($s) => $s['data'], $scored);
-    }
-
-    /**
-     * Check if any variant in a token group matches the text.
-     */
-    private function matchesAny(string $text, array $variants): bool
-    {
-        foreach ($variants as $v) {
-            if (str_contains($text, $v)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Score raw item data for search relevance.
-     */
-    private function scoreItemRaw(array $data, string $phrase, array $expandedTokens): int
-    {
-        $score = 0;
-        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
-        $title = strtolower($data['title'] ?? '');
-        $excerpt = strtolower($meta['excerpt'] ?? $data['excerpt'] ?? '');
-        $body = strtolower($data['body'] ?? $meta['body'] ?? '');
-
-        // Get weights with defaults
-        $w = array_merge([
-            'title_phrase' => 80,
-            'title_all_tokens' => 40,
-            'title_token' => 10,
-            'title_token_max' => 30,
-            'excerpt_phrase' => 30,
-            'excerpt_token' => 3,
-            'excerpt_token_max' => 15,
-            'body_phrase' => 20,
-            'body_token' => 2,
-            'body_token_max' => 10,
-            'featured' => 15,
-            'fields' => [],
-            'field_weight' => 5,
-        ], $this->searchWeights ?? []);
-
-        // Title phrase match (exact only)
-        if ($w['title_phrase'] > 0 && str_contains($title, $phrase)) {
-            $score += $w['title_phrase'];
-        }
-
-        // Title token matches (with synonyms)
-        $titleHits = 0;
-        foreach ($expandedTokens as $variants) {
-            if ($this->matchesAny($title, $variants)) {
-                $titleHits++;
-            }
-        }
-        if ($titleHits === count($expandedTokens) && count($expandedTokens) > 1 && $w['title_all_tokens'] > 0) {
-            $score += $w['title_all_tokens'];
-        }
-        if ($w['title_token'] > 0) {
-            $score += min($w['title_token_max'], $titleHits * $w['title_token']);
-        }
-
-        // Excerpt phrase match
-        if ($w['excerpt_phrase'] > 0 && str_contains($excerpt, $phrase)) {
-            $score += $w['excerpt_phrase'];
-        }
-
-        // Excerpt token matches
-        if ($w['excerpt_token'] > 0) {
-            $hits = 0;
-            foreach ($expandedTokens as $variants) {
-                if ($this->matchesAny($excerpt, $variants)) {
-                    $hits++;
-                }
-            }
-            $score += min($w['excerpt_token_max'], $hits * $w['excerpt_token']);
-        }
-
-        // Body phrase match
-        if ($w['body_phrase'] > 0 && str_contains($body, $phrase)) {
-            $score += $w['body_phrase'];
-        }
-
-        // Body token matches
-        if ($w['body_token'] > 0) {
-            $hits = 0;
-            foreach ($expandedTokens as $variants) {
-                if ($this->matchesAny($body, $variants)) {
-                    $hits++;
-                }
-            }
-            $score += min($w['body_token_max'], $hits * $w['body_token']);
-        }
-
-        // Custom field matches (use $meta already defined above)
-        if (!empty($w['fields'])) {
-            foreach ($w['fields'] as $field) {
-                $value = strtolower((string) ($meta[$field] ?? ''));
-                if ($value !== '') {
-                    foreach ($expandedTokens as $variants) {
-                        if ($this->matchesAny($value, $variants)) {
-                            $score += $w['field_weight'];
-                        }
-                    }
-                }
-            }
-        }
-
-        // Featured boost
-        if ($w['featured'] > 0 && (!empty($meta['featured']) || !empty($data['featured']))) {
-            $score += $w['featured'];
-        }
-
-        return $score;
-    }
-
-    /**
-     * Apply sorting to raw item arrays.
-     */
-    private function applySortRaw(array $items): array
-    {
-        usort($items, function (array $a, array $b) {
-            $aVal = $this->getSortValueRaw($a);
-            $bVal = $this->getSortValueRaw($b);
-
-            $result = $aVal <=> $bVal;
-
-            // Descending order reverses the comparison
-            if ($this->order === 'desc') {
-                $result = -$result;
-            }
-
-            // Tie-breaker: title ascending
-            if ($result === 0) {
-                $result = ($a['title'] ?? '') <=> ($b['title'] ?? '');
-            }
-
-            return $result;
-        });
-
-        return $items;
-    }
-
-    /**
-     * Get the value to sort by from raw data.
-     */
-    private function getSortValueRaw(array $data): mixed
-    {
-        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
-        return match ($this->orderBy) {
-            'date' => $data['date'] ?? 0,
-            'updated' => $data['updated'] ?? $data['date'] ?? 0,
-            'title' => strtolower($data['title'] ?? ''),
-            'order', 'menu_order' => $meta['order'] ?? $data['order'] ?? 0,
-            default => $meta[$this->orderBy] ?? $data[$this->orderBy] ?? '',
-        };
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ava\Content\Backends;
 
+use Ava\Content\QueryProcessor;
+
 /**
  * Array Backend
  *
@@ -176,18 +178,22 @@ final class ArrayBackend implements BackendInterface
         }
 
         // Apply filters
-        $rawItems = $this->applyFilters($rawItems, $status, $taxonomies, $fields);
+        $rawItems = QueryProcessor::applyFilters($rawItems, $status, $taxonomies, $fields);
 
         // Apply search
         if ($search !== null && $search !== '') {
-            $rawItems = $this->applySearch($rawItems, $search);
+            $tokens = QueryProcessor::tokenize($search);
+            $expandedTokens = array_map(fn($t) => [$t], $tokens);
+            $rawItems = QueryProcessor::applySearch($rawItems, $search, $expandedTokens);
         }
 
         // Get total count before pagination
         $total = count($rawItems);
 
-        // Apply sorting
-        $rawItems = $this->applySort($rawItems, $orderBy, $order);
+        // Apply sorting (skip if search active — already sorted by relevance)
+        if ($search === null || $search === '') {
+            $rawItems = QueryProcessor::applySort($rawItems, $orderBy, $order);
+        }
 
         // Paginate
         $offset = ($page - 1) * $perPage;
@@ -197,182 +203,6 @@ final class ArrayBackend implements BackendInterface
             'items' => $items,
             'total' => $total,
         ];
-    }
-
-    /**
-     * Apply filters to raw items.
-     */
-    private function applyFilters(array $items, ?string $status, array $taxonomies, array $fields): array
-    {
-        return array_filter($items, function (array $data) use ($status, $taxonomies, $fields) {
-            // Status filter
-            if ($status !== null) {
-                $itemStatus = $data['status'] ?? 'published';
-                if ($itemStatus !== $status) {
-                    return false;
-                }
-            }
-
-            // Taxonomy filters
-            foreach ($taxonomies as $taxonomy => $term) {
-                $terms = $data['taxonomies'][$taxonomy] ?? [];
-                if (!in_array($term, $terms, true)) {
-                    return false;
-                }
-            }
-
-            // Field filters
-            foreach ($fields as $filter) {
-                if (!$this->matchesFieldFilter($data, $filter)) {
-                    return false;
-                }
-            }
-
-            return true;
-        });
-    }
-
-    /**
-     * Check if item matches a field filter.
-     */
-    private function matchesFieldFilter(array $data, array $filter): bool
-    {
-        $field = $filter['field'];
-        $expected = $filter['value'];
-        $operator = $filter['operator'];
-
-        // Check both meta and frontmatter for compatibility
-        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
-        $value = $meta[$field] ?? $data[$field] ?? null;
-
-        return match ($operator) {
-            '=' => $value === $expected,
-            '!=' => $value !== $expected,
-            '>' => $value > $expected,
-            '>=' => $value >= $expected,
-            '<' => $value < $expected,
-            '<=' => $value <= $expected,
-            'in' => is_array($expected) && in_array($value, $expected, true),
-            'not_in' => is_array($expected) && !in_array($value, $expected, true),
-            'like' => is_string($value) && str_contains(strtolower($value), strtolower($expected)),
-            default => false,
-        };
-    }
-
-    /**
-     * Apply search to raw items.
-     */
-    private function applySearch(array $items, string $search): array
-    {
-        $query = strtolower($search);
-        $tokens = preg_split('/\s+/', $query, -1, PREG_SPLIT_NO_EMPTY);
-
-        $scored = [];
-        foreach ($items as $data) {
-            $score = $this->scoreItem($data, $query, $tokens);
-            if ($score > 0) {
-                $scored[] = ['data' => $data, 'score' => $score];
-            }
-        }
-
-        usort($scored, fn($a, $b) => $b['score'] <=> $a['score']);
-
-        return array_map(fn($s) => $s['data'], $scored);
-    }
-
-    /**
-     * Score item for search relevance.
-     */
-    private function scoreItem(array $data, string $phrase, array $tokens): int
-    {
-        $score = 0;
-        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
-        $title = strtolower($data['title'] ?? '');
-        $excerpt = strtolower($meta['excerpt'] ?? $data['excerpt'] ?? '');
-
-        // Title phrase match: +80
-        if (str_contains($title, $phrase)) {
-            $score += 80;
-        }
-
-        // Title contains all tokens: +40
-        $allInTitle = true;
-        $tokenHits = 0;
-        foreach ($tokens as $token) {
-            if (str_contains($title, $token)) {
-                $tokenHits++;
-            } else {
-                $allInTitle = false;
-            }
-        }
-        if ($allInTitle && count($tokens) > 1) {
-            $score += 40;
-        }
-
-        // Title token hits: +10 each (cap +30)
-        $score += min(30, $tokenHits * 10);
-
-        // Excerpt phrase match: +30
-        if (str_contains($excerpt, $phrase)) {
-            $score += 30;
-        }
-
-        // Excerpt token hits: +3 each (cap +15)
-        $excerptHits = 0;
-        foreach ($tokens as $token) {
-            if (str_contains($excerpt, $token)) {
-                $excerptHits++;
-            }
-        }
-        $score += min(15, $excerptHits * 3);
-
-        // Featured boost: +15
-        if (!empty($meta['featured']) || !empty($data['featured'])) {
-            $score += 15;
-        }
-
-        return $score;
-    }
-
-    /**
-     * Apply sorting to raw items.
-     */
-    private function applySort(array $items, string $orderBy, string $order): array
-    {
-        usort($items, function (array $a, array $b) use ($orderBy, $order) {
-            $aVal = $this->getSortValue($a, $orderBy);
-            $bVal = $this->getSortValue($b, $orderBy);
-
-            $result = $aVal <=> $bVal;
-
-            if ($order === 'desc') {
-                $result = -$result;
-            }
-
-            // Tie-breaker: title ascending
-            if ($result === 0) {
-                $result = ($a['title'] ?? '') <=> ($b['title'] ?? '');
-            }
-
-            return $result;
-        });
-
-        return $items;
-    }
-
-    /**
-     * Get sort value from raw data.
-     */
-    private function getSortValue(array $data, string $orderBy): mixed
-    {
-        $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
-        return match ($orderBy) {
-            'date' => $data['date'] ?? 0,
-            'updated' => $data['updated'] ?? $data['date'] ?? 0,
-            'title' => strtolower($data['title'] ?? ''),
-            'order', 'menu_order' => $meta['order'] ?? $data['order'] ?? 0,
-            default => $meta[$orderBy] ?? $data[$orderBy] ?? '',
-        };
     }
 
     // -------------------------------------------------------------------------
