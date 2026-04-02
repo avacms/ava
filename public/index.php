@@ -121,4 +121,4 @@ if ($cached !== null) {
 // Full path: Boot the application and handle the request
 $app->boot();
 $response = $app->handle($request);
-$response->send();
+$response->withHeader('X-Render-Time', round((microtime(true) - AVA_START) * 1000, 1) . 'ms')->send();

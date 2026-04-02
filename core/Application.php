@@ -154,7 +154,7 @@ final class Application
             }
 
             $webpageCache->put($request, $response, $cacheOverride);
-            $response = $response->withHeader('X-Webpage-Cache', 'MISS');
+            $response = $response->withHeader('X-Page-Cache', 'MISS');
         }
 
         return $response;

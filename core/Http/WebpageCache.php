@@ -171,7 +171,8 @@ final class WebpageCache
         // Build response with pre-computed age (avoid second stat)
         return Response::html($content)
             ->withHeader('X-Page-Cache', 'HIT')
-            ->withHeader('X-Cache-Age', (string) $age);
+            ->withHeader('X-Cache-Age', (string) $age)
+            ->withHeader('X-Fast-Path', 'standard');
     }
 
     /**
