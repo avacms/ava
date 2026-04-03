@@ -12,16 +12,16 @@ namespace Ava;
  * Version Format: CalVer YY.M.PATCH (e.g., 26.2.0 = first patch of Feb 2026)
  *
  * What gets updated:
- * - core/, docs/, ava (CLI), bootstrap.php, composer.json
- * - public/index.php
+ * - core/, ava (CLI), bootstrap.php, composer.json
+ * - public/index.php, public/.htaccess
+ * - index.php, .htaccess, nginx.conf.example (root files)
  * - Bundled plugins in app/plugins/ (sitemap, feed, redirects)
  *
  * What is preserved (never touched):
  * - content/, app/config/, app/themes/, app/snippets/, storage/, vendor/
  * - Custom plugins, public/robots.txt, .git, .env
  *
- * Updates sync individual files, not entire directories.
- * This may leave stale files from old versions. Use update:stale to detect them.
+ * Updates sync directories via clean delete+copy to remove stale files.
  */
 final class Updater
 {
@@ -37,6 +37,9 @@ final class Updater
         'ava',
         'bootstrap.php',
         'composer.json',
+        'index.php',           // Root misconfiguration detector
+        '.htaccess',           // Root htaccess (blocks direct access)
+        'nginx.conf.example',  // Nginx configuration example
     ];
 
     /** @var string[] Bundled plugins (shipped with Ava) */

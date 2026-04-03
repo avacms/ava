@@ -35,7 +35,6 @@ return [
 
     'page' => [
         'label'       => 'Pages',           // Display name
-        'icon'        => 'description',     // Material icon (see fonts.google.com/icons)
         'content_dir' => 'pages',           // Folder inside content/
 
         'url' => [
@@ -70,7 +69,6 @@ return [
 
     'post' => [
         'label'       => 'Posts',
-        'icon'        => 'article',
         'content_dir' => 'posts',
 
         'url' => [

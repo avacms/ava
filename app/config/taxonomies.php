@@ -30,23 +30,12 @@ return [
 
     'category' => [
         'label'        => 'Categories',
-        'icon'         => 'folder',
         'hierarchical' => true,             // Supports parent/child terms
         'public'       => true,             // Has public archive pages
 
         'rewrite' => [
             'base'      => '/category',     // URL prefix: /category/tutorials
             'separator' => '/',             // Hierarchy: /category/tutorials/php
-        ],
-
-        'behaviour' => [
-            'allow_unknown_terms' => true,  // Auto-create terms from content
-            'hierarchy_rollup'    => true,  // Include children when filtering parent
-        ],
-
-        'ui' => [
-            'show_counts' => true,
-            'sort_terms'  => 'name_asc',    // name_asc, name_desc, count_asc, count_desc
         ],
     ],
 
@@ -62,21 +51,11 @@ return [
 
     'tag' => [
         'label'        => 'Tags',
-        'icon'         => 'tag',
         'hierarchical' => false,
         'public'       => true,
 
         'rewrite' => [
             'base' => '/tag',
-        ],
-
-        'behaviour' => [
-            'allow_unknown_terms' => true,
-        ],
-
-        'ui' => [
-            'show_counts' => true,
-            'sort_terms'  => 'count_desc',  // Most used first
         ],
     ],
 
@@ -93,8 +72,6 @@ return [
     |       'hierarchical' => false,
     |       'public'       => true,
     |       'rewrite'      => ['base' => '/author'],
-    |       'behaviour'    => ['allow_unknown_terms' => true],
-    |       'ui'           => ['show_counts' => true, 'sort_terms' => 'name_asc'],
     |   ],
     |
     | Remember to add new taxonomies to content types in content_types.php:
