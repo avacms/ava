@@ -310,36 +310,48 @@ final class ItemTest extends TestCase
     }
 
     // =========================================================================
-    // Raw HTML mode
+    // Content format
     // =========================================================================
 
-    public function testRawHtmlReturnsFalseByDefault(): void
+    public function testFormatDefaultsToMarkdown(): void
     {
         $item = $this->createItem([]);
-        $this->assertFalse($item->rawHtml());
+        $this->assertEquals(Item::FORMAT_MARKDOWN, $item->format());
+        $this->assertFalse($item->isHtml());
     }
 
-    public function testRawHtmlReturnsTrueWhenSet(): void
+    public function testFormatDetectsHtmlFromExtension(): void
     {
-        $item = $this->createItem(['raw_html' => true]);
-        $this->assertTrue($item->rawHtml());
+        $item = new Item([], '<p>Content</p>', '/test.html', 'post', Item::FORMAT_HTML);
+        $this->assertEquals(Item::FORMAT_HTML, $item->format());
+        $this->assertTrue($item->isHtml());
     }
 
-    public function testRawHtmlReturnsFalseWhenExplicitlyFalse(): void
+    public function testFormatMarkdownFromMdExtension(): void
     {
-        $item = $this->createItem(['raw_html' => false]);
-        $this->assertFalse($item->rawHtml());
+        $item = new Item([], '**bold**', '/test.md', 'post', Item::FORMAT_MARKDOWN);
+        $this->assertEquals(Item::FORMAT_MARKDOWN, $item->format());
+        $this->assertFalse($item->isHtml());
     }
 
-    public function testRawHtmlHandlesTruthyValues(): void
+    public function testFormatPersistedInToArray(): void
     {
-        // Truthy string should cast to true
-        $item = $this->createItem(['raw_html' => 'yes']);
-        $this->assertTrue($item->rawHtml());
+        $item = new Item(['title' => 'Test'], '', '/test.html', 'post', Item::FORMAT_HTML);
+        $data = $item->toArray();
+        $this->assertEquals(Item::FORMAT_HTML, $data['format']);
+    }
 
-        // Integer 1 should cast to true
-        $item = $this->createItem(['raw_html' => 1]);
-        $this->assertTrue($item->rawHtml());
+    public function testFormatRestoredFromArray(): void
+    {
+        $data = [
+            'frontmatter' => ['title' => 'Test'],
+            'file_path' => '/test.html',
+            'type' => 'post',
+            'format' => Item::FORMAT_HTML,
+        ];
+        $item = Item::fromArray($data);
+        $this->assertEquals(Item::FORMAT_HTML, $item->format());
+        $this->assertTrue($item->isHtml());
     }
 
     // =========================================================================

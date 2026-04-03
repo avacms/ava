@@ -171,9 +171,11 @@ final class Path
             }
         }
 
-        // Remove .md extension
+        // Remove .md or .html extension
         if (str_ends_with($path, '.md')) {
             $path = substr($path, 0, -3);
+        } elseif (str_ends_with($path, '.html')) {
+            $path = substr($path, 0, -5);
         }
 
         // Handle index files

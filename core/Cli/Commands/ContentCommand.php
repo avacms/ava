@@ -93,7 +93,7 @@ final class ContentCommand
                 continue;
             }
 
-            $files = $this->findMarkdownFiles($contentDir);
+            $files = $this->findContentFiles($contentDir);
 
             foreach ($files as $filePath) {
                 $result = $this->processFilePrefix($filePath, $typeName, $parser, $action);
@@ -251,7 +251,7 @@ final class ContentCommand
         return null;
     }
 
-    private function findMarkdownFiles(string $dir): array
+    private function findContentFiles(string $dir): array
     {
         $files = [];
         $iterator = new \RecursiveIteratorIterator(
@@ -259,7 +259,7 @@ final class ContentCommand
         );
 
         foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'md') {
+            if ($file->isFile() && in_array($file->getExtension(), ['md', 'html'], true)) {
                 $files[] = $file->getPathname();
             }
         }

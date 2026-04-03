@@ -37,6 +37,7 @@ final class Updater
         'ava',
         'bootstrap.php',
         'composer.json',
+        'composer.lock',
         'index.php',           // Root misconfiguration detector
         '.htaccess',           // Root htaccess (blocks direct access)
         'nginx.conf.example',  // Nginx configuration example
@@ -705,7 +706,12 @@ final class Updater
     private function detectNewPlugins(string $sourceDir, array $currentActivePlugins): array
     {
         $newPlugins = [];
-        $pluginsDir = $sourceDir . '/plugins';
+        $pluginsDir = $sourceDir . '/app/plugins';
+
+        // Fall back to old location for releases that still use plugins/
+        if (!is_dir($pluginsDir)) {
+            $pluginsDir = $sourceDir . '/plugins';
+        }
 
         if (!is_dir($pluginsDir)) {
             return [];

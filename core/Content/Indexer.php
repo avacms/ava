@@ -282,9 +282,10 @@ final class Indexer
         }
 
         $items = [];
-        $keys = []; // Track content keys for uniqueness
+        $keys = []; // Track content keys for uniqueness: key => ['file' => path, 'format' => format]
+        $itemsByKey = []; // Track items by content key for collision resolution
 
-        $files = $this->findMarkdownFiles($basePath);
+        $files = $this->findContentFiles($basePath);
 
         foreach ($files as $filePath) {
             try {
@@ -299,9 +300,35 @@ final class Indexer
                 // Check content key uniqueness (path-based for hierarchical, slug for pattern)
                 $key = $this->contentKey($item, $typeConfig);
                 if (isset($keys[$key])) {
-                    $errors[] = "{$filePath}: Duplicate content key '{$key}' (also in {$keys[$key]})";
+                    $existingFormat = $keys[$key]['format'];
+                    $newFormat = $item->format();
+
+                    // Cross-format collision: .html takes priority over .md
+                    if ($existingFormat !== $newFormat) {
+                        if ($newFormat === Item::FORMAT_HTML) {
+                            // New .html file wins — replace the .md item
+                            $errors[] = "{$keys[$key]['file']}: Overridden by .html file with same content key '{$key}' ({$filePath})";
+                            // Remove the old .md item and untrack its ID
+                            $oldItem = $itemsByKey[$key];
+                            $items = array_values(array_filter($items, fn($i) => $i !== $oldItem));
+                            if ($oldItem->id() !== null) {
+                                unset($this->seenIds[$oldItem->id()]);
+                            }
+                            $keys[$key] = ['file' => $filePath, 'format' => $newFormat];
+                            $itemsByKey[$key] = $item;
+                            // Fall through to ID check and $items[] below
+                        } else {
+                            // Existing .html file already wins — skip this .md file
+                            $errors[] = "{$filePath}: Overridden by .html file with same content key '{$key}' ({$keys[$key]['file']})";
+                            continue;
+                        }
+                    } else {
+                        // Same-format collision is always an error
+                        $errors[] = "{$filePath}: Duplicate content key '{$key}' (also in {$keys[$key]['file']})";
+                    }
                 } else {
-                    $keys[$key] = $filePath;
+                    $keys[$key] = ['file' => $filePath, 'format' => $item->format()];
+                    $itemsByKey[$key] = $item;
                 }
 
                 // Check ID uniqueness (if IDs are used)
@@ -324,11 +351,11 @@ final class Indexer
     }
 
     /**
-     * Find all Markdown files recursively.
+     * Find all content files (.md and .html) recursively.
      *
      * @return array<string>
      */
-    private function findMarkdownFiles(string $directory): array
+    private function findContentFiles(string $directory): array
     {
         $files = [];
 
@@ -337,7 +364,7 @@ final class Indexer
         );
 
         foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'md') {
+            if ($file->isFile() && in_array($file->getExtension(), ['md', 'html'], true)) {
                 $files[] = $file->getPathname();
             }
         }
@@ -506,8 +533,8 @@ final class Indexer
                     continue;
                 }
 
-                // Skip items with raw_html: true - they don't need Markdown rendering
-                if ($item->rawHtml()) {
+                // Skip HTML format items - they don't need Markdown rendering
+                if ($item->isHtml()) {
                     continue;
                 }
                 
@@ -802,11 +829,13 @@ final class Indexer
         $parts = explode('/', $relativePath);
         array_shift($parts); // Remove type folder
 
-        // Get path without .md extension
+        // Get path without .md or .html extension
         $pathParts = [];
         foreach ($parts as $part) {
             if (str_ends_with($part, '.md')) {
                 $part = substr($part, 0, -3);
+            } elseif (str_ends_with($part, '.html')) {
+                $part = substr($part, 0, -5);
             }
             // Handle index files (index.md or _index.md)
             if ($part !== 'index' && $part !== '_index') {

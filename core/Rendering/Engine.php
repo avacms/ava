@@ -65,14 +65,13 @@ final class Engine
     }
 
     /**
-     * Render a content item (process its Markdown body).
+     * Render a content item (process its body).
      * 
      * Returns the rendered HTML. Uses pre-rendered cache if available,
      * otherwise renders markdown on demand.
      * 
-     * If the item has `raw_html: true` in frontmatter, Markdown parsing
-     * is skipped and the body is treated as raw HTML. Shortcodes and
-     * path aliases are still processed.
+     * HTML format items (.html files) skip Markdown parsing — the body
+     * is treated as raw HTML. Shortcodes and path aliases are still processed.
      * 
      * @param Item $item Content item to render
      * @param string|null $contentKey Optional content key for pre-render cache lookup
@@ -84,9 +83,8 @@ final class Engine
             return $item->html();
         }
 
-        // If raw_html is enabled AND HTML is allowed globally, skip Markdown parsing
-        // but still process shortcodes and expand path aliases.
-        if ($item->rawHtml() && $this->app->config('content.markdown.allow_html', false)) {
+        // HTML format: skip Markdown parsing, still process shortcodes and aliases
+        if ($item->isHtml()) {
             $html = $this->app->shortcodes()->process($item->rawContent());
             return $this->expandAliases($html);
         }

@@ -10,7 +10,7 @@ use Symfony\Component\Yaml\Yaml;
 /**
  * Content Parser
  *
- * Parses Markdown files with YAML frontmatter.
+ * Parses content files (.md and .html) with YAML frontmatter.
  */
 final class Parser
 {
@@ -35,7 +35,7 @@ final class Parser
      */
     public function parse(string $content, string $filePath, string $type): Item
     {
-        [$frontmatter, $markdown] = $this->splitFrontmatter($content);
+        [$frontmatter, $body] = $this->splitFrontmatter($content);
 
         // Parse YAML frontmatter
         $meta = [];
@@ -53,7 +53,10 @@ final class Parser
         // Ensure required fields have defaults
         $meta = $this->applyDefaults($meta, $filePath);
 
-        return new Item($meta, $markdown, $filePath, $type);
+        // Detect format from file extension
+        $format = $this->detectFormat($filePath);
+
+        return new Item($meta, $body, $filePath, $type, $format);
     }
 
     /**
@@ -141,5 +144,15 @@ final class Parser
         }
 
         return $errors;
+    }
+
+    /**
+     * Detect content format from file extension.
+     */
+    private function detectFormat(string $filePath): string
+    {
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        return $ext === 'html' ? Item::FORMAT_HTML : Item::FORMAT_MARKDOWN;
     }
 }

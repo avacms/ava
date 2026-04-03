@@ -12,11 +12,15 @@ namespace Ava\Content;
  */
 final class Item
 {
+    public const FORMAT_MARKDOWN = 'markdown';
+    public const FORMAT_HTML = 'html';
+
     private array $frontmatter;
     private string $rawContent;
     private ?string $htmlContent = null;
     private string $filePath;
     private string $type;
+    private string $format;
 
     /** @var array<string, \DateTimeImmutable|null|false> Cached parsed dates (false = not yet computed) */
     private array $dateCache = [];
@@ -25,12 +29,14 @@ final class Item
         array $frontmatter,
         string $rawContent,
         string $filePath,
-        string $type
+        string $type,
+        string $format = self::FORMAT_MARKDOWN
     ) {
         $this->frontmatter = $frontmatter;
         $this->rawContent = $rawContent;
         $this->filePath = $filePath;
         $this->type = $type;
+        $this->format = $format;
     }
 
     // === Core Fields ===
@@ -135,18 +141,23 @@ final class Item
     }
 
     /**
-     * Whether this item should skip Markdown parsing and render raw HTML.
+     * Get the content format.
      * 
-     * When true, the body content is treated as HTML and passed through
-     * without Markdown processing. Shortcodes and path aliases are still
-     * processed.
-     * 
-     * Security note: This is safe for file-based content since content
-     * authors have filesystem access anyway.
+     * Determined by file extension: .md = markdown, .html = html.
+     * HTML format skips Markdown parsing — the body is treated as raw HTML.
+     * Shortcodes and path aliases are still processed for both formats.
      */
-    public function rawHtml(): bool
+    public function format(): string
     {
-        return (bool) ($this->frontmatter['raw_html'] ?? false);
+        return $this->format;
+    }
+
+    /**
+     * Whether this item is HTML format (skip Markdown parsing).
+     */
+    public function isHtml(): bool
+    {
+        return $this->format === self::FORMAT_HTML;
     }
 
     /**
@@ -328,6 +339,7 @@ final class Item
             'slug' => $this->slug(),
             'status' => $this->status(),
             'type' => $this->type,
+            'format' => $this->format,
             'file_path' => $this->filePath,
             'date' => $this->date()?->format('c'),
             'updated' => $this->updated()?->format('c'),
@@ -350,7 +362,8 @@ final class Item
             $data['frontmatter'] ?? $data,
             $rawContent,
             $data['file_path'] ?? '',
-            $data['type'] ?? ''
+            $data['type'] ?? '',
+            $data['format'] ?? self::FORMAT_MARKDOWN
         );
     }
 }
