@@ -38,7 +38,6 @@ final class Updater
         'bootstrap.php',
         'composer.json',
         'composer.lock',
-        'index.php',           // Root misconfiguration detector
         '.htaccess',           // Root htaccess (blocks direct access)
         'nginx.conf.example',  // Nginx configuration example
     ];

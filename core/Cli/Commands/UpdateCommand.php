@@ -112,9 +112,10 @@ final class UpdateCommand
             $this->output->writeln('');
             $this->output->writeln($this->output->color('  To update manually:', Output::BOLD));
             $this->output->writeln('    1. Download the latest release from https://github.com/avacms/ava/releases');
-            $this->output->writeln('    2. Extract and copy core/, docs/, bootstrap.php, composer.json');
-            $this->output->writeln('    3. Copy bundled plugins to your custom plugins path');
-            $this->output->writeln('    4. Run ./ava rebuild');
+            $this->output->writeln('    2. Extract and replace: core/, bootstrap.php, composer.json, composer.lock');
+            $this->output->writeln('    3. Replace: ava, public/index.php, public/.htaccess, .htaccess, nginx.conf.example');
+            $this->output->writeln('    4. Copy bundled plugins to your custom plugins path');
+            $this->output->writeln('    5. Run: composer install --no-dev && ./ava rebuild');
             $this->output->writeln('');
             return 1;
         }
@@ -157,18 +158,24 @@ final class UpdateCommand
             $this->output->writeln($this->output->color('  Will be replaced:', Output::BOLD));
             echo "    " . $this->output->color('▸', Output::GREEN) . " core/ directory (fully replaced)\n";
             echo "    " . $this->output->color('▸', Output::GREEN) . " Bundled plugins (sitemap, feed, redirects)\n";
-            echo "    " . $this->output->color('▸', Output::GREEN) . " bootstrap.php, composer.json, ava CLI\n";
+            echo "    " . $this->output->color('▸', Output::GREEN) . " bootstrap.php, composer.json, composer.lock\n";
+            echo "    " . $this->output->color('▸', Output::GREEN) . " ava CLI, public/index.php, public/.htaccess\n";
+            echo "    " . $this->output->color('▸', Output::GREEN) . " .htaccess, nginx.conf.example (root)\n";
             $this->output->writeln('');
             $this->output->writeln($this->output->color('  Will NOT be modified:', Output::BOLD));
             echo "    " . $this->output->color('•', Output::DIM) . " Your content (content/)\n";
             echo "    " . $this->output->color('•', Output::DIM) . " Your config (app/config/)\n";
             echo "    " . $this->output->color('•', Output::DIM) . " Your themes (app/themes/)\n";
             echo "    " . $this->output->color('•', Output::DIM) . " Your snippets (app/snippets/)\n";
-            echo "    " . $this->output->color('•', Output::DIM) . " Custom plugins, storage, and cache\n";
+            echo "    " . $this->output->color('•', Output::DIM) . " Custom plugins, vendor/, storage/\n";
+            $this->output->writeln('');
+            $this->output->writeln($this->output->color('  After update, the following will run automatically:', Output::BOLD));
+            echo "    " . $this->output->color('1.', Output::PRIMARY) . " composer install (update dependencies)\n";
+            echo "    " . $this->output->color('2.', Output::PRIMARY) . " ./ava rebuild (rebuild content index)\n";
             $this->output->writeln('');
 
             // Backup check
-            $this->output->writeln($this->output->color('  ⚠️  Have you backed up your site and have a secure copy saved off-site?', Output::YELLOW, Output::BOLD));
+            $this->output->writeln($this->output->color('  ⚠️  Have you backed up your site?', Output::YELLOW, Output::BOLD));
             echo '  [' . $this->output->color('y', Output::GREEN) . '/N]: ';
             $backupAnswer = trim(fgets(STDIN));
             if (strtolower($backupAnswer) !== 'y') {
@@ -178,19 +185,9 @@ final class UpdateCommand
                 return 0;
             }
             $this->output->writeln('');
-
-            echo '  Continue with update? [' . $this->output->color('y', Output::GREEN) . '/N]: ';
-            $answer = trim(fgets(STDIN));
-            if (strtolower($answer) !== 'y') {
-                $this->output->writeln('');
-                $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Update cancelled.');
-                $this->output->writeln('');
-                return 0;
-            }
-            $this->output->writeln('');
         }
 
-        $result = $this->output->withSpinner('Downloading update', function () use ($updater, $devMode) {
+        $result = $this->output->withSpinner('Downloading and applying update', function () use ($updater, $devMode) {
             return $updater->apply(null, $devMode);
         });
 
@@ -213,7 +210,7 @@ final class UpdateCommand
 
         // Finalize update using NEW code (handles stale file cleanup for upgrades from older versions)
         $this->output->writeln('');
-        $this->output->withSpinner('Finalizing update', function () {
+        $this->output->withSpinner('Cleaning up stale files', function () {
             $avaScript = $this->app->path('ava');
             $result = [];
             $exitCode = 0;
@@ -221,6 +218,24 @@ final class UpdateCommand
             // Don't fail if finalize doesn't exist (old->new transition)
             return true;
         });
+
+        // Install updated dependencies
+        $this->output->writeln('');
+        $composerFailed = false;
+        $this->output->withSpinner('Installing dependencies (composer install)', function () use (&$composerFailed) {
+            $rootDir = $this->app->path('');
+            $result = [];
+            $exitCode = 0;
+            exec('cd ' . escapeshellarg($rootDir) . ' && composer install --no-dev --no-interaction 2>&1', $result, $exitCode);
+            if ($exitCode !== 0) {
+                $composerFailed = true;
+            }
+            return true;
+        });
+
+        if ($composerFailed) {
+            $this->output->warning('composer install failed — run it manually: composer install --no-dev');
+        }
 
         $this->output->writeln('');
         $this->output->withSpinner('Rebuilding content index', function () {
@@ -234,7 +249,13 @@ final class UpdateCommand
             }
             return true;
         });
-        $this->output->success('Update complete.');
+
+        $this->output->writeln('');
+        $this->output->box('Update complete!', 'success');
+        $this->output->writeln('');
+        $this->output->keyValue('Updated', $this->output->color($result['updated_from'], Output::DIM) . ' → ' . $this->output->color($result['updated_to'], Output::GREEN, Output::BOLD));
+        $this->output->writeln('');
+        $this->output->tip('Review the changelog for any breaking changes or new features');
 
         $this->output->writeln('');
         return 0;
