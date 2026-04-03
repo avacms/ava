@@ -31,6 +31,15 @@ app/config/users.php
 Thumbs.db
 .directory
 
+# Custom plugins (developed as separate repos)
+app/plugins/*/
+!app/plugins/feed/
+!app/plugins/sitemap/
+!app/plugins/redirects/
+
+# Static site generator output
+/dist/
+
 # IDE
 .idea/
 .vscode/
