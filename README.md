@@ -20,7 +20,7 @@
 
 ---
 
-![Ava CMS screenshots](https://ava.addy.zone/media/screenshots.webp)
+![Ava CMS screenshots](https://ava.addy.zone/media/ava-screenshots.png)
 
 ---
 
