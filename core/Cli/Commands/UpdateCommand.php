@@ -185,6 +185,18 @@ final class UpdateCommand
                 return 0;
             }
             $this->output->writeln('');
+
+            // Proceed confirmation
+            $this->output->writeln($this->output->color('  Proceed with the update?', Output::BOLD));
+            echo '  [' . $this->output->color('y', Output::GREEN) . '/N]: ';
+            $proceedAnswer = trim(fgets(STDIN));
+            if (strtolower($proceedAnswer) !== 'y') {
+                $this->output->writeln('');
+                $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Update cancelled.');
+                $this->output->writeln('');
+                return 0;
+            }
+            $this->output->writeln('');
         }
 
         $result = $this->output->withSpinner('Downloading and applying update', function () use ($updater, $devMode) {
