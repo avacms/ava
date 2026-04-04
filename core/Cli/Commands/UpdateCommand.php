@@ -162,7 +162,7 @@ final class UpdateCommand
             echo "    " . $this->output->color('▸', Output::GREEN) . " ava CLI, public/index.php, public/.htaccess\n";
             echo "    " . $this->output->color('▸', Output::GREEN) . " .htaccess, nginx.conf.example (root)\n";
             $this->output->writeln('');
-            $this->output->writeln($this->output->color('  Will NOT be modified:', Output::BOLD));
+            $this->output->writeln($this->output->color('  Should be preserved:', Output::BOLD));
             echo "    " . $this->output->color('•', Output::DIM) . " Your content (content/)\n";
             echo "    " . $this->output->color('•', Output::DIM) . " Your config (app/config/)\n";
             echo "    " . $this->output->color('•', Output::DIM) . " Your themes (app/themes/)\n";
@@ -175,12 +175,12 @@ final class UpdateCommand
             $this->output->writeln('');
 
             // Backup check
-            $this->output->writeln($this->output->color('  ⚠️  Have you backed up your site?', Output::YELLOW, Output::BOLD));
+            $this->output->writeln($this->output->color('  ⚠️  Have you backed up your entire site?', Output::YELLOW, Output::BOLD));
             echo '  [' . $this->output->color('y', Output::GREEN) . '/N]: ';
             $backupAnswer = trim(fgets(STDIN));
             if (strtolower($backupAnswer) !== 'y') {
                 $this->output->writeln('');
-                $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Please backup your site before updating.');
+                $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Please backup your entire site before updating.');
                 $this->output->writeln('');
                 return 0;
             }
