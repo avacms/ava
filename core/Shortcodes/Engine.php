@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ava\Shortcodes;
 
 use Ava\Application;
+use Ava\Rendering\TemplateHelpers;
 
 /**
  * Shortcode Engine
@@ -188,7 +189,7 @@ final class Engine
         $context = [
             'params' => $params,
             'content' => $content,
-            'ava' => $this->app->renderer(),
+            'ava' => new TemplateHelpers($this->app, $this->app->renderer()),
             'app' => $this->app,
         ];
 
