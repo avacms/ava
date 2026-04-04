@@ -69,6 +69,24 @@ final class UpdateCommand
                         $this->output->writeln('  ' . $this->output->color('... (truncated)', Output::DIM));
                     }
                 }
+
+                // If skipping multiple versions, note there may be intermediate changelogs
+                if ($result['current'] !== $result['latest']) {
+                    $currentParts = explode('.', $result['current']);
+                    $latestParts = explode('.', $result['latest']);
+                    $majorMinorDiff = ($currentParts[0] ?? 0) !== ($latestParts[0] ?? 0)
+                        || ($currentParts[1] ?? 0) !== ($latestParts[1] ?? 0);
+                    $multiPatch = !$majorMinorDiff
+                        && isset($currentParts[2], $latestParts[2])
+                        && ((int) $latestParts[2] - (int) $currentParts[2]) > 1;
+
+                    if ($majorMinorDiff || $multiPatch) {
+                        $this->output->writeln('');
+                        $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' ' .
+                            $this->output->color("You are updating across multiple releases ({$result['current']} → {$result['latest']}).", Output::DIM));
+                        $this->output->writeln('  ' . $this->output->color('  Review all changelogs: https://github.com/avacms/ava/releases', Output::DIM));
+                    }
+                }
             }
 
             $this->output->writeln('');
