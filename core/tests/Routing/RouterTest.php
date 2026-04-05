@@ -212,8 +212,10 @@ final class RouterTest extends TestCase
     // Route Priority
     // =========================================================================
 
-    public function testSystemRoutesMatchBeforePrefixRoutes(): void
+    public function testPrefixRoutesMatchBeforeSystemRoutes(): void
     {
+        // Prefix routes run before system routes so that namespaced handlers
+        // (e.g. /theme/, /api/) can never be blocked by an overlapping exact route.
         $matchedRoute = null;
 
         $this->router->addPrefixRoute('/priority/', function () use (&$matchedRoute) {
@@ -226,11 +228,44 @@ final class RouterTest extends TestCase
             return new Response('exact');
         });
 
-        // Re-register in different order to ensure priority is enforced
         $request = $this->createRequest('/priority/exact');
         $this->router->match($request);
 
-        $this->assertEquals('exact', $matchedRoute);
+        $this->assertEquals('prefix', $matchedRoute);
+    }
+
+    public function testPrefixRoutesAreExemptFromTrailingSlashRedirect(): void
+    {
+        // When trailing_slash enforcement is enabled, prefix routes must still
+        // be served without a redirect — they own their URL namespace and must
+        // not have content-level URL canonicalization applied to them.
+        // (Regression: assets under /theme/ were being 301-redirected to
+        //  /theme/style.css/ when routing.trailing_slash = true.)
+        $ref = new \ReflectionProperty($this->app, 'config');
+        $ref->setAccessible(true);
+        $config = $ref->getValue($this->app);
+        $original = $config['routing']['trailing_slash'] ?? false;
+        $config['routing']['trailing_slash'] = true;
+        $ref->setValue($this->app, $config);
+
+        try {
+            $served = false;
+            $this->router->addPrefixRoute('/static-assets/', function () use (&$served) {
+                $served = true;
+                return new Response('asset content');
+            });
+
+            // Path has no trailing slash — without the fix this would redirect.
+            $request = $this->createRequest('/static-assets/app.css');
+            $match = $this->router->match($request);
+
+            $this->assertTrue($served, 'Prefix route handler was not called — likely intercepted by trailing slash redirect');
+            $this->assertNotNull($match);
+            $this->assertNotEquals('redirect', $match->getType());
+        } finally {
+            $config['routing']['trailing_slash'] = $original;
+            $ref->setValue($this->app, $config);
+        }
     }
 
     // =========================================================================

@@ -89,13 +89,21 @@ final class Router
             );
         }
 
-        // 1. Check for trailing slash redirect
+        // 1. Check prefix routes first — these serve non-content resources (assets, APIs)
+        // and must not be subject to content URL trailing slash enforcement.
+        foreach ($this->prefixRoutes as $prefix => $handler) {
+            if (str_starts_with($path, $prefix)) {
+                return $this->invokeHandler($handler, $request);
+            }
+        }
+
+        // 2. Check for trailing slash redirect (content routes only)
         $redirectMatch = $this->checkTrailingSlash($request);
         if ($redirectMatch !== null) {
             return $redirectMatch;
         }
 
-        // 2. Check redirects
+        // 3. Check redirects
         if (isset($routes['redirects'][$path])) {
             $redirect = $routes['redirects'][$path];
             return new RouteMatch(
@@ -105,7 +113,7 @@ final class Router
             );
         }
 
-        // 3. Check system routes (registered at runtime)
+        // 4. Check system routes (registered at runtime)
         // First, O(1) lookup for exact matches (no parameters)
         if (isset($this->exactSystemRoutes[$path])) {
             return $this->invokeHandler($this->exactSystemRoutes[$path], $request, []);
@@ -118,23 +126,16 @@ final class Router
             }
         }
 
-        // 4. Check exact routes (from cache)
+        // 5. Check exact routes (from cache)
         if (isset($routes['exact'][$path])) {
             return $this->handleExactRoute($routes['exact'][$path], $repository, $request);
         }
 
-        // 4b. Preview mode: try to match unpublished content by URL pattern
+        // 5b. Preview mode: try to match unpublished content by URL pattern
         if ($this->hasPreviewAccess($request)) {
             $previewMatch = $this->tryPreviewMatch($path, $request);
             if ($previewMatch !== null) {
                 return $previewMatch;
-            }
-        }
-
-        // 5. Check prefix routes
-        foreach ($this->prefixRoutes as $prefix => $handler) {
-            if (str_starts_with($path, $prefix)) {
-                return $this->invokeHandler($handler, $request);
             }
         }
 
@@ -154,7 +155,7 @@ final class Router
             }
         }
 
-        // 7. No match - 404
+        // 7. No match — 404
         return null;
     }
 
