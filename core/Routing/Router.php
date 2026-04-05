@@ -274,8 +274,19 @@ final class Router
         if ($type === 'archive') {
             $query = $this->app->query()
                 ->type($routeData['content_type'])
-                ->published()
-                ->fromParams($request->query());
+                ->published();
+
+            // Apply content type's configured sorting
+            $contentType = $this->app->contentTypes()[$routeData['content_type']] ?? [];
+            $sorting = $contentType['sorting'] ?? 'date_desc';
+            $query = match ($sorting) {
+                'date_asc' => $query->orderBy('date', 'asc'),
+                'title' => $query->orderBy('title', 'asc'),
+                'manual' => $query->orderBy('order', 'asc'),
+                default => $query, // date_desc is the Query default
+            };
+
+            $query = $query->fromParams($request->query());
 
             return new RouteMatch(
                 type: 'archive',

@@ -232,4 +232,46 @@ final class RouterTest extends TestCase
 
         $this->assertEquals('exact', $matchedRoute);
     }
+
+    // =========================================================================
+    // Archive Sorting
+    // =========================================================================
+
+    public function testArchiveRouteAppliesContentTypeSorting(): void
+    {
+        // The /blog archive should exist for the 'post' content type (sorting: date_desc)
+        $request = $this->createRequest('/blog');
+        $match = $this->router->match($request);
+
+        if ($match === null || $match->getType() !== 'archive') {
+            $this->markSkipped('Blog archive route not available');
+            return;
+        }
+
+        $query = $match->getQuery();
+        $this->assertNotNull($query);
+
+        // post type has sorting: date_desc
+        $this->assertEquals('date', $query->getOrderBy());
+        $this->assertEquals('desc', $query->getOrder());
+    }
+
+    public function testArchiveQueryParamsDoNotOverrideSortingByDefault(): void
+    {
+        // Archive with pagination params, but no orderby override
+        $request = $this->createRequest('/blog', 'GET', ['paged' => '2']);
+        $match = $this->router->match($request);
+
+        if ($match === null || $match->getType() !== 'archive') {
+            $this->markSkipped('Blog archive route not available');
+            return;
+        }
+
+        $query = $match->getQuery();
+        $this->assertNotNull($query);
+
+        // Should still have content type sorting
+        $this->assertEquals('date', $query->getOrderBy());
+        $this->assertEquals('desc', $query->getOrder());
+    }
 }

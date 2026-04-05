@@ -284,6 +284,22 @@ final class Query
     }
 
     /**
+     * Get the current order-by field.
+     */
+    public function getOrderBy(): string
+    {
+        return $this->orderBy;
+    }
+
+    /**
+     * Get the current sort direction.
+     */
+    public function getOrder(): string
+    {
+        return $this->order;
+    }
+
+    /**
      * Check if there are more pages.
      */
     public function hasMore(): bool
