@@ -1,6 +1,5 @@
 ---
 title: Home
-slug: index
 status: published
 order: 1
 excerpt: Congratulations! Your site is up and running. This is your homepage, rendered from a simple Markdown file.
@@ -35,7 +34,6 @@ Add a new file at `content/pages/contact.md`:
 ```markdown
 ---
 title: Contact
-slug: contact
 status: published
 ---
 
@@ -53,7 +51,6 @@ Create `content/posts/my-first-post.md`:
 ```markdown
 ---
 title: My First Post
-slug: my-first-post
 date: 2025-01-01
 status: published
 ---
