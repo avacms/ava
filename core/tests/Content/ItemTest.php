@@ -279,6 +279,18 @@ final class ItemTest extends TestCase
         $this->assertEquals('/images/og.jpg', $item->ogImage());
     }
 
+    public function testOgImageFallsBackToFeaturedImage(): void
+    {
+        $item = $this->createItem(['featured_image' => '/images/featured.jpg']);
+        $this->assertEquals('/images/featured.jpg', $item->ogImage());
+    }
+
+    public function testOgImagePrefersOgImageOverFeaturedImage(): void
+    {
+        $item = $this->createItem(['og_image' => '/images/og.jpg', 'featured_image' => '/images/featured.jpg']);
+        $this->assertEquals('/images/og.jpg', $item->ogImage());
+    }
+
     // =========================================================================
     // Redirects
     // =========================================================================

@@ -250,7 +250,7 @@ final class Item
 
     public function ogImage(): ?string
     {
-        return $this->frontmatter['og_image'] ?? null;
+        return $this->frontmatter['og_image'] ?? $this->frontmatter['featured_image'] ?? null;
     }
 
     // === Redirects ===
