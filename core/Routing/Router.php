@@ -216,6 +216,11 @@ final class Router
             $path = '/' . ltrim($path, '/');
         }
 
+        // Paths with a file extension (e.g. .xml, .txt) should never be redirected
+        if (pathinfo($path, PATHINFO_EXTENSION) !== '') {
+            return null;
+        }
+
         $hasTrailingSlash = str_ends_with($path, '/');
 
         if ($trailingSlash && !$hasTrailingSlash) {
