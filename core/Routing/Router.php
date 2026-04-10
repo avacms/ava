@@ -448,7 +448,9 @@ final class Router
         $routes = $repository->routes();
 
         // Use reverse lookup for O(1) performance (vs O(n) linear scan)
-        return $routes['reverse'][$type . ':' . $slug] ?? null;
+        $url = $routes['reverse'][$type . ':' . $slug] ?? null;
+
+        return $url !== null ? $this->applyTrailingSlash($url) : null;
     }
 
     /**
@@ -465,6 +467,28 @@ final class Router
         }
 
         $base = rtrim($taxRoute['base'], '/');
-        return $base . '/' . $term;
+        return $this->applyTrailingSlash($base . '/' . $term);
+    }
+
+    /**
+     * Apply trailing slash preference to a URL path.
+     */
+    private function applyTrailingSlash(string $url): string
+    {
+        if ($url === '/') {
+            return $url;
+        }
+
+        $trailingSlash = $this->app->config('routing.trailing_slash', false);
+
+        if ($trailingSlash && !str_ends_with($url, '/')) {
+            return $url . '/';
+        }
+
+        if (!$trailingSlash && str_ends_with($url, '/')) {
+            return rtrim($url, '/');
+        }
+
+        return $url;
     }
 }
