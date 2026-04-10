@@ -95,6 +95,7 @@ return [
                 $reverseRoutes = $routes['reverse'] ?? [];
                 // Use publishedMeta() - sitemaps only need URL and lastmod, not body content
                 $items = $repository->publishedMeta($type);
+                $trailingSlash = $app->config('routing.trailing_slash', false);
 
                 $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
                 $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
@@ -116,6 +117,14 @@ return [
                         $urlConfig = $typeConfig['url'] ?? [];
                         $pattern = $urlConfig['pattern'] ?? '/' . $type . '/{slug}';
                         $url = str_replace('{slug}', $item->slug(), $pattern);
+                    }
+
+                    if ($url !== '/') {
+                        if ($trailingSlash && !str_ends_with($url, '/')) {
+                            $url .= '/';
+                        } elseif (!$trailingSlash && str_ends_with($url, '/')) {
+                            $url = rtrim($url, '/');
+                        }
                     }
 
                     $safeUrl = htmlspecialchars($url, ENT_XML1, 'UTF-8');
