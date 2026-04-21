@@ -219,8 +219,14 @@ final class TemplateHelpers
             $tags[] = '<meta name="description" content="' . $this->escape($description) . '">';
         }
 
-        // Canonical
+        // Canonical — use explicit frontmatter value, or fall back to the item's routed URL
         $canonical = $item->canonical();
+        if (!$canonical) {
+            $path = $this->url($item->type(), $item->slug());
+            if ($path !== null) {
+                $canonical = $this->fullUrl($path);
+            }
+        }
         if ($canonical) {
             $tags[] = '<link rel="canonical" href="' . $this->escape($canonical) . '">';
         }
@@ -230,17 +236,37 @@ final class TemplateHelpers
             $tags[] = '<meta name="robots" content="noindex">';
         }
 
-        // Open Graph
+        // Open Graph — og:type varies by content type rather than being hardcoded
+        $ogType = match ($item->type()) {
+            'post' => 'article',
+            default => 'website',
+        };
+
         $tags[] = '<meta property="og:title" content="' . $this->escape($title) . '">';
-        $tags[] = '<meta property="og:type" content="article">';
+        $tags[] = '<meta property="og:type" content="' . $this->escape($ogType) . '">';
+
+        if ($canonical) {
+            $tags[] = '<meta property="og:url" content="' . $this->escape($canonical) . '">';
+        }
 
         if ($description) {
             $tags[] = '<meta property="og:description" content="' . $this->escape($description) . '">';
         }
 
+        $imageUrl = null;
         if ($item->ogImage()) {
-            $image = $this->engine->expandAliases($item->ogImage());
-            $tags[] = '<meta property="og:image" content="' . $this->escape($this->fullUrl($image)) . '">';
+            $imageUrl = $this->fullUrl($this->engine->expandAliases($item->ogImage()));
+            $tags[] = '<meta property="og:image" content="' . $this->escape($imageUrl) . '">';
+        }
+
+        // Twitter — always emit the minimum set; image is conditional
+        $tags[] = '<meta name="twitter:card" content="summary">';
+        $tags[] = '<meta name="twitter:title" content="' . $this->escape($title) . '">';
+        if ($description) {
+            $tags[] = '<meta name="twitter:description" content="' . $this->escape($description) . '">';
+        }
+        if ($imageUrl !== null) {
+            $tags[] = '<meta name="twitter:image" content="' . $this->escape($imageUrl) . '">';
         }
 
         return implode("\n    ", $tags);
