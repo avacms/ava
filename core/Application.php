@@ -529,7 +529,9 @@ final class Application
         $content = $renderer->render($match->getTemplate(), $context);
 
         // Add generator footer comment
-        $content = $this->addGeneratorComment($content);
+        if ($this->config('generator_comment', true)) {
+            $content = $this->addGeneratorComment($content);
+        }
 
         return new Response($content, 200);
     }

@@ -249,6 +249,16 @@ return [
     ],
 
     /*
+    |───────────────────────────────────────────────────────────────────────────
+    | GENERATOR COMMENT
+    |───────────────────────────────────────────────────────────────────────────
+    | Ava appends an HTML comment to each rendered page identifying the CMS
+    | version, render time, and timestamp. Set to false to suppress it.
+    */
+
+    'generator_comment' => true,
+
+    /*
     |═══════════════════════════════════════════════════════════════════════════
     | PLUGIN SETTINGS
     |═══════════════════════════════════════════════════════════════════════════

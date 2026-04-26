@@ -205,7 +205,9 @@ final class WebpageCache
 
         // Add cache timestamp comment to HTML
         $timestamp = date('Y-m-d H:i:s');
-        $content = $this->addCacheComment($content, $timestamp);
+        if ($this->app->config('generator_comment', true)) {
+            $content = $this->addCacheComment($content, $timestamp);
+        }
 
         file_put_contents($cacheFile, $content, LOCK_EX);
     }
