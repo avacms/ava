@@ -136,8 +136,6 @@ Edit your site settings in `app/config/ava.php`.
 Start the built-in PHP development server if you want to run Ava CMS locally:
 
 ```bash
-./ava start
-# or
 php -S localhost:8000 -t public
 ```
 
