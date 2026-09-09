@@ -175,6 +175,14 @@ final class EngineTest extends TestCase
         $this->assertEquals('XY', $result);
     }
 
+    public function testProcessPreservesShortcodesInsideHtmlComments(): void
+    {
+        $input = "<!--\n  [year] and [snippet ...] stay hidden.\n-->\n<p>[year]</p>";
+        $expected = "<!--\n  [year] and [snippet ...] stay hidden.\n-->\n<p>" . date('Y') . '</p>';
+
+        $this->assertEquals($expected, $this->engine->process($input));
+    }
+
     // =========================================================================
     // Email shortcode
     // =========================================================================

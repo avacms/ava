@@ -22,7 +22,7 @@ use Ava\Rendering\TemplateHelpers;
 final class Engine
 {
     /** Regex pattern for matching shortcodes (self-closing and paired) */
-    private const SHORTCODE_PATTERN = '/\[([a-zA-Z_][a-zA-Z0-9_-]*)((?:\s+[^\]]+)?)\](?:([^[]*)\[\/\1\])?/';
+    private const SHORTCODE_PATTERN = '/<!--[\s\S]*?-->(*SKIP)(*F)|\[([a-zA-Z_][a-zA-Z0-9_-]*)((?:\s+[^\]]+)?)\](?:([^[]*)\[\/\1\])?/';
 
     private Application $app;
 
