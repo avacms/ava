@@ -20,7 +20,7 @@
  * @see https://ava.addy.zone/docs/content
  */
 ?>
-<?= $ava->partial('header', ['request' => $request]) ?>
+<?= $ava->partial('header', ['request' => $request, 'item' => $content]) ?>
 
         <div class="container">
             <article class="entry">

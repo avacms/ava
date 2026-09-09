@@ -30,11 +30,12 @@ return [
     */
 
     'site' => [
-        'name'        => 'My Ava Site',
-        'base_url'    => 'http://localhost:8000',   // Full URL, no trailing slash
-        'timezone'    => 'UTC',                     // php.net/timezones
-        'locale'      => 'en_GB',                   // php.net/setlocale
-        'date_format' => 'F j, Y',                  // php.net/datetime.format
+        'name'         => 'My Ava Site',
+        'base_url'     => 'http://localhost:8000',   // Full URL, no trailing slash
+        'timezone'     => 'UTC',                     // php.net/timezones
+        'locale'       => 'en_GB',                   // php.net/setlocale
+        'date_format'  => 'F j, Y',                  // php.net/datetime.format
+        'title_format' => '{title} · {site}',        // Use null for the content title alone
     ],
 
     /*

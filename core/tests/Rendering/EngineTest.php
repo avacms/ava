@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ava\Tests\Rendering;
 
+use Ava\Content\Item;
+use Ava\Http\Request;
 use Ava\Rendering\Engine;
 use Ava\Rendering\TemplateHelpers;
 use Ava\Testing\TestCase;
@@ -184,6 +186,32 @@ final class EngineTest extends TestCase
         $this->assertThrows(\RuntimeException::class, function () {
             $this->engine->partial('nonexistent_partial_xyz');
         });
+    }
+
+    public function testEngineDefaultThemeContentTemplatesUseItemMetaTags(): void
+    {
+        $request = new Request('GET', '/hello-world');
+
+        foreach (['page', 'post'] as $template) {
+            $item = new Item([
+                'slug' => 'hello-world',
+                'title' => 'Hello World',
+                'excerpt' => 'A short summary.',
+                'noindex' => true,
+            ], '', '/content/' . $template . 's/hello-world.md', $template);
+            $item = $item->withHtml('<p>Body</p>');
+
+            $result = $this->engine->render($template, [
+                'content' => $item,
+                'request' => $request,
+            ]);
+
+            $this->assertStringContains('<title>Hello World · My Ava Site</title>', $result, $template);
+            $this->assertStringContains('<meta name="description" content="A short summary.">', $result, $template);
+            $this->assertStringContains('<meta name="robots" content="noindex">', $result, $template);
+            $this->assertStringNotContains('<meta name="robots" content="index, follow">', $result, $template);
+            $this->assertSame(1, substr_count($result, '<meta name="twitter:card"'), $template);
+        }
     }
 
     // =========================================================================

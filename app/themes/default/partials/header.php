@@ -45,11 +45,9 @@
      * generates these automatically from your content.
      */
     ?>
-    <meta name="robots" content="index, follow">
     <meta name="author" content="<?= $ava->e($site['name']) ?>">
     <meta property="og:site_name" content="<?= $ava->e($site['name']) ?>">
     <meta property="og:locale" content="en_US">
-    <meta name="twitter:card" content="summary">
     
     <?php if (isset($item)): ?>
         <?php
@@ -57,8 +55,8 @@
          * Meta Tags for Content Items
          * 
          * $ava->metaTags($item) generates SEO-friendly meta tags including:
-         *   - <title> with site name appended
-         *   - description from excerpt or content
+         *   - <title> formatted by site.title_format
+         *   - description from meta description or excerpt
          *   - Open Graph tags for social sharing
          *   - canonical URL
          * 
@@ -95,6 +93,7 @@
         <meta property="og:title" content="<?= $ava->e($title) ?>">
         <meta property="og:description" content="<?= $ava->e($description) ?>">
         <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary">
     <?php endif; ?>
     
     <?php

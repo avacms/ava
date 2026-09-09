@@ -26,6 +26,47 @@ final class TemplateHelpersMetaTagsTest extends TestCase
         $this->helpers = new TemplateHelpers($this->app, $this->app->renderer());
     }
 
+    public function testMetaTagsFormatsDocumentTitleWithoutChangingSocialTitles(): void
+    {
+        $output = $this->helpers->metaTags($this->makeItem('post', [
+            'slug' => 'hello-world',
+            'title' => 'Hello World',
+        ]));
+
+        $siteName = $this->app->config('site.name');
+        $this->assertStringContains('<title>Hello World · ' . $siteName . '</title>', $output);
+        $this->assertStringContains('<meta property="og:title" content="Hello World">', $output);
+        $this->assertStringContains('<meta name="twitter:title" content="Hello World">', $output);
+    }
+
+    public function testMetaTagsAppliesConfiguredTitleFormatAndSupportsNull(): void
+    {
+        $ref = new \ReflectionProperty($this->app, 'config');
+        $config = $ref->getValue($this->app);
+        $original = $config['site']['title_format'] ?? null;
+
+        try {
+            foreach ([
+                ['{site} | {title}', '<title>My Ava Site | Custom SEO Title</title>'],
+                [null, '<title>Custom SEO Title</title>'],
+            ] as [$format, $expected]) {
+                $config['site']['title_format'] = $format;
+                $ref->setValue($this->app, $config);
+
+                $output = $this->helpers->metaTags($this->makeItem('post', [
+                    'slug' => 'hello-world',
+                    'title' => 'Hello World',
+                    'meta_title' => 'Custom SEO Title',
+                ]));
+
+                $this->assertStringContains($expected, $output);
+            }
+        } finally {
+            $config['site']['title_format'] = $original;
+            $ref->setValue($this->app, $config);
+        }
+    }
+
     // =========================================================================
     // Canonical and og:url
     // =========================================================================

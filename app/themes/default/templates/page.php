@@ -17,7 +17,7 @@
  * @see https://ava.addy.zone/docs/theming
  */
 ?>
-<?= $ava->partial('header', ['request' => $request, 'pageTitle' => $content->title() . ' - ' . $site['name']]) ?>
+<?= $ava->partial('header', ['request' => $request, 'item' => $content]) ?>
 
         <div class="container">
             <article class="entry">

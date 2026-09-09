@@ -216,7 +216,15 @@ final class TemplateHelpers
 
         // Title
         $title = $item->metaTitle() ?? $item->title();
-        $tags[] = '<title>' . $this->escape($title) . '</title>';
+        $documentTitle = $title;
+        $titleFormat = $this->app->config('site.title_format', '{title} · {site}');
+        if (is_string($titleFormat)) {
+            $documentTitle = strtr($titleFormat, [
+                '{title}' => $title,
+                '{site}' => (string) $this->app->config('site.name', ''),
+            ]);
+        }
+        $tags[] = '<title>' . $this->escape($documentTitle) . '</title>';
 
         // Description
         $description = $item->metaDescription() ?? $item->excerpt();
