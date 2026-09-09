@@ -52,8 +52,8 @@ final class Engine
         $converter = $this->getMarkdownConverter($options);
         $html = $converter->convert($markdown)->getContent();
 
-        // Apply shortcodes after markdown
-        $html = $this->app->shortcodes()->process($html);
+        // Apply shortcodes after Markdown and unwrap standalone block output
+        $html = $this->app->shortcodes()->process($html, true);
 
         // Expand path aliases
         $html = $this->expandAliases($html);

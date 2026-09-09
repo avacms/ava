@@ -6,6 +6,8 @@ namespace Ava\Shortcodes;
 
 use Ava\Application;
 use Ava\Rendering\TemplateHelpers;
+use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
+use League\CommonMark\Util\RegexHelper;
 
 /**
  * Shortcode Engine
@@ -21,8 +23,15 @@ use Ava\Rendering\TemplateHelpers;
  */
 final class Engine
 {
+    private const SHORTCODE_EXPRESSION = '\[(?<tag>[a-zA-Z_][a-zA-Z0-9_-]*)(?<attributes>(?:\s+[^\]]+)?)\](?:(?<content>[^[]*)\[\/\k<tag>\])?';
+
     /** Regex pattern for matching shortcodes (self-closing and paired) */
-    private const SHORTCODE_PATTERN = '/<!--[\s\S]*?-->(*SKIP)(*F)|\[([a-zA-Z_][a-zA-Z0-9_-]*)((?:\s+[^\]]+)?)\](?:([^[]*)\[\/\1\])?/';
+    private const SHORTCODE_PATTERN = '/<!--[\s\S]*?-->(*SKIP)(*F)|' . self::SHORTCODE_EXPRESSION . '/';
+
+    /** Also captures a paragraph containing only one shortcode. */
+    private const MARKDOWN_SHORTCODE_PATTERN = '/<!--[\s\S]*?-->(*SKIP)(*F)|(?:(?<paragraph_open><p>[ \t]*))?'
+        . self::SHORTCODE_EXPRESSION
+        . '(?(paragraph_open)(?<paragraph_close>[ \t]*<\/p>))/';
 
     private Application $app;
 
@@ -45,17 +54,26 @@ final class Engine
 
     /**
      * Process shortcodes in content.
+     *
+     * @param bool $unwrapBlockParagraphs Remove Markdown-generated paragraphs
+     *                                    around standalone block shortcodes
      */
-    public function process(string $content): string
+    public function process(string $content, bool $unwrapBlockParagraphs = false): string
+    {
+        $pattern = $unwrapBlockParagraphs ? self::MARKDOWN_SHORTCODE_PATTERN : self::SHORTCODE_PATTERN;
+        return $this->processMatches($content, $pattern, $unwrapBlockParagraphs);
+    }
+
+    private function processMatches(string $content, string $pattern, bool $unwrapBlockParagraphs): string
     {
         if ($content === '' || !str_contains($content, '[')) {
             return $content;
         }
 
-        return preg_replace_callback(self::SHORTCODE_PATTERN, function ($matches) {
-            $tag = strtolower($matches[1]);
-            $attrString = $matches[2];
-            $innerContent = $matches[3] ?? null;
+        return preg_replace_callback($pattern, function ($matches) use ($unwrapBlockParagraphs) {
+            $tag = strtolower($matches['tag']);
+            $attrString = $matches['attributes'];
+            $innerContent = $matches['content'] ?? null;
 
             if (!isset($this->shortcodes[$tag])) {
                 // Unknown shortcode - return as-is
@@ -66,13 +84,36 @@ final class Engine
 
             try {
                 $result = ($this->shortcodes[$tag])($attrs, $innerContent, $tag);
-                return $result ?? '';
+                $result ??= '';
             } catch (\Throwable $e) {
                 // Log error but don't break the page
                 error_log("Shortcode error [{$tag}]: " . $e->getMessage());
-                return '<!-- shortcode error: ' . htmlspecialchars($tag) . ' -->';
+                $result = '<!-- shortcode error: ' . htmlspecialchars($tag) . ' -->';
             }
+
+            if ($unwrapBlockParagraphs && !empty($matches['paragraph_open'])) {
+                if ($this->startsWithBlockHtml($result)) {
+                    return $result;
+                }
+
+                return $matches['paragraph_open'] . $result . $matches['paragraph_close'];
+            }
+
+            return $result;
         }, $content);
+    }
+
+    private function startsWithBlockHtml(string $content): bool
+    {
+        $content = ltrim($content);
+
+        for ($type = HtmlBlock::TYPE_1_CODE_CONTAINER; $type <= HtmlBlock::TYPE_6_BLOCK_ELEMENT; $type++) {
+            if (preg_match(RegexHelper::getHtmlBlockOpenRegex($type), $content) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

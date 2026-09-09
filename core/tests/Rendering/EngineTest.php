@@ -246,6 +246,21 @@ final class EngineTest extends TestCase
         $this->assertStringContains(date('Y'), $result);
     }
 
+    public function testRenderMarkdownEngineUnwrapsBlockShortcodesOnly(): void
+    {
+        $this->app->shortcodes()->register('block', fn() => '<div class="x">block level</div>');
+        $this->app->shortcodes()->register('inline', fn() => '<em>inline level</em>');
+
+        $this->assertEquals(
+            "<div class=\"x\">block level</div>\n",
+            $this->engine->renderMarkdown('[block]')
+        );
+        $this->assertEquals(
+            "<p><em>inline level</em></p>\n",
+            $this->engine->renderMarkdown('[inline]')
+        );
+    }
+
     // =========================================================================
     // Content rendering
     // =========================================================================
