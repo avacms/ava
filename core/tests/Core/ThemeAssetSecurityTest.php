@@ -79,6 +79,42 @@ final class ThemeAssetSecurityTest extends TestCase
         $this->assertEquals('application/javascript', $response->header('Content-Type'));
     }
 
+    public function testThemeAssetSecurityServesAudioAndVideoFiles(): void
+    {
+        $directoryName = '_test_media_' . bin2hex(random_bytes(6));
+        $mediaDir = $this->getThemeAssetsDir() . '/' . $directoryName;
+        $mediaTypes = [
+            'mp3' => 'audio/mpeg',
+            'ogg' => 'audio/ogg',
+            'wav' => 'audio/wav',
+            'm4a' => 'audio/mp4',
+            'webm' => 'video/webm',
+            'mp4' => 'video/mp4',
+        ];
+
+        mkdir($mediaDir, 0777, true);
+
+        try {
+            foreach ($mediaTypes as $extension => $contentType) {
+                $content = "test-{$extension}";
+                file_put_contents("{$mediaDir}/asset.{$extension}", $content);
+
+                $response = $this->app->handle(
+                    $this->createThemeRequest("{$directoryName}/asset.{$extension}")
+                );
+
+                $this->assertEquals(200, $response->status());
+                $this->assertEquals($contentType, $response->header('Content-Type'));
+                $this->assertEquals($content, $response->content());
+            }
+        } finally {
+            foreach (glob($mediaDir . '/*') ?: [] as $file) {
+                unlink($file);
+            }
+            rmdir($mediaDir);
+        }
+    }
+
     // =========================================================================
     // Blocked Extensions (should return 404)
     // =========================================================================
@@ -203,6 +239,7 @@ final class ThemeAssetSecurityTest extends TestCase
             'css', 'js', 'json', 'map',
             'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'avif',
             'woff', 'woff2', 'ttf', 'otf', 'eot',
+            'mp3', 'ogg', 'wav', 'm4a', 'webm', 'mp4',
         ];
 
         foreach ($expectedExtensions as $ext) {

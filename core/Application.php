@@ -378,7 +378,7 @@ final class Application
     /**
      * Register a route to serve theme assets with proper caching.
      * 
-     * Security: Only serves files with allowed extensions (CSS, JS, images, fonts).
+    * Security: Only serves files with allowed extensions (CSS, JS, images, fonts, media).
      * Hidden files (dotfiles) and executable files (PHP, etc.) return 404.
      * Treat your theme's assets/ folder as a public directory.
      */
@@ -624,6 +624,14 @@ final class Application
         'ttf'   => 'font/ttf',
         'otf'   => 'font/otf',
         'eot'   => 'application/vnd.ms-fontobject',
+        // Audio
+        'mp3'   => 'audio/mpeg',
+        'ogg'   => 'audio/ogg',
+        'wav'   => 'audio/wav',
+        'm4a'   => 'audio/mp4',
+        // Video
+        'webm'  => 'video/webm',
+        'mp4'   => 'video/mp4',
     ];
 
     /**
