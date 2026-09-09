@@ -255,7 +255,7 @@ final class Output
 
     public function commandItem(string $command, string $description): void
     {
-        $paddedCmd = str_pad($command, 30);
+        $paddedCmd = str_pad($command, max(30, strlen($command) + 1));
         echo '    ' . $this->color($paddedCmd, self::WHITE);
         echo $this->color($description, self::DIM) . "\n";
     }
