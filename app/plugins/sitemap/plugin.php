@@ -40,6 +40,22 @@ return [
             return;
         }
 
+        $router->addRoute('/sitemap.xsl', function (Request $request) {
+            $xsl = <<<'XSL'
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:s="http://www.sitemaps.org/schemas/sitemap/0.9">
+<xsl:output method="html" encoding="UTF-8"/>
+<xsl:template match="/">
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Sitemap</title>
+<style>body{margin:0;background:#f5f4ef;color:#20211f;font:16px/1.5 Georgia,serif}main{max-width:960px;margin:auto;padding:48px 24px}h1{font-size:2.4rem;margin:0 0 8px}p{color:#62645f;margin:0 0 32px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:12px 16px;text-align:left;border-bottom:1px solid #deded8}th{background:#20211f;color:#fff;font:600 13px sans-serif;text-transform:uppercase}a{color:#08756a;overflow-wrap:anywhere}td:last-child{white-space:nowrap}@media(max-width:600px){main{padding:28px 14px}th,td{padding:10px 8px}td:last-child{white-space:normal}}</style>
+</head><body><main><h1>Sitemap</h1><p>This XML sitemap is formatted for people. Search engines receive the same data.</p><table><thead><tr><th>URL</th><th>Last modified</th></tr></thead><tbody>
+<xsl:for-each select="s:urlset/s:url | s:sitemapindex/s:sitemap"><tr><td><a href="{s:loc}"><xsl:value-of select="s:loc"/></a></td><td><xsl:value-of select="s:lastmod"/></td></tr></xsl:for-each>
+</tbody></table></main></body></html>
+</xsl:template></xsl:stylesheet>
+XSL;
+            return new Response($xsl, 200, ['Content-Type' => 'text/xsl; charset=utf-8']);
+        });
+
         // Load content types
         $contentTypesFile = $app->path('app/config/content_types.php');
         $contentTypes = file_exists($contentTypesFile) ? require $contentTypesFile : [];
@@ -51,6 +67,7 @@ return [
 
             $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
             $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+            $xml .= '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n";
             $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
             foreach ($types as $type) {
@@ -99,6 +116,7 @@ return [
 
                 $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
                 $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+                $xml .= '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n";
                 $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
                 foreach ($items as $item) {

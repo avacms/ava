@@ -45,6 +45,22 @@ return [
             return;
         }
 
+        $router->addRoute('/feed.xsl', function (Request $request) {
+            $xsl = <<<'XSL'
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:output method="html" encoding="UTF-8"/>
+<xsl:template match="/rss/channel">
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1"/><title><xsl:value-of select="title"/></title>
+<style>body{margin:0;background:#f5f4ef;color:#20211f;font:16px/1.6 Georgia,serif}main{max-width:760px;margin:auto;padding:48px 24px}header{border-bottom:3px solid #20211f;margin-bottom:28px}h1{font-size:2.4rem;line-height:1.1;margin:0 0 8px}header p{color:#62645f}.item{padding:22px 0;border-bottom:1px solid #cbc9c0}h2{font-size:1.35rem;margin:0 0 6px}a{color:#08756a}.date{font:13px sans-serif;color:#73756f}.description{margin-top:10px}@media(max-width:600px){main{padding:28px 18px}}</style>
+</head><body><main><header><h1><xsl:value-of select="title"/></h1><p><xsl:value-of select="description"/> This RSS feed is formatted for people and feed readers.</p></header>
+<xsl:for-each select="item"><article class="item"><h2><a href="{link}"><xsl:value-of select="title"/></a></h2><div class="date"><xsl:value-of select="pubDate"/></div><div class="description"><xsl:value-of select="description"/></div></article></xsl:for-each>
+</main></body></html>
+</xsl:template></xsl:stylesheet>
+XSL;
+            return new Response($xsl, 200, ['Content-Type' => 'text/xsl; charset=utf-8']);
+        });
+
         // Load content types
         $contentTypesFile = $app->path('app/config/content_types.php');
         $contentTypes = file_exists($contentTypesFile) ? require $contentTypesFile : [];
@@ -55,6 +71,7 @@ return [
             $routes = $repository->routes();
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+            $xml .= '<?xml-stylesheet type="text/xsl" href="/feed.xsl"?>' . "\n";
             $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">' . "\n";
             $xml .= "<channel>\n";
             $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
