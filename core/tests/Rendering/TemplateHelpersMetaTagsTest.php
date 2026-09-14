@@ -39,28 +39,24 @@ final class TemplateHelpersMetaTagsTest extends TestCase
         $this->assertStringContains('<meta name="twitter:title" content="Hello World">', $output);
     }
 
-    public function testMetaTagsAppliesConfiguredTitleFormatAndSupportsNull(): void
+    public function testMetaTagsDoesNotFormatExplicitMetaTitle(): void
     {
         $ref = new \ReflectionProperty($this->app, 'config');
         $config = $ref->getValue($this->app);
         $original = $config['site']['title_format'] ?? null;
 
         try {
-            foreach ([
-                ['{site} | {title}', '<title>My Ava Site | Custom SEO Title</title>'],
-                [null, '<title>Custom SEO Title</title>'],
-            ] as [$format, $expected]) {
-                $config['site']['title_format'] = $format;
-                $ref->setValue($this->app, $config);
+            $config['site']['title_format'] = '{site} | {title}';
+            $ref->setValue($this->app, $config);
 
-                $output = $this->helpers->metaTags($this->makeItem('post', [
-                    'slug' => 'hello-world',
-                    'title' => 'Hello World',
-                    'meta_title' => 'Custom SEO Title',
-                ]));
+            $output = $this->helpers->metaTags($this->makeItem('post', [
+                'slug' => 'hello-world',
+                'title' => 'Hello World',
+                'meta_title' => 'Custom SEO Title',
+            ]));
 
-                $this->assertStringContains($expected, $output);
-            }
+            $this->assertStringContains('<title>Custom SEO Title</title>', $output);
+            $this->assertFalse(str_contains($output, '<title>My Ava Site | Custom SEO Title</title>'));
         } finally {
             $config['site']['title_format'] = $original;
             $ref->setValue($this->app, $config);
