@@ -194,9 +194,7 @@ final class UpdateCommand
 
             // Backup check
             $this->output->writeln($this->output->color('  ⚠️  Have you backed up your entire site?', Output::YELLOW, Output::BOLD));
-            echo '  [' . $this->output->color('y', Output::GREEN) . '/N]: ';
-            $backupAnswer = trim(fgets(STDIN));
-            if (strtolower($backupAnswer) !== 'y') {
+            if (!$this->output->confirm('')) {
                 $this->output->writeln('');
                 $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Please backup your entire site before updating.');
                 $this->output->writeln('');
@@ -206,9 +204,7 @@ final class UpdateCommand
 
             // Proceed confirmation
             $this->output->writeln($this->output->color('  Proceed with the update?', Output::BOLD));
-            echo '  [' . $this->output->color('y', Output::GREEN) . '/N]: ';
-            $proceedAnswer = trim(fgets(STDIN));
-            if (strtolower($proceedAnswer) !== 'y') {
+            if (!$this->output->confirm('')) {
                 $this->output->writeln('');
                 $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Update cancelled.');
                 $this->output->writeln('');
@@ -422,9 +418,7 @@ final class UpdateCommand
         if ($cleanMode) {
             if (!$forceClean) {
                 $this->output->writeln('  ' . $this->output->color('⚠️  This will permanently delete these files.', Output::YELLOW, Output::BOLD));
-                echo '  Continue? [' . $this->output->color('y', Output::GREEN) . '/N]: ';
-                $answer = trim(fgets(STDIN));
-                if (strtolower($answer) !== 'y') {
+                if (!$this->output->confirm('Continue?')) {
                     $this->output->writeln('');
                     $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Cancelled.');
                     $this->output->writeln('');

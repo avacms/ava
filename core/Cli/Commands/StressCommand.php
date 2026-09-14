@@ -157,10 +157,7 @@ final class StressCommand
         $this->output->writeln('');
         $this->output->writeln('  Found ' . $this->output->color((string) $count, Output::YELLOW, Output::BOLD) . ' dummy content file(s).');
         $this->output->writeln('');
-        echo '  Delete all? [' . $this->output->color('y', Output::RED) . '/N]: ';
-        $answer = trim(fgets(STDIN));
-
-        if (strtolower($answer) !== 'y') {
+        if (!$this->output->confirm('Delete all?')) {
             $this->output->writeln('');
             $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Cancelled.');
             $this->output->writeln('');

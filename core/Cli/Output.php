@@ -101,6 +101,24 @@ final class Output
         return implode('', $codes) . $text . self::RESET;
     }
 
+    /**
+     * Prompt for confirmation, treating EOF as the default response.
+     *
+     * @param resource|null $input
+     */
+    public function confirm(string $question, bool $default = false, $input = null): bool
+    {
+        $choice = $default ? 'Y/n' : 'y/N';
+        echo "  {$question} [{$choice}]: ";
+
+        $answer = fgets($input ?? STDIN);
+        if ($answer === false || trim($answer) === '') {
+            return $default;
+        }
+
+        return strtolower(trim($answer)) === 'y';
+    }
+
     public function showBanner(bool $showVersion = false): void
     {
         $this->writeln('');

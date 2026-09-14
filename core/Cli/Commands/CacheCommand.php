@@ -56,6 +56,29 @@ final class CacheCommand
 
     public function clear(array $args): int
     {
+        if (in_array('--help', $args, true) || in_array('-h', $args, true)) {
+            $this->output->writeln('Usage: ./ava cache:clear [pattern] [-y|--yes|-f|--force]');
+            return 0;
+        }
+
+        $force = false;
+        $pattern = null;
+        foreach ($args as $arg) {
+            if (in_array($arg, ['-y', '--yes', '-f', '--force'], true)) {
+                $force = true;
+                continue;
+            }
+            if (str_starts_with($arg, '-')) {
+                $this->output->error("Unknown option: {$arg}");
+                return 1;
+            }
+            if ($pattern !== null) {
+                $this->output->error('Usage: ./ava cache:clear [pattern] [-y|--yes|-f|--force]');
+                return 1;
+            }
+            $pattern = $arg;
+        }
+
         $webpageCache = $this->app->webpageCache();
 
         $this->output->writeln('');
@@ -78,16 +101,11 @@ final class CacheCommand
         $this->output->writeln('  Found ' . $this->output->color((string) $stats['count'], Output::PRIMARY, Output::BOLD) . ' cached webpage(s).');
         $this->output->writeln('');
 
-        // Check for pattern argument
-        if (isset($args[0])) {
-            $pattern = $args[0];
+        if ($pattern !== null) {
             $count = $webpageCache->clearPattern($pattern);
             $this->output->success("Cleared {$count} webpage(s) matching: {$pattern}");
         } else {
-            echo '  Clear all cached webpages? [' . $this->output->color('y', Output::RED) . '/N]: ';
-            $answer = trim(fgets(STDIN));
-
-            if (strtolower($answer) !== 'y') {
+            if (!$force && !$this->output->confirm('Clear all cached webpages?')) {
                 $this->output->writeln('');
                 $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Cancelled.');
                 $this->output->writeln('');

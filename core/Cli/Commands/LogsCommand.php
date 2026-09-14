@@ -137,10 +137,7 @@ final class LogsCommand
                 ' log file(s) (' . $this->output->formatBytes($totalSize) . ').');
             $this->output->writeln('');
 
-            echo '  Clear all log files? [' . $this->output->color('y', Output::RED) . '/N]: ';
-            $answer = trim(fgets(STDIN));
-
-            if (strtolower($answer) !== 'y') {
+            if (!$this->output->confirm('Clear all log files?')) {
                 $this->output->writeln('');
                 $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' Cancelled.');
                 $this->output->writeln('');

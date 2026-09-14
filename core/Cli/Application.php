@@ -206,7 +206,7 @@ final class Application
 
         $this->output->sectionHeader('Webpage Cache');
         $this->output->commandItem('cache:stats (or cache)', 'View cache statistics');
-        $this->output->commandItem('cache:clear [pattern]', 'Clear cached webpages');
+        $this->output->commandItem('cache:clear [pattern] [-y]', 'Clear cached webpages');
 
         $this->output->sectionHeader('Logs');
         $this->output->commandItem('logs:stats (or logs)', 'View log file statistics');
