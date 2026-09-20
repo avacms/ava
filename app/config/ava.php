@@ -36,6 +36,7 @@ return [
         'locale'       => 'en_GB',                   // php.net/setlocale
         'date_format'  => 'F j, Y',                  // php.net/datetime.format
         'title_format' => '{title} · {site}',        // Use null for the content title alone
+        'og_image'     => null,                      // Default social image, e.g. '@media:social.jpg'
     ],
 
     /*

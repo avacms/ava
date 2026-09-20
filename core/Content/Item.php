@@ -21,6 +21,8 @@ final class Item
     private string $filePath;
     private string $type;
     private string $format;
+    private bool $hasFrontmatter;
+    private array $defaultedFields;
 
     /** @var array<string, \DateTimeImmutable|null|false> Cached parsed dates (false = not yet computed) */
     private array $dateCache = [];
@@ -30,13 +32,17 @@ final class Item
         string $rawContent,
         string $filePath,
         string $type,
-        string $format = self::FORMAT_MARKDOWN
+        string $format = self::FORMAT_MARKDOWN,
+        bool $hasFrontmatter = true,
+        array $defaultedFields = []
     ) {
         $this->frontmatter = $frontmatter;
         $this->rawContent = $rawContent;
         $this->filePath = $filePath;
         $this->type = $type;
         $this->format = $format;
+        $this->hasFrontmatter = $hasFrontmatter;
+        $this->defaultedFields = $defaultedFields;
     }
 
     // === Core Fields ===
@@ -187,6 +193,16 @@ final class Item
     public function filePath(): string
     {
         return $this->filePath;
+    }
+
+    public function hasFrontmatter(): bool
+    {
+        return $this->hasFrontmatter;
+    }
+
+    public function wasDefaulted(string $field): bool
+    {
+        return in_array($field, $this->defaultedFields, true);
     }
 
     public function template(): ?string

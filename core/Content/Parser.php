@@ -35,7 +35,7 @@ final class Parser
      */
     public function parse(string $content, string $filePath, string $type): Item
     {
-        [$frontmatter, $body] = $this->splitFrontmatter($content);
+        [$frontmatter, $body, $hasFrontmatter] = $this->splitFrontmatter($content);
 
         // Parse YAML frontmatter
         $meta = [];
@@ -51,18 +51,18 @@ final class Parser
         }
 
         // Ensure required fields have defaults
-        $meta = $this->applyDefaults($meta, $filePath);
+        [$meta, $defaultedFields] = $this->applyDefaults($meta, $filePath);
 
         // Detect format from file extension
         $format = $this->detectFormat($filePath);
 
-        return new Item($meta, $body, $filePath, $type, $format);
+        return new Item($meta, $body, $filePath, $type, $format, $hasFrontmatter, $defaultedFields);
     }
 
     /**
      * Split frontmatter from content.
      *
-     * @return array{0: string, 1: string} [frontmatter, content]
+    * @return array{0: string, 1: string, 2: bool} [frontmatter, content, has frontmatter]
      * @throws \RuntimeException If frontmatter delimiters are incomplete
      */
     private function splitFrontmatter(string $content): array
@@ -71,7 +71,7 @@ final class Parser
 
         // Check for frontmatter delimiter at start
         if (!str_starts_with($content, self::FRONTMATTER_DELIMITER)) {
-            return ['', $content];
+            return ['', $content, false];
         }
 
         // Find the closing delimiter
@@ -91,7 +91,7 @@ final class Parser
         // Trim leading newlines from body
         $body = ltrim($body, "\r\n");
 
-        return [trim($frontmatter), $body];
+        return [trim($frontmatter), $body, true];
     }
 
     /**
@@ -99,22 +99,27 @@ final class Parser
      */
     private function applyDefaults(array $meta, string $filePath): array
     {
+        $defaultedFields = [];
+
         // Default slug from filename
         if (!isset($meta['slug'])) {
             $meta['slug'] = Path::filename($filePath);
+            $defaultedFields[] = 'slug';
         }
 
         // Default title from slug
         if (!isset($meta['title'])) {
             $meta['title'] = ucwords(str_replace(['-', '_'], ' ', $meta['slug']));
+            $defaultedFields[] = 'title';
         }
 
         // Default status
         if (!isset($meta['status'])) {
             $meta['status'] = 'draft';
+            $defaultedFields[] = 'status';
         }
 
-        return $meta;
+        return [$meta, $defaultedFields];
     }
 
     /**
@@ -144,6 +149,30 @@ final class Parser
         }
 
         return $errors;
+    }
+
+    /**
+     * Report authored metadata that was missing before defaults were applied.
+     *
+     * @return array<string> List of validation warnings
+     */
+    public function validateWarnings(Item $item): array
+    {
+        $warnings = [];
+
+        if (!$item->hasFrontmatter()) {
+            $warnings[] = 'No frontmatter delimiter found — add a YAML frontmatter block';
+        }
+
+        if ($item->wasDefaulted('title')) {
+            $warnings[] = 'Title auto-generated — add an explicit title';
+        }
+
+        if ($item->wasDefaulted('slug')) {
+            $warnings[] = 'Slug auto-generated from filename — add an explicit slug';
+        }
+
+        return $warnings;
     }
 
     /**

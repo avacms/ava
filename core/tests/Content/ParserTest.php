@@ -202,6 +202,51 @@ MD;
         $this->assertEmpty($errors);
     }
 
+    public function testValidateWarningsReportsMissingFrontmatterAndDefaults(): void
+    {
+        $item = $this->parser->parse('Damaged content.', '/content/posts/damaged-file.md', 'post');
+        $warnings = $this->parser->validateWarnings($item);
+
+        $this->assertEquals(3, count($warnings));
+        $this->assertStringContains('No frontmatter delimiter', $warnings[0]);
+        $this->assertStringContains('Title auto-generated', $warnings[1]);
+        $this->assertStringContains('Slug auto-generated from filename', $warnings[2]);
+    }
+
+    public function testValidateWarningsReportsOnlyDefaultedAuthoredFields(): void
+    {
+        $content = <<<MD
+---
+status: draft
+---
+
+Content.
+MD;
+
+        $item = $this->parser->parse($content, '/content/posts/defaulted.md', 'post');
+        $warnings = $this->parser->validateWarnings($item);
+
+        $this->assertEquals(2, count($warnings));
+        $this->assertStringNotContains('No frontmatter delimiter', implode('\n', $warnings));
+    }
+
+    public function testValidateWarningsReturnsEmptyForAuthoredFrontmatter(): void
+    {
+        $content = <<<MD
+---
+title: Authored Title
+slug: authored-title
+status: draft
+---
+
+Content.
+MD;
+
+        $item = $this->parser->parse($content, '/content/posts/authored-title.md', 'post');
+
+        $this->assertEmpty($this->parser->validateWarnings($item));
+    }
+
     public function testValidateReturnsErrorForInvalidStatus(): void
     {
         $content = <<<MD

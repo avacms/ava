@@ -238,7 +238,7 @@ final class TemplateHelpers
         // Canonical — use explicit frontmatter value, or fall back to the item's routed URL
         $canonical = $item->canonical();
         if (!$canonical) {
-            $path = $this->url($item->type(), $item->slug());
+            $path = $this->url($item->type(), $item->get('content_key') ?? $item->slug());
             if ($path !== null) {
                 $canonical = $this->fullUrl($path);
             }
@@ -269,14 +269,16 @@ final class TemplateHelpers
             $tags[] = '<meta property="og:description" content="' . $this->escape($description) . '">';
         }
 
+        $image = $item->ogImage() ?: $this->app->config('site.og_image');
         $imageUrl = null;
-        if ($item->ogImage()) {
-            $imageUrl = $this->fullUrl($this->engine->expandAliases($item->ogImage()));
+        if (is_string($image) && $image !== '') {
+            $imageUrl = $this->fullUrl($this->engine->expandAliases($image));
             $tags[] = '<meta property="og:image" content="' . $this->escape($imageUrl) . '">';
         }
 
         // Twitter — always emit the minimum set; image is conditional
-        $tags[] = '<meta name="twitter:card" content="summary">';
+        $twitterCard = $imageUrl !== null ? 'summary_large_image' : 'summary';
+        $tags[] = '<meta name="twitter:card" content="' . $twitterCard . '">';
         $tags[] = '<meta name="twitter:title" content="' . $this->escape($title) . '">';
         if ($description) {
             $tags[] = '<meta name="twitter:description" content="' . $this->escape($description) . '">';

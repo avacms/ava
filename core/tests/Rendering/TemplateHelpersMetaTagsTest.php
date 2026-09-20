@@ -99,6 +99,36 @@ final class TemplateHelpersMetaTagsTest extends TestCase
         $this->assertStringContains('<meta property="og:url" content="' . $expected . '">', $output);
     }
 
+    public function testAutoCanonicalUsesHierarchicalContentKeyWhenSlugDiffers(): void
+    {
+        $output = $this->helpers->metaTags($this->makeItem('page', [
+            'slug' => 'different-about-slug',
+            'content_key' => 'about',
+            'title' => 'About',
+        ]));
+
+        $expected = rtrim($this->app->config('site.base_url', ''), '/') . '/about';
+
+        $this->assertStringContains('<link rel="canonical" href="' . $expected . '">', $output);
+        $this->assertStringContains('<meta property="og:url" content="' . $expected . '">', $output);
+        $this->assertEquals(1, substr_count($output, '<link rel="canonical"'), 'Expected exactly one canonical tag');
+    }
+
+    public function testAutoCanonicalUsesEmptyContentKeyForHomepageIndex(): void
+    {
+        $output = $this->helpers->metaTags($this->makeItem('page', [
+            'slug' => 'index',
+            'content_key' => '',
+            'title' => 'Home',
+        ]));
+
+        $expected = rtrim($this->app->config('site.base_url', ''), '/') . '/';
+
+        $this->assertStringContains('<link rel="canonical" href="' . $expected . '">', $output);
+        $this->assertStringContains('<meta property="og:url" content="' . $expected . '">', $output);
+        $this->assertEquals(1, substr_count($output, '<link rel="canonical"'), 'Expected exactly one canonical tag');
+    }
+
     public function testNoCanonicalOrOgUrlEmittedWhenTheUrlCannotBeResolved(): void
     {
         $output = $this->helpers->metaTags($this->makeItem('post', [
@@ -183,6 +213,37 @@ final class TemplateHelpersMetaTagsTest extends TestCase
         $this->assertStringNotContains('<meta name="twitter:image"', $output);
     }
 
+    public function testSiteOgImageIsUsedWhenItemHasNoImage(): void
+    {
+        $this->withSiteConfig(['og_image' => '@media:site-social.jpg'], function (): void {
+            $output = $this->helpers->metaTags($this->makeItem('page', [
+                'slug' => 'test',
+                'title' => 'Test',
+            ]));
+
+            $expected = rtrim($this->app->config('site.base_url', ''), '/') . '/media/site-social.jpg';
+
+            $this->assertStringContains('<meta property="og:image" content="' . $expected . '">', $output);
+            $this->assertStringContains('<meta name="twitter:image" content="' . $expected . '">', $output);
+            $this->assertStringContains('<meta name="twitter:card" content="summary_large_image">', $output);
+        });
+    }
+
+    public function testItemOgImageTakesPrecedenceOverSiteOgImage(): void
+    {
+        $this->withSiteConfig(['og_image' => '/media/site-social.jpg'], function (): void {
+            $output = $this->helpers->metaTags($this->makeItem('post', [
+                'slug' => 'test',
+                'title' => 'Test',
+                'og_image' => '@media:item-social.jpg',
+            ]));
+
+            $this->assertStringContains('/media/item-social.jpg', $output);
+            $this->assertStringNotContains('/media/site-social.jpg', $output);
+            $this->assertStringContains('<meta name="twitter:card" content="summary_large_image">', $output);
+        });
+    }
+
     public function testTwitterImageFollowsOgImageWithFeaturedImageFallback(): void
     {
         foreach ([
@@ -206,5 +267,21 @@ final class TemplateHelpersMetaTagsTest extends TestCase
             '/content/' . $type . 's/' . ($frontmatter['slug'] ?? 'test') . '.md',
             $type
         );
+    }
+
+    private function withSiteConfig(array $values, callable $callback): void
+    {
+        $ref = new \ReflectionProperty($this->app, 'config');
+        $config = $ref->getValue($this->app);
+        $originalSite = $config['site'];
+
+        try {
+            $config['site'] = array_replace($originalSite, $values);
+            $ref->setValue($this->app, $config);
+            $callback();
+        } finally {
+            $config['site'] = $originalSite;
+            $ref->setValue($this->app, $config);
+        }
     }
 }
