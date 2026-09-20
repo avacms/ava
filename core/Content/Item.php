@@ -62,6 +62,11 @@ final class Item
         return $this->frontmatter['slug'] ?? '';
     }
 
+    public function contentKey(): string
+    {
+        return $this->frontmatter['content_key'] ?? $this->slug();
+    }
+
     public function status(): string
     {
         return $this->frontmatter['status'] ?? 'draft';
@@ -180,6 +185,13 @@ final class Item
     {
         $clone = clone $this;
         $clone->htmlContent = $html;
+        return $clone;
+    }
+
+    public function withContentKey(string $contentKey): self
+    {
+        $clone = clone $this;
+        $clone->frontmatter['content_key'] = $contentKey;
         return $clone;
     }
 

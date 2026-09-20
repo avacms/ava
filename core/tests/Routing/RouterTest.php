@@ -52,6 +52,28 @@ final class RouterTest extends TestCase
         return new Request($method, $path, $query);
     }
 
+    public function testExactRoutePreservesContentKeyWhenReparsingItem(): void
+    {
+        $method = new \ReflectionMethod($this->router, 'handleExactRoute');
+        $method->setAccessible(true);
+
+        $match = $method->invoke(
+            $this->router,
+            [
+                'type' => 'single',
+                'content_type' => 'page',
+                'content_key' => '',
+                'file' => 'pages/index.md',
+                'template' => 'page.php',
+            ],
+            $this->app->repository(),
+            $this->createRequest('/')
+        );
+
+        $this->assertNotNull($match);
+        $this->assertSame('', $match->getContentItem()?->contentKey());
+    }
+
     // =========================================================================
     // System Routes (addRoute)
     // =========================================================================

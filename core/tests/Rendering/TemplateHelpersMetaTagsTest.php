@@ -129,6 +129,30 @@ final class TemplateHelpersMetaTagsTest extends TestCase
         $this->assertEquals(1, substr_count($output, '<link rel="canonical"'), 'Expected exactly one canonical tag');
     }
 
+    public function testAutoCanonicalUsesContentKeyOnItemReparsedByRepository(): void
+    {
+        $item = $this->app->repository()->getByFile('pages/index.md', 'page', '');
+        $this->assertNotNull($item);
+
+        $output = $this->helpers->metaTags($item);
+        $expected = rtrim($this->app->config('site.base_url', ''), '/') . '/';
+
+        $this->assertStringContains('<link rel="canonical" href="' . $expected . '">', $output);
+        $this->assertStringContains('<meta property="og:url" content="' . $expected . '">', $output);
+    }
+
+    public function testAutoCanonicalUsesContentKeyOnItemLoadedByKey(): void
+    {
+        $item = $this->app->repository()->get('page', '');
+        $this->assertNotNull($item);
+
+        $output = $this->helpers->metaTags($item);
+        $expected = rtrim($this->app->config('site.base_url', ''), '/') . '/';
+
+        $this->assertStringContains('<link rel="canonical" href="' . $expected . '">', $output);
+        $this->assertStringContains('<meta property="og:url" content="' . $expected . '">', $output);
+    }
+
     public function testNoCanonicalOrOgUrlEmittedWhenTheUrlCannotBeResolved(): void
     {
         $output = $this->helpers->metaTags($this->makeItem('post', [

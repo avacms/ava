@@ -253,7 +253,11 @@ final class Router
             // Parse the single file directly from its route entry. This avoids
             // loading the full content index (with every item body) into memory
             // just to render one page.
-            $item = $repository->getByFile($routeData['file'], $routeData['content_type'] ?? '');
+            $item = $repository->getByFile(
+                $routeData['file'],
+                $routeData['content_type'] ?? '',
+                $routeData['content_key'] ?? null
+            );
 
             if ($item === null) {
                 return null;

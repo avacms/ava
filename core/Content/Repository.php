@@ -157,7 +157,7 @@ final class Repository
             return null;
         }
 
-        $item = $this->parser->parseFile($resolved, $type);
+        $item = $this->parser->parseFile($resolved, $type)->withContentKey($key);
 
         // Allow hooks to modify the loaded item
         return Hooks::apply('content.loaded', $item);
@@ -170,7 +170,7 @@ final class Repository
      * (routes.bin) already carries the file path, so we can parse that one
      * file directly instead of loading the entire content index into memory.
      */
-    public function getByFile(string $relativeFile, string $type): ?Item
+    public function getByFile(string $relativeFile, string $type, ?string $contentKey = null): ?Item
     {
         if ($relativeFile === '') {
             return null;
@@ -184,6 +184,9 @@ final class Repository
         }
 
         $item = $this->parser->parseFile($resolved, $type);
+        if ($contentKey !== null) {
+            $item = $item->withContentKey($contentKey);
+        }
 
         // Allow hooks to modify the loaded item
         return Hooks::apply('content.loaded', $item);

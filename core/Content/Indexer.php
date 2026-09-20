@@ -24,7 +24,7 @@ use Ava\Support\SignedCache;
  */
 final class Indexer
 {
-    private const int FINGERPRINT_VERSION = 3;
+    private const int FINGERPRINT_VERSION = 4;
     private const int MAX_REBUILD_ATTEMPTS = 3;
     private const array FINGERPRINT_HASH_EXTENSIONS = [
         'css',
@@ -980,10 +980,13 @@ final class Indexer
                 // Generate URL for this item
                 $url = $this->generateUrl($item, $typeConfig);
 
+                $contentKey = $this->contentKey($item, $typeConfig);
+
                 // Add to exact routes
                 $routes['exact'][$url] = [
                     'type' => 'single',
                     'content_type' => $typeName,
+                    'content_key' => $contentKey,
                     'slug' => $item->slug(),
                     'file' => $this->getRelativePath($item->filePath()),
                     'template' => $item->template() ?? $typeConfig['templates']['single'] ?? 'single.php',
@@ -992,7 +995,6 @@ final class Indexer
                 // Hierarchical types need their path-based key here; using only
                 // the basename slug makes siblings such as about/team and
                 // company/team overwrite one another.
-                $contentKey = $this->contentKey($item, $typeConfig);
                 $routes['reverse'][$typeName . ':' . $contentKey] = $url;
 
                 // Add redirect_from routes

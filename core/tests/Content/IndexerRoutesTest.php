@@ -122,6 +122,8 @@ final class IndexerRoutesTest extends TestCase
 
         $this->assertEquals('/about/team', $routes['reverse']['page:about/team'] ?? null);
         $this->assertEquals('/company/team', $routes['reverse']['page:company/team'] ?? null);
+        $this->assertEquals('about/team', $routes['exact']['/about/team']['content_key'] ?? null);
+        $this->assertEquals('company/team', $routes['exact']['/company/team']['content_key'] ?? null);
         $this->assertFalse(isset($routes['reverse']['page:team']));
     }
 }

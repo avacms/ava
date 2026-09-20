@@ -238,7 +238,7 @@ final class TemplateHelpers
         // Canonical — use explicit frontmatter value, or fall back to the item's routed URL
         $canonical = $item->canonical();
         if (!$canonical) {
-            $path = $this->url($item->type(), $item->get('content_key') ?? $item->slug());
+            $path = $this->url($item->type(), $item->contentKey());
             if ($path !== null) {
                 $canonical = $this->fullUrl($path);
             }
