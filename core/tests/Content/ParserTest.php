@@ -207,13 +207,12 @@ MD;
         $item = $this->parser->parse('Damaged content.', '/content/posts/damaged-file.md', 'post');
         $warnings = $this->parser->validateWarnings($item);
 
-        $this->assertEquals(3, count($warnings));
+        $this->assertEquals(2, count($warnings));
         $this->assertStringContains('No frontmatter delimiter', $warnings[0]);
         $this->assertStringContains('Title auto-generated', $warnings[1]);
-        $this->assertStringContains('Slug auto-generated from filename', $warnings[2]);
     }
 
-    public function testValidateWarningsReportsOnlyDefaultedAuthoredFields(): void
+    public function testValidateWarningsReportsDefaultedTitleWithFrontmatter(): void
     {
         $content = <<<MD
 ---
@@ -226,16 +225,16 @@ MD;
         $item = $this->parser->parse($content, '/content/posts/defaulted.md', 'post');
         $warnings = $this->parser->validateWarnings($item);
 
-        $this->assertEquals(2, count($warnings));
+        $this->assertEquals(1, count($warnings));
+        $this->assertStringContains('Title auto-generated', $warnings[0]);
         $this->assertStringNotContains('No frontmatter delimiter', implode('\n', $warnings));
     }
 
-    public function testValidateWarningsReturnsEmptyForAuthoredFrontmatter(): void
+    public function testValidateWarningsAllowsDefaultedSlug(): void
     {
         $content = <<<MD
 ---
 title: Authored Title
-slug: authored-title
 status: draft
 ---
 

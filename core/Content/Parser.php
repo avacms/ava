@@ -168,10 +168,6 @@ final class Parser
             $warnings[] = 'Title auto-generated — add an explicit title';
         }
 
-        if ($item->wasDefaulted('slug')) {
-            $warnings[] = 'Slug auto-generated from filename — add an explicit slug';
-        }
-
         return $warnings;
     }
 
