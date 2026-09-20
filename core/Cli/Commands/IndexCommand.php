@@ -102,24 +102,37 @@ final class IndexCommand
         echo $this->output->color('  🔍 Validating content files...', Output::DIM) . "\n";
         $this->output->writeln('');
 
-        $errors = $this->app->indexer()->lint();
+        $result = $this->app->indexer()->lint();
+        $errors = $result['errors'];
+        $warnings = $result['warnings'];
 
-        if (empty($errors)) {
+        if (empty($errors) && empty($warnings)) {
             $this->output->box("All content files are valid!\nNo issues found.", 'success');
             $this->output->writeln('');
             return 0;
         }
 
-        $this->output->error("Found " . count($errors) . " issue(s):");
-        $this->output->writeln('');
-        foreach ($errors as $error) {
-            echo "    " . $this->output->color('•', Output::RED) . " {$error}\n";
+        if (!empty($errors)) {
+            $this->output->error("Found " . count($errors) . " error(s):");
+            $this->output->writeln('');
+            foreach ($errors as $error) {
+                echo "    " . $this->output->color('•', Output::RED) . " {$error}\n";
+            }
+            $this->output->writeln('');
         }
 
-        $this->output->writeln('');
-        $this->output->tip('Fix the issues above and run lint again');
+        if (!empty($warnings)) {
+            $this->output->warning("Found " . count($warnings) . " warning(s):");
+            $this->output->writeln('');
+            foreach ($warnings as $warning) {
+                echo "    " . $this->output->color('•', Output::YELLOW) . " {$warning}\n";
+            }
+            $this->output->writeln('');
+        }
+
+        $this->output->tip('Review the issues above and run lint again');
         $this->output->writeln('');
 
-        return 1;
+        return empty($errors) ? 0 : 1;
     }
 }

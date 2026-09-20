@@ -502,18 +502,24 @@ final class Indexer
     }
 
     /**
-     * Get validation errors from last rebuild.
+     * Validate content files without rebuilding the index.
+     *
+     * @return array{errors: array<string>, warnings: array<string>}
      */
     public function lint(): array
     {
         $contentTypes = $this->loadContentTypes();
         $errors = [];
+        $warnings = [];
 
         foreach ($contentTypes as $typeName => $typeConfig) {
-            $this->scanContentType($typeName, $typeConfig, $errors);
+            $this->scanContentType($typeName, $typeConfig, $errors, $warnings);
         }
 
-        return $errors;
+        return [
+            'errors' => $errors,
+            'warnings' => $warnings,
+        ];
     }
 
     /**
@@ -521,7 +527,12 @@ final class Indexer
      *
      * @return array<Item>
      */
-    private function scanContentType(string $typeName, array $typeConfig, array &$errors): array
+    private function scanContentType(
+        string $typeName,
+        array $typeConfig,
+        array &$errors,
+        ?array &$warnings = null
+    ): array
     {
         $contentDir = $typeConfig['content_dir'] ?? $typeName;
         $basePath = $this->app->configPath('content') . '/' . $contentDir;
@@ -544,6 +555,12 @@ final class Indexer
                 $itemErrors = $this->parser->validate($item);
                 foreach ($itemErrors as $error) {
                     $errors[] = "{$filePath}: {$error}";
+                }
+
+                if ($warnings !== null) {
+                    foreach ($this->parser->validateWarnings($item) as $warning) {
+                        $warnings[] = "{$filePath}: {$warning}";
+                    }
                 }
 
                 // Check content key uniqueness (path-based for hierarchical, slug for pattern)
