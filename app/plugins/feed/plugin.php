@@ -61,14 +61,39 @@ XSL;
             return new Response($xsl, 200, ['Content-Type' => 'text/xsl; charset=utf-8']);
         });
 
-        // Load content types
-        $contentTypesFile = $app->path('app/config/content_types.php');
-        $contentTypes = file_exists($contentTypesFile) ? require $contentTypesFile : [];
+        $contentTypes = $app->contentTypes();
+
+        /**
+         * The newest indexable items, newest first. Uses the index's sorted
+         * queries, so a feed costs the same with 50 posts or 50,000.
+         *
+         * @param list<string>|null $types
+         * @return list<\Ava\Content\Item>
+         */
+        $latestItems = function (?array $types) use ($app, $config): array {
+            $limit = max(1, (int) $config['items_per_feed']);
+            $query = $app->query()->published()->orderBy('date', 'desc')->perPage(100);
+            $query = $types === null ? $query : $query->types($types);
+
+            $items = [];
+            for ($page = 1; count($items) < $limit; $page++) {
+                $batch = $query->page($page)->get();
+                foreach ($batch as $item) {
+                    if (!$item->noindex()) {
+                        $items[] = $item;
+                    }
+                }
+                if (count($batch) < 100) {
+                    break;
+                }
+            }
+
+            return array_slice($items, 0, $limit);
+        };
 
         // Helper to generate RSS XML
-        $generateFeed = function (array $items, string $title, string $description, string $feedUrl) use ($baseUrl, $config, $contentTypes, $app) {
-            $repository = $app->repository();
-            $routes = $repository->routes();
+        $generateFeed = function (array $items, string $title, string $description, string $feedUrl) use ($baseUrl, $config, $app) {
+            $router = $app->router();
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
             $xml .= '<?xml-stylesheet type="text/xsl" href="/feed.xsl"?>' . "\n";
@@ -76,44 +101,33 @@ XSL;
             $xml .= "<channel>\n";
             $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
             $safeFeedUrl = htmlspecialchars($feedUrl, ENT_XML1, 'UTF-8');
-            $xml .= "  <title>" . htmlspecialchars($title) . "</title>\n";
+            $xml .= "  <title>" . htmlspecialchars($title, ENT_XML1, 'UTF-8') . "</title>\n";
             $xml .= "  <link>{$safeBaseUrl}</link>\n";
-            $xml .= "  <description>" . htmlspecialchars($description) . "</description>\n";
+            $xml .= "  <description>" . htmlspecialchars($description, ENT_XML1, 'UTF-8') . "</description>\n";
             $xml .= "  <language>en</language>\n";
             $xml .= "  <atom:link href=\"{$safeBaseUrl}{$safeFeedUrl}\" rel=\"self\" type=\"application/rss+xml\"/>\n";
-            
-            // Build date from most recent item
-            if (!empty($items)) {
-                $mostRecent = $items[0]->updated() ?? $items[0]->date();
-                if ($mostRecent) {
-                    $xml .= "  <lastBuildDate>" . $mostRecent->format('r') . "</lastBuildDate>\n";
+
+            // Build date from the most recently changed item
+            $lastChange = null;
+            foreach ($items as $item) {
+                $changed = $item->updated() ?? $item->date();
+                if ($changed !== null && ($lastChange === null || $changed > $lastChange)) {
+                    $lastChange = $changed;
                 }
             }
-
-            // Build reverse route index for O(1) lookups
-            $reverseRoutes = $routes['reverse'] ?? [];
+            if ($lastChange !== null) {
+                $xml .= "  <lastBuildDate>" . $lastChange->format('r') . "</lastBuildDate>\n";
+            }
 
             foreach ($items as $item) {
-                // Skip noindex items
-                if ($item->noindex()) {
-                    continue;
-                }
-
-                // Find URL for this item using reverse routes (O(1) lookup)
-                $type = $item->type();
-                $key = $type . ':' . ($item->get('content_key') ?? $item->slug());
-                $url = $reverseRoutes[$key] ?? $reverseRoutes[$type . ':' . $item->slug()] ?? null;
-
+                $url = $router->urlFor($item->type(), $item->contentKey());
                 if ($url === null) {
-                    $typeConfig = $contentTypes[$type] ?? [];
-                    $urlConfig = $typeConfig['url'] ?? [];
-                    $pattern = $urlConfig['pattern'] ?? '/' . $type . '/{slug}';
-                    $url = str_replace('{slug}', $item->slug(), $pattern);
+                    continue;
                 }
 
                 $safeUrl = htmlspecialchars($url, ENT_XML1, 'UTF-8');
                 $xml .= "  <item>\n";
-                $xml .= "    <title>" . htmlspecialchars($item->title()) . "</title>\n";
+                $xml .= "    <title>" . htmlspecialchars($item->title(), ENT_XML1, 'UTF-8') . "</title>\n";
                 $xml .= "    <link>{$safeBaseUrl}{$safeUrl}</link>\n";
                 $xml .= "    <guid isPermaLink=\"true\">{$safeBaseUrl}{$safeUrl}</guid>\n";
 
@@ -123,9 +137,19 @@ XSL;
                 }
 
                 // Content - either full or excerpt
-                $content = $config['full_content'] 
-                    ? $app->renderer()->renderItem($item) 
-                    : $item->excerpt();
+                $content = null;
+                if ($config['full_content']) {
+                    $full = $app->repository()->get($item->type(), $item->contentKey());
+                    // Feed readers resolve root-relative links against the
+                    // feed's host inconsistently, so make them absolute.
+                    $content = $full === null ? null : preg_replace(
+                        '/\b(href|src)="\/(?!\/)/',
+                        '$1="' . $baseUrl . '/',
+                        $app->renderer()->renderItem($full)
+                    );
+                } else {
+                    $content = $item->excerpt();
+                }
                 if ($content) {
                     // Escape ]]> inside CDATA to prevent premature closure
                     $safeCdata = str_replace(']]>', ']]]]><![CDATA[>', $content);
@@ -142,45 +166,12 @@ XSL;
         };
 
         // Combined feed at /feed.xml
-        $router->addRoute('/feed.xml', function (Request $request) use ($app, $siteName, $config, $generateFeed) {
-            $repository = $app->repository();
-            $allItems = [];
-
-            // Determine which types to include
-            $types = $config['types'] ?? $repository->types();
-            if (!is_array($types)) {
-                $types = [$types];
-            }
-
-            foreach ($types as $type) {
-                // Excerpt feeds only need indexed metadata. Avoid parsing every
-                // content file just to discard all but the newest few items.
-                $items = $config['full_content']
-                    ? $repository->published($type)
-                    : $repository->publishedMeta($type);
-
-                foreach ($items as $item) {
-                    if (!$item->noindex()) {
-                        $allItems[] = $item;
-                    }
-                }
-            }
-
-            // Sort by date descending
-            usort($allItems, function ($a, $b) {
-                $aDate = $a->date();
-                $bDate = $b->date();
-                if (!$aDate && !$bDate) return 0;
-                if (!$aDate) return 1;
-                if (!$bDate) return -1;
-                return $bDate->getTimestamp() - $aDate->getTimestamp();
-            });
-
-            // Limit items
-            $allItems = array_slice($allItems, 0, $config['items_per_feed']);
+        $router->addRoute('/feed.xml', function (Request $request) use ($siteName, $config, $generateFeed, $latestItems) {
+            $types = $config['types'];
+            $types = $types === null ? null : (is_array($types) ? $types : [$types]);
 
             $xml = $generateFeed(
-                $allItems,
+                $latestItems($types),
                 $siteName,
                 "Latest content from {$siteName}",
                 '/feed.xml'
@@ -190,38 +181,15 @@ XSL;
         });
 
         // Per-type feeds at /feed/{type}.xml
-        $router->addRoute('/feed/{type}.xml', function (Request $request, array $params) use ($app, $siteName, $config, $generateFeed, $contentTypes) {
+        $router->addRoute('/feed/{type}.xml', function (Request $request, array $params) use ($siteName, $generateFeed, $contentTypes, $latestItems) {
             $type = $params['type'] ?? '';
-            $repository = $app->repository();
-
-            // Check if type exists
             if (!isset($contentTypes[$type])) {
                 return null;
             }
 
-            $items = $config['full_content']
-                ? $repository->published($type)
-                : $repository->publishedMeta($type);
-
-            // Filter out noindex
-            $items = array_filter($items, fn($item) => !$item->noindex());
-
-            // Sort by date descending
-            usort($items, function ($a, $b) {
-                $aDate = $a->date();
-                $bDate = $b->date();
-                if (!$aDate && !$bDate) return 0;
-                if (!$aDate) return 1;
-                if (!$bDate) return -1;
-                return $bDate->getTimestamp() - $aDate->getTimestamp();
-            });
-
-            // Limit items
-            $items = array_slice($items, 0, $config['items_per_feed']);
-
             $typeLabel = $contentTypes[$type]['label'] ?? ucfirst($type) . 's';
             $xml = $generateFeed(
-                $items,
+                $latestItems([$type]),
                 "{$siteName} - {$typeLabel}",
                 "{$typeLabel} from {$siteName}",
                 "/feed/{$type}.xml"

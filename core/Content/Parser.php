@@ -48,6 +48,12 @@ final class Parser
                     "Invalid YAML frontmatter in {$filePath}: " . $e->getMessage()
                 );
             }
+
+            if (!is_array($meta)) {
+                throw new \RuntimeException(
+                    "Invalid YAML frontmatter in {$filePath}: expected `key: value` lines, got " . get_debug_type($meta)
+                );
+            }
         }
 
         // Ensure required fields have defaults
@@ -151,9 +157,10 @@ final class Parser
             $errors[] = "Invalid status: {$item->status()} (must be draft, published, or unlisted) — see https://ava.addy.zone/docs/content";
         }
 
-        // Validate slug is URL-safe
-        if (!preg_match('/^[a-z0-9-]+$/', $item->slug())) {
-            $errors[] = "Slug must be lowercase alphanumeric with hyphens: {$item->slug()} — see https://ava.addy.zone/docs/content";
+        // Lowercase letters (any script), digits and hyphens. Non-ASCII slugs
+        // work because the router matches decoded paths ("/café").
+        if (preg_match('/^[\p{Ll}\p{Lo}\p{Lm}\p{M}\p{Nd}-]+$/u', $item->slug()) !== 1) {
+            $errors[] = "Slug must be lowercase letters, numbers and hyphens: {$item->slug()} — see https://ava.addy.zone/docs/content";
         }
 
         return $errors;

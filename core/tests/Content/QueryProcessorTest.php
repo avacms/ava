@@ -287,6 +287,28 @@ final class QueryProcessorTest extends TestCase
         $this->assertEquals('PHP Mastery', $result[0]['title']);
     }
 
+    public function testFeaturedItemsAreBoostedNotMatched(): void
+    {
+        // The featured bonus used to count as a match, so featured items
+        // appeared in the results of every search.
+        $items = [
+            ['title' => 'Unrelated', 'excerpt' => '', 'body' => 'nothing here', 'meta' => ['featured' => true]],
+            ['title' => 'Relevant', 'excerpt' => '', 'body' => 'php stuff', 'meta' => []],
+        ];
+
+        $result = QueryProcessor::applySearch($items, 'php', [['php']], null);
+
+        $this->assertEquals(['Relevant'], array_column($result, 'title'));
+    }
+
+    public function testSearchScoresListAndNumericFields(): void
+    {
+        $items = [['title' => 1984, 'excerpt' => '', 'body' => '', 'meta' => ['tags' => ['php', 'cms']]]];
+
+        $this->assertCount(1, QueryProcessor::applySearch($items, 'cms', [['cms']], ['fields' => ['tags']]));
+        $this->assertCount(1, QueryProcessor::applySearch($items, '1984', [['1984']], null));
+    }
+
     public function testSearchFeaturedBoost(): void
     {
         $items = [

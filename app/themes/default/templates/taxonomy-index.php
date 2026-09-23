@@ -52,15 +52,15 @@ $pageTitle = $taxLabel . ' - ' . $site['name'];
                 </div>
             <?php else: ?>
                 <div class="card-grid">
-                    <?php 
-                    // Get the base URL from taxonomy config (e.g., '/category')
-                    $baseUrl = $tax['config']['rewrite']['base'] ?? '/' . $tax['name'];
-                    
-                    foreach ($terms as $slug => $termData): 
+                    <?php
+                    foreach ($terms as $slug => $termData):
+                        // Keys are slugs; a numeric one ("2024") arrives as an int.
+                        $slug = (string) $slug;
                         $itemCount = count($termData['items'] ?? []);
                     ?>
-                        <a href="<?= $ava->e($baseUrl . '/' . $slug) ?>" class="card">
-                            <div class="card-title"><?= $ava->e($termData['name'] ?? $slug) ?></div>
+                        <?php /* $ava->termUrl() follows the taxonomy's configured base (e.g. /category) */ ?>
+                        <a href="<?= $ava->e($ava->termUrl($tax['name'], $slug) ?? '') ?>" class="card">
+                            <div class="card-title"><?= $ava->e((string) ($termData['name'] ?? $slug)) ?></div>
                             <div class="card-count"><?= $itemCount ?> item<?= $itemCount !== 1 ? 's' : '' ?></div>
                             <?php if (!empty($termData['description'])): ?>
                                 <p class="card-description"><?= $ava->e($termData['description']) ?></p>

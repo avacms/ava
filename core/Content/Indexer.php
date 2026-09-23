@@ -186,6 +186,7 @@ final class Indexer
 
         $identity = Fingerprint::identity(['sources' => $current]);
         if ($this->store->recentlyFailed($identity)) {
+            $this->store->markChecked();
             return;
         }
 
@@ -198,7 +199,6 @@ final class Indexer
             $this->store->recordAttempt($identity);
             try {
                 $this->build(true);
-                $this->store->clearAttempt();
             } catch (\Throwable $e) {
                 // The attempt marker stays, so this is not retried on every
                 // request; visitors keep getting the previous generation.
@@ -218,6 +218,8 @@ final class Indexer
      */
     public function lint(): array
     {
+        // Plugins report their own problems through the lint.errors filter.
+        $this->app->loadExtensions();
         $contentTypes = $this->app->contentTypes();
         $scan = $this->scanner()->scan($contentTypes, collectWarnings: true);
 
@@ -227,8 +229,10 @@ final class Indexer
         $builder->synonyms();
         $builder->stopWords();
 
+        $errors = Hooks::apply('lint.errors', array_merge($scan['errors'], $builder->errors()), $this->app);
+
         return [
-            'errors' => array_values(array_merge($scan['errors'], $builder->errors())),
+            'errors' => array_values(is_array($errors) ? $errors : []),
             'warnings' => $scan['warnings'],
         ];
     }
@@ -287,6 +291,7 @@ final class Indexer
         if ($clearWebpageCache) {
             $this->app->webpageCache()->clear();
         }
+        $this->store->clearAttempt();
         $this->store->markChecked();
         $this->store->collectGarbage();
         $this->store->removeLegacyArtifacts();

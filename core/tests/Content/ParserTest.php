@@ -280,6 +280,6 @@ MD;
         $errors = $this->parser->validate($item);
 
         $this->assertNotEmpty($errors);
-        $this->assertStringContains('lowercase alphanumeric', $errors[0]);
+        $this->assertStringContains('lowercase letters', $errors[0]);
     }
 }

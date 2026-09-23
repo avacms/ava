@@ -55,21 +55,27 @@ return [
     | Binary cache of content metadata for fast lookups.
     |
     | mode:
-    |   • auto   — Rebuild when files change (best for development)
-    |   • never  — Only rebuild via ./ava rebuild (best for production)
+    |   • auto   — Notice file changes and rebuild (great for editing live).
+    |              Checks file metadata at most once per check_interval
+    |              seconds. Template/asset/snippet edits only clear cached
+    |              pages. While one request rebuilds, others keep using the
+    |              previous index, and a failed rebuild is logged and retried
+    |              after 5 minutes instead of on every request.
+    |   • never  — Only rebuild via ./ava rebuild (fastest; for deploy scripts)
     |   • always — Rebuild every request (debugging only)
     |
-    | backend:
+    | backend (takes effect at the next rebuild):
     |   • array  — Binary PHP arrays, works everywhere (default)
     |   • sqlite — SQLite database, use for 10k+ items or memory limits
     |
     | prerender_html:
-    |   Pre-render markdown to HTML during rebuild. Eliminates ~20ms markdown
-    |   parsing on first page view. Trade-off: larger cache, slower rebuild after content updates.
+    |   Render Markdown during rebuild and store it per page, so page views
+    |   skip Markdown parsing. Only used while the file is unchanged.
     */
 
     'content_index' => [
         'mode'           => 'auto',
+        'check_interval' => 1,              // auto mode: seconds between change checks
         'backend'        => 'array',
         'use_igbinary'   => true,           // ~5x faster serialization if installed
         'prerender_html' => true,           // Pre-render markdown during rebuild
@@ -79,7 +85,7 @@ return [
     |───────────────────────────────────────────────────────────────────────────
     | PERFORMANCE — WEBPAGE CACHE
     |───────────────────────────────────────────────────────────────────────────
-    | Stores anonymous HTML responses, including their headers.
+    | Stores anonymous HTML responses (and plugin feeds/sitemaps), with headers.
     | Cache is cleared automatically on ./ava rebuild.
     | Manual index mode can serve hits before application boot; automatic
     | modes check source freshness first. All paths use the same cache policy.
@@ -135,14 +141,16 @@ return [
             'format' => 'yaml',             // Only YAML supported currently
         ],
         'markdown' => [
-            // Allow raw HTML in Markdown content. Disallowed tags (below) are
-            // always stripped, and unsafe links are neutralised regardless.
-            // Set to false if your content authors are not fully trusted.
+            // Allow raw HTML in Markdown content. Raw HTML is passed through
+            // as written, including event handlers (<img onerror=…>) and
+            // javascript: links; unsafe links are only neutralised in Markdown
+            // syntax. Anyone who can write content (or .html content files, or
+            // call PHP snippets) must be trusted. Set to false otherwise.
             'allow_html' => true,
             'heading_ids' => true,          // Add id attributes to headings for deep links
-            'disallowed_tags' => [          // Tags stripped even when allow_html is true
-                'script',                   // Prevents XSS attacks
-                'noscript',                 // Can contain fallback attack vectors
+            'disallowed_tags' => [          // Escaped even when allow_html is true
+                'script',                   // Not an XSS defence on its own:
+                'noscript',                 // see allow_html above
             ],
         ],
         'id' => [
@@ -161,12 +169,17 @@ return [
             'allow_php_snippets' => true,
         ],
 
-        // Secret for previewing drafts via ?preview=1&token=xxx (null = disabled)
-        // Use a long random string wrapped in single quotes - don't rely on previews for security, they are not rate limited
+        // Secret for previewing drafts (null = disabled). Use a long random
+        // string. Share drafts with `./ava preview /blog/my-draft`, which
+        // prints a link for that one URL that expires. The older
+        // ?preview=1&token=<secret> form still works but exposes the secret.
         'preview_token' => null,
 
         // Security headers for public responses. Defaults are permissive to support
-        // common use cases; tighten for hardened sites. Docs: https://ava.addy.zone/docs/configuration#content-security
+        // common use cases: 'unsafe-inline' and https: in script-src mean this CSP
+        // does little against XSS. Tighten for hardened sites (e.g. drop
+        // 'unsafe-inline' once your theme has no inline scripts).
+        // Docs: https://ava.addy.zone/docs/configuration#content-security
         'headers' => [
             'content_security_policy' => [
                 "default-src 'self'",

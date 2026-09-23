@@ -82,12 +82,13 @@ final class Router
     {
         // One spelling per URL: otherwise every percent-encoding variant of
         // a page is a separate page (and a separate webpage-cache entry).
-        $canonical = UrlPath::canonical($request->path());
+        // Exactly one leading slash, also because "//host" in a Location
+        // header would send the visitor to another site.
+        $canonical = '/' . ltrim(UrlPath::canonical($request->path()), '/');
         if ($canonical !== $request->path() && in_array($request->method(), ['GET', 'HEAD'], true)) {
             return new RouteMatch(
                 type: 'redirect',
-                // Exactly one leading slash: "//host" would leave the site.
-                redirectUrl: $this->withQuery($request, '/' . ltrim($canonical, '/')),
+                redirectUrl: $this->withQuery($request, $canonical),
                 redirectCode: 301
             );
         }

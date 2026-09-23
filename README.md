@@ -187,8 +187,9 @@ Ava CMS includes a simple hook-based plugin system, and theming is just PHP temp
 Ava CMS is designed to be blazing fast, whether you have 100 pages or 100,000:
 
 - **Tiered caching**: avoid repeating expensive work on every request.
-- **Page caching** (optional): serve cached HTML to bypass PHP for most visitors.
-- **Switchable engines**: use the default binaries for best performance on most sites or seamlessly switch to SQLite for massive sites or low-memory environments.
+- **Page caching**: cached pages, feeds and sitemaps are served before plugins or templates load — a few milliseconds per hit.
+- **Non-blocking rebuilds**: the index is rebuilt beside the live one and swapped in, so visitors never wait for a rebuild.
+- **Switchable engines**: use the default binaries for best performance on most sites or switch to SQLite for massive sites or low-memory environments.
 
 See https://ava.addy.zone/docs/performance
 

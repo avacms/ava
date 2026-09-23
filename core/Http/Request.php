@@ -29,7 +29,11 @@ final class Request
     ) {
         $this->method = strtoupper($method);
         $this->uri = $uri;
-        $this->path = parse_url($uri, PHP_URL_PATH) ?: '/';
+        // parse_url() reads "//about" as a host with no path; a request
+        // target is always a path, so take everything before the query.
+        $this->path = str_starts_with($uri, '//')
+            ? explode('#', explode('?', $uri, 2)[0], 2)[0]
+            : (parse_url($uri, PHP_URL_PATH) ?: '/');
         $this->query = $query;
         $this->headers = array_change_key_case($headers, CASE_LOWER);
         $this->body = $body;

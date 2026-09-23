@@ -42,59 +42,44 @@ final class StatusCommand
 
         // Content Index status
         $this->output->sectionHeader('Content Index');
-        $cachePath = $this->app->configPath('storage') . '/cache';
-        $fingerprintPath = $cachePath . '/fingerprint.json';
+        $store = $this->app->indexStore();
+        $state = $store->reloadState();
 
-        if (file_exists($fingerprintPath)) {
+        if ($state !== null) {
             $fresh = $this->app->indexer()->isCacheFresh();
             $status = $fresh
                 ? $this->output->color('● Fresh', Output::GREEN, Output::BOLD)
                 : $this->output->color('○ Stale', Output::YELLOW, Output::BOLD);
             $this->output->keyValue('Status', $status);
-            $this->output->keyValue('Mode', $this->app->config('content_index.mode', 'auto'));
+            $this->output->keyValue('Mode', $this->app->indexMode());
 
-            // Show backend info
-            $repository = $this->app->repository();
-            $backendName = ucfirst($repository->backendName());
-            $configBackend = $this->app->config('content_index.backend', 'auto');
-            $backendInfo = $this->output->color($backendName, Output::PRIMARY);
-            if ($configBackend === 'auto') {
-                $backendInfo .= $this->output->color(' (auto-detected)', Output::DIM);
+            $backend = ucfirst($state['backend']);
+            $configured = (string) $this->app->config('content_index.backend', 'array');
+            if ($configured !== $state['backend']) {
+                $backend .= $this->output->color(" (config says {$configured}; takes effect at the next rebuild)", Output::YELLOW);
             }
-            $this->output->keyValue('Backend', $backendInfo);
+            $this->output->keyValue('Backend', $this->output->color($backend, Output::PRIMARY));
 
-            // Show cache file sizes
-            $cacheFiles = [
-                'content_index.bin' => 'Full index',
-                'slug_lookup.bin' => 'Slug lookup',
-                'recent_cache.bin' => 'Recent cache',
-                'routes.bin' => 'Routes',
-                'tax_index.bin' => 'Taxonomies',
-            ];
-
-            $sizes = [];
-            foreach ($cacheFiles as $file => $label) {
-                $path = $cachePath . '/' . $file;
-                if (file_exists($path)) {
-                    $sizes[] = $this->output->color($label, Output::DIM) . ' ' . $this->output->formatBytes(filesize($path));
-                }
+            $path = (string) $store->currentPath();
+            $size = 0;
+            $htmlFiles = 0;
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($iterator as $file) {
+                $size += $file->getSize();
+                $htmlFiles += str_contains($file->getPathname(), '/html/') ? 1 : 0;
             }
-
-            // Add SQLite size if available
-            $sqlitePath = $cachePath . '/content_index.sqlite';
-            if (file_exists($sqlitePath)) {
-                $sizes[] = $this->output->color('SQLite', Output::DIM) . ' ' . $this->output->formatBytes(filesize($sqlitePath));
+            $sizeInfo = $this->output->formatBytes($size);
+            if ($htmlFiles > 0) {
+                $sizeInfo .= $this->output->color(" ({$htmlFiles} pre-rendered pages)", Output::DIM);
             }
+            $this->output->keyValue('Size', $sizeInfo);
+            $this->output->keyValue('Built', $this->output->color(date('Y-m-d H:i:s', strtotime($state['built_at']) ?: 0), Output::DIM));
 
-            if (!empty($sizes)) {
-                $this->output->keyValue('Cache', implode(', ', $sizes));
-            }
-
-            // Show build time
-            $indexPath = $cachePath . '/content_index.bin';
-            if (file_exists($indexPath)) {
-                $mtime = filemtime($indexPath);
-                $this->output->keyValue('Built', $this->output->color(date('Y-m-d H:i:s', $mtime), Output::DIM));
+            if (!$store->keyIsReadable()) {
+                $this->output->writeln('');
+                $this->output->error(\Ava\Support\SignedCache::describeUnreadableKey($store->keyDirectory()));
             }
         } else {
             $this->output->keyValue('Status', $this->output->color('○ Not built', Output::YELLOW));

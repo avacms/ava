@@ -205,21 +205,21 @@ final class BenchmarkCommand
             $memAfter = memory_get_usage(false);
             $results[$label]['_memory'] = max(0, $memAfter - $memBefore);
 
-            // Cache size
-            $cachePath = $this->app->configPath('storage') . '/cache';
-            if ($backendName === 'sqlite') {
-                $sqlitePath = $cachePath . '/content_index.sqlite';
-                $results[$label]['_cache_size'] = file_exists($sqlitePath) ? filesize($sqlitePath) : 0;
-            } else {
-                $size = 0;
-                foreach (['content_index.bin', 'slug_lookup.bin', 'recent_cache.bin'] as $file) {
-                    $path = $cachePath . '/' . $file;
-                    if (file_exists($path)) {
-                        $size += filesize($path);
+            // Cache size: the whole generation directory, minus pre-rendered
+            // pages (the same for every backend).
+            $size = 0;
+            $generation = $this->app->indexStore()->currentPath();
+            if ($generation !== null) {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($generation, \FilesystemIterator::SKIP_DOTS)
+                );
+                foreach ($iterator as $file) {
+                    if (!str_contains($file->getPathname(), '/html/')) {
+                        $size += $file->getSize();
                     }
                 }
-                $results[$label]['_cache_size'] = $size;
             }
+            $results[$label]['_cache_size'] = $size;
         }
 
         // Reset

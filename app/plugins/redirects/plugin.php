@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 use Ava\Application;
 use Ava\Http\RedirectTarget;
+use Ava\Http\UrlPath;
 use Ava\Http\Request;
 use Ava\Http\Response;
 use Ava\Plugins\Hooks;
@@ -72,10 +73,15 @@ return [
             return is_array($data) ? $data : [];
         };
 
-        // Save redirects with file locking for concurrent request safety
-        $saveRedirects = function (array $redirects) use ($redirectsFile): void {
-            file_put_contents($redirectsFile, json_encode($redirects, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
-        };
+        // A broken redirects file is skipped on every request (routing must
+        // not fail), so make sure ./ava lint says so.
+        Hooks::addFilter('lint.errors', function (array $errors) use ($loadRedirects, $redirectsFile): array {
+            $redirects = $loadRedirects();
+            if (is_string($redirects)) {
+                $errors[] = "{$redirectsFile}: {$redirects} Redirects are not being applied.";
+            }
+            return $errors;
+        });
 
         // Register redirects with router via hook (runs early in routing)
         Hooks::addFilter('router.before_match', function ($match, Request $request) use ($loadRedirects) {
@@ -90,11 +96,13 @@ return [
                 return null;
             }
 
-            $path = '/' . trim($request->path(), '/');
+            // Compare decoded paths, so "/café" in the file matches the
+            // "/caf%C3%A9" a browser sends.
+            $path = '/' . trim(UrlPath::decode($request->path()), '/');
 
             foreach ($redirects as $redirect) {
                 $from = $redirect['from'] ?? '';
-                if ($from === $path) {
+                if (is_string($from) && '/' . trim(UrlPath::decode($from), '/') === $path) {
                     $code = (int) ($redirect['code'] ?? 301);
                     $codeInfo = REDIRECT_STATUS_CODES[$code] ?? ['redirect' => true];
                     
@@ -266,7 +274,11 @@ return [
                 ];
 
                 // Save
-                file_put_contents($redirectsFile, json_encode($redirects, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                \Ava\Support\AtomicFile::write($redirectsFile, json_encode($redirects, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+
+                // Cached pages are served before routing, so a cached copy of
+                // the old URL would hide the new redirect.
+                $app->webpageCache()->clearPattern($from);
 
                 $output->success("Added redirect: {$from} → " . ($to ?: "[{$code} {$codeInfo['label']}]"));
                 return 0;
@@ -328,7 +340,7 @@ return [
                 }
 
                 // Save
-                file_put_contents($redirectsFile, json_encode($filtered, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                \Ava\Support\AtomicFile::write($redirectsFile, json_encode($filtered, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
 
                 $output->success("Removed redirect: {$from}");
                 return 0;

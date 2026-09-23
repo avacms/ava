@@ -56,45 +56,62 @@ XSL;
             return new Response($xsl, 200, ['Content-Type' => 'text/xsl; charset=utf-8']);
         });
 
-        // Load content types
-        $contentTypesFile = $app->path('app/config/content_types.php');
-        $contentTypes = file_exists($contentTypesFile) ? require $contentTypesFile : [];
+        // Sitemaps may list at most 50,000 URLs, so large types are split
+        // into numbered files: /sitemap-post.xml, /sitemap-post-2.xml, ...
+        $maxUrls = max(1, (int) ($config['max_urls'] ?? 50_000));
+        $contentTypes = $app->contentTypes();
+
+        /**
+         * Indexable URLs of one type, with their last-modified dates.
+         *
+         * @return list<array{url: string, lastmod: ?\DateTimeImmutable}>
+         */
+        $entries = function (string $type) use ($app): array {
+            $router = $app->router();
+            $entries = [];
+
+            foreach ($app->repository()->publishedMeta($type) as $item) {
+                if ($item->noindex()) {
+                    continue;
+                }
+                $url = $router->urlFor($type, $item->contentKey());
+                if ($url !== null) {
+                    $entries[] = ['url' => $url, 'lastmod' => $item->updated()];
+                }
+            }
+
+            return $entries;
+        };
+
+        $xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+            . '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n";
+        $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
 
         // Sitemap index route
-        $router->addRoute('/sitemap.xml', function (Request $request) use ($app, $baseUrl) {
-            $repository = $app->repository();
-            $types = $repository->types();
+        $router->addRoute('/sitemap.xml', function (Request $request) use ($app, $entries, $maxUrls, $xmlHeader, $safeBaseUrl) {
+            $xml = $xmlHeader . '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
-            $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
-            $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-            $xml .= '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n";
-            $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-
-            foreach ($types as $type) {
-                // Check if this type has any published, indexable content
-                // Use publishedMeta() - we only need metadata, not full content
-                $items = $repository->publishedMeta($type);
-                $hasIndexable = false;
-                $lastMod = null;
-                foreach ($items as $item) {
-                    if ($item->noindex()) {
-                        continue;
-                    }
-                    $hasIndexable = true;
-                    $updated = $item->updated();
-                    if ($updated && ($lastMod === null || $updated > $lastMod)) {
-                        $lastMod = $updated;
-                    }
+            foreach ($app->repository()->types() as $type) {
+                $typeEntries = $entries($type);
+                if ($typeEntries === []) {
+                    continue;
                 }
 
-                if ($hasIndexable) {
-                    $safeType = htmlspecialchars($type, ENT_XML1, 'UTF-8');
+                $safeType = htmlspecialchars($type, ENT_XML1, 'UTF-8');
+                foreach (array_chunk($typeEntries, $maxUrls) as $index => $chunk) {
+                    $lastMod = null;
+                    foreach ($chunk as $entry) {
+                        if ($entry['lastmod'] !== null && ($lastMod === null || $entry['lastmod'] > $lastMod)) {
+                            $lastMod = $entry['lastmod'];
+                        }
+                    }
+
+                    $suffix = $index === 0 ? '' : '-' . ($index + 1);
                     $xml .= "  <sitemap>\n";
-                    $xml .= "    <loc>{$safeBaseUrl}/sitemap-{$safeType}.xml</loc>\n";
-                    if ($lastMod) {
+                    $xml .= "    <loc>{$safeBaseUrl}/sitemap-{$safeType}{$suffix}.xml</loc>\n";
+                    if ($lastMod !== null) {
                         $xml .= "    <lastmod>" . $lastMod->format('Y-m-d') . "</lastmod>\n";
                     }
-                    
                     $xml .= "  </sitemap>\n";
                 }
             }
@@ -104,64 +121,39 @@ XSL;
             return new Response($xml, 200, ['Content-Type' => 'application/xml; charset=utf-8']);
         });
 
-        // Per-type sitemap routes
-        foreach (array_keys($contentTypes) as $type) {
-            $router->addRoute("/sitemap-{$type}.xml", function (Request $request) use ($app, $baseUrl, $type, $config, $contentTypes) {
-                $repository = $app->repository();
-                $routes = $repository->routes();
-                $reverseRoutes = $routes['reverse'] ?? [];
-                // Use publishedMeta() - sitemaps only need URL and lastmod, not body content
-                $items = $repository->publishedMeta($type);
-                $trailingSlash = $app->config('routing.trailing_slash', false);
+        $typeSitemap = function (string $type, int $page) use ($entries, $maxUrls, $xmlHeader, $safeBaseUrl): ?Response {
+            $chunk = array_slice($entries($type), ($page - 1) * $maxUrls, $maxUrls);
+            if ($chunk === [] && $page > 1) {
+                return null;
+            }
 
-                $safeBaseUrl = htmlspecialchars($baseUrl, ENT_XML1, 'UTF-8');
-                $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-                $xml .= '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>' . "\n";
-                $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-
-                foreach ($items as $item) {
-                    // Skip noindex items
-                    if ($item->noindex()) {
-                        continue;
-                    }
-
-                    // Find URL for this item from reverse routes (O(1))
-                    $key = $type . ':' . ($item->get('content_key') ?? $item->slug());
-                    $url = $reverseRoutes[$key] ?? $reverseRoutes[$type . ':' . $item->slug()] ?? null;
-
-                    // Fallback: generate from pattern
-                    if ($url === null) {
-                        $typeConfig = $contentTypes[$type] ?? [];
-                        $urlConfig = $typeConfig['url'] ?? [];
-                        $pattern = $urlConfig['pattern'] ?? '/' . $type . '/{slug}';
-                        $url = str_replace('{slug}', $item->slug(), $pattern);
-                    }
-
-                    if ($url !== '/') {
-                        if ($trailingSlash && !str_ends_with($url, '/')) {
-                            $url .= '/';
-                        } elseif (!$trailingSlash && str_ends_with($url, '/')) {
-                            $url = rtrim($url, '/');
-                        }
-                    }
-
-                    $safeUrl = htmlspecialchars($url, ENT_XML1, 'UTF-8');
-                    $xml .= "  <url>\n";
-                    $xml .= "    <loc>{$safeBaseUrl}{$safeUrl}</loc>\n";
-                    
-                    $updated = $item->updated();
-                    if ($updated) {
-                        $xml .= "    <lastmod>" . $updated->format('Y-m-d') . "</lastmod>\n";
-                    }
-                    
-                    $xml .= "  </url>\n";
+            $xml = $xmlHeader . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+            foreach ($chunk as $entry) {
+                $xml .= "  <url>\n";
+                $xml .= "    <loc>{$safeBaseUrl}" . htmlspecialchars($entry['url'], ENT_XML1, 'UTF-8') . "</loc>\n";
+                if ($entry['lastmod'] !== null) {
+                    $xml .= "    <lastmod>" . $entry['lastmod']->format('Y-m-d') . "</lastmod>\n";
                 }
+                $xml .= "  </url>\n";
+            }
+            $xml .= '</urlset>';
 
-                $xml .= '</urlset>';
+            return new Response($xml, 200, ['Content-Type' => 'application/xml; charset=utf-8']);
+        };
 
-                return new Response($xml, 200, ['Content-Type' => 'application/xml; charset=utf-8']);
-            });
+        // Per-type sitemaps: /sitemap-{type}.xml, then /sitemap-{type}-{n}.xml
+        foreach (array_keys($contentTypes) as $type) {
+            $router->addRoute("/sitemap-{$type}.xml", fn(Request $request) => $typeSitemap((string) $type, 1));
         }
+        $router->addRoute('/sitemap-{name}.xml', function (Request $request, array $params) use ($contentTypes, $typeSitemap) {
+            if (preg_match('/^(.+)-([2-9]|[1-9]\d+)$/', $params['name'] ?? '', $matches) !== 1
+                || !isset($contentTypes[$matches[1]])
+            ) {
+                return null;
+            }
+
+            return $typeSitemap($matches[1], (int) $matches[2]);
+        });
 
         // Keep robots.txt pointing at the sitemap. This runs after CLI rebuilds
         // only, so web requests never need write access to public/.

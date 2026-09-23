@@ -10,6 +10,7 @@ use Ava\Cli\Commands\CacheCommand;
 use Ava\Cli\Commands\ContentCommand;
 use Ava\Cli\Commands\IndexCommand;
 use Ava\Cli\Commands\LogsCommand;
+use Ava\Cli\Commands\PreviewCommand;
 use Ava\Cli\Commands\StatusCommand;
 use Ava\Cli\Commands\StressCommand;
 use Ava\Cli\Commands\TestCommand;
@@ -96,6 +97,7 @@ final class Application
         $this->commands['lint'] = [$index, 'lint'];
         $this->commands['make'] = [$content, 'make'];
         $this->commands['prefix'] = [$content, 'prefix'];
+        $this->commands['preview'] = [new PreviewCommand($this->output, $this->app), 'execute'];
         $this->commands['cache'] = [$cache, 'stats'];
         $this->commands['cache:clear'] = [$cache, 'clear'];
         $this->commands['cache:stats'] = [$cache, 'stats'];
@@ -141,10 +143,9 @@ final class Application
      */
     private function registerPluginCommands(): void
     {
-        $enabledPlugins = $this->app->config('plugins', []);
         $pluginsPath = $this->app->configPath('plugins');
 
-        foreach ($enabledPlugins as $pluginName) {
+        foreach ($this->app->pluginNames() as $pluginName) {
             $pluginFile = $pluginsPath . '/' . $pluginName . '/plugin.php';
             if (!file_exists($pluginFile)) {
                 continue;
@@ -192,6 +193,7 @@ final class Application
         $this->output->sectionHeader('Content');
         $this->output->commandItem('make <type> "Title"', 'Create new content');
         $this->output->commandItem('prefix <add|remove> [type]', 'Toggle date prefixes');
+        $this->output->commandItem('preview <path|file> [--hours=N]', 'Signed, expiring preview link for a draft');
 
         $this->output->sectionHeader('Webpage Cache');
         $this->output->commandItem('cache:stats (or cache)', 'View cache statistics');

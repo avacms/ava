@@ -32,6 +32,9 @@ final class Query
     // Query parameters
     private ?string $type = null;
 
+    /** @var list<string>|null Several content types (see types()) */
+    private ?array $types = null;
+
     /**
      * SECURITY: published-only until a caller opts out with anyStatus().
      *
@@ -72,8 +75,9 @@ final class Query
     {
         $clone = clone $this;
         $clone->type = $type;
+        $clone->types = null;
         $clone->results = null;
-        
+
         // Auto-load search config from content type if not already set
         if ($clone->searchWeights === null) {
             $searchConfig = $clone->getContentTypeSearchConfig($type);
@@ -89,6 +93,20 @@ final class Query
             }
         }
         
+        return $clone;
+    }
+
+    /**
+     * Filter to any of several content types (e.g. a combined feed).
+     *
+     * @param array<string> $types
+     */
+    public function types(array $types): self
+    {
+        $clone = clone $this;
+        $clone->types = array_values(array_unique(array_map('strval', $types)));
+        $clone->type = null;
+        $clone->results = null;
         return $clone;
     }
 
@@ -546,7 +564,7 @@ final class Query
     {
         $params = [
             'type' => $this->type,
-            'types' => $this->taxonomyFilters === [] ? null : $this->queryTypes(),
+            'types' => $this->taxonomyFilters === [] ? $this->types : $this->queryTypes(),
             'status' => $this->status,
             'taxonomies' => $this->taxonomyFilters,
             'fields' => $this->fieldFilters,
@@ -577,7 +595,7 @@ final class Query
         $contentTypes = $this->app->contentTypes();
         // Eligibility is defined by configuration, even when a type currently
         // has no indexed items. Backends simply return no rows for empty types.
-        $types = $this->type !== null ? [$this->type] : array_keys($contentTypes);
+        $types = $this->types ?? ($this->type !== null ? [$this->type] : array_keys($contentTypes));
 
         return array_values(array_filter($types, function (string $type) use ($contentTypes): bool {
             $declaredTaxonomies = $contentTypes[$type]['taxonomies'] ?? [];

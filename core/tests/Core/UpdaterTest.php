@@ -267,4 +267,18 @@ final class UpdaterTest extends TestCase
         }
         rmdir($directory);
     }
+    public function testDevUpdatesDownloadTheExactCommitReported(): void
+    {
+        $updater = new \Ava\Updater($this->app);
+        $method = new \ReflectionMethod($updater, 'getCommitZipUrl');
+        $sha = str_repeat('a1', 20);
+
+        $this->assertEquals(
+            'https://api.github.com/repos/avacms/ava/zipball/' . $sha,
+            $method->invoke($updater, ['sha' => $sha])
+        );
+        foreach ([[], ['sha' => 'main'], ['sha' => '../../evil']] as $commit) {
+            $this->assertThrows(\RuntimeException::class, fn() => $method->invoke($updater, $commit));
+        }
+    }
 }
