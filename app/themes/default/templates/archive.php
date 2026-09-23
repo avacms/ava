@@ -56,11 +56,11 @@ $pageTitle = ucfirst($contentType) . ' - ' . $site['name'];
                                 /**
                                  * Content URLs
                                  * 
-                                 * $ava->url($type, $slug) generates the correct URL
-                                 * for a content item based on your routing config.
+                                 * $ava->url($entry) generates the correct URL for a
+                                 * content item based on your routing config.
                                  */
                                 ?>
-                                <a href="<?= $ava->url($entry->type(), $entry->slug()) ?>">
+                                <a href="<?= $ava->e($ava->url($entry) ?? '') ?>">
                                     <?= $ava->e($entry->title()) ?>
                                 </a>
                             </h2>

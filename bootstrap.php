@@ -128,7 +128,7 @@ if ($logErrors) {
 
 // Custom error handler for enhanced logging (only if debugging or logging enabled)
 if ($debugEnabled || $logErrors) {
-    set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline) use ($logErrors, $errorLog, &$reportedError) {
+    set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline) use ($logErrors, $displayErrors, $errorLog, &$reportedError) {
         // Skip errors suppressed with @
         if (!(error_reporting() & $errno)) {
             return false;
@@ -153,12 +153,23 @@ if ($debugEnabled || $logErrors) {
             $errline
         );
         
-        if ($logErrors) {
-            @file_put_contents($errorLog, $message . "\n", FILE_APPEND | LOCK_EX);
+        if (!$logErrors) {
+            // Nothing written here, so let PHP display it per display_errors.
+            return false;
         }
-        
-        // Let PHP's default handler run if display_errors is on
-        return false;
+
+        @file_put_contents($errorLog, $message . "\n", FILE_APPEND | LOCK_EX);
+
+        // PHP's own handler would write the same error to error_log again, so
+        // handle it fully here and display it ourselves when that is enabled.
+        if ($displayErrors) {
+            echo PHP_SAPI === 'cli'
+                ? $message . "\n"
+                : '<br><b>' . htmlspecialchars($type) . '</b>: ' . htmlspecialchars($errstr)
+                    . ' in ' . htmlspecialchars($errfile) . ' on line ' . $errline . "<br>\n";
+        }
+
+        return true;
     });
 }
 
@@ -182,6 +193,10 @@ set_exception_handler(function (\Throwable $e) use ($debugEnabled, $displayError
         );
     }
     
+    if (PHP_SAPI !== 'cli' && !headers_sent()) {
+        http_response_code(500);
+    }
+
     if ($debugEnabled && $displayErrors) {
         echo "<pre style='background:#1a1a2e;color:#eee;padding:20px;font-family:monospace;'>";
         echo "<strong style='color:#ff6b6b;'>Exception:</strong> " . htmlspecialchars($e->getMessage()) . "\n\n";
@@ -190,7 +205,6 @@ set_exception_handler(function (\Throwable $e) use ($debugEnabled, $displayError
         echo "</pre>";
     } else {
         // Show styled error page in production
-        http_response_code(500);
         // Generate a short error reference ID from timestamp
         $errorId = $logErrors ? date('ymd-His') . '-' . substr(md5($e->getMessage() . $e->getFile()), 0, 6) : null;
         $requestedPath = $_SERVER['REQUEST_URI'] ?? null;

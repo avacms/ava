@@ -238,9 +238,8 @@ final class Updater
                         'new_plugins' => [],
                     ];
                 }
-                $shortSha = substr($commit['sha'], 0, 7);
-                $newVersion = $currentVersion . '-dev.' . $shortSha;
-                $zipUrl = $this->getBranchZipUrl();
+                $zipUrl = $this->getCommitZipUrl($commit);
+                $newVersion = $currentVersion . '-dev.' . substr($commit['sha'], 0, 7);
             } else {
                 // Get release info
                 if ($version === null) {
@@ -362,7 +361,7 @@ final class Updater
                     ];
                 }
                 $compareLabel = 'main (latest commit)';
-                $zipUrl = $this->getBranchZipUrl();
+                $zipUrl = $this->getCommitZipUrl($commit);
             } else {
                 if ($version === null) {
                     $release = $this->fetchLatestRelease();
@@ -561,11 +560,19 @@ final class Updater
     }
 
     /**
-     * Get zipball URL for a branch.
+     * Get the zipball URL for the exact commit that was reported.
+     *
+     * Downloading the branch name instead could fetch a newer commit than the
+     * one whose SHA the update is labelled with.
      */
-    private function getBranchZipUrl(string $branch = 'main'): string
+    private function getCommitZipUrl(array $commit): string
     {
-        return "https://api.github.com/repos/{$this->githubRepo}/zipball/{$branch}";
+        $sha = $commit['sha'] ?? null;
+        if (!is_string($sha) || preg_match('/^[0-9a-f]{40}$/', $sha) !== 1) {
+            throw new \RuntimeException('GitHub returned an invalid commit SHA');
+        }
+
+        return "https://api.github.com/repos/{$this->githubRepo}/zipball/{$sha}";
     }
 
     /**

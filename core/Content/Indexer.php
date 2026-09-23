@@ -608,7 +608,8 @@ final class Indexer
                 }
 
                 $items[] = $item;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
+                // One bad file must not take the whole index (and site) down.
                 $errors[] = "{$filePath}: " . $e->getMessage();
             }
         }

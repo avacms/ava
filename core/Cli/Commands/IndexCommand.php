@@ -35,11 +35,6 @@ final class IndexCommand
             return true;
         });
 
-        // Reset OPcache if available (clears cached PHP bytecode)
-        if (function_exists('opcache_reset')) {
-            @opcache_reset();
-        }
-
         Hooks::doAction('cli.rebuild', $this->app);
 
         if ($keepWebpageCache) {

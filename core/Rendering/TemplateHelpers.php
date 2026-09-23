@@ -69,12 +69,19 @@ final class TemplateHelpers
     // === URL Helpers ===
 
     /**
-     * Get URL for a content item. Hierarchical content uses its path-based
-     * content key (for example, "about/team") in place of a simple slug.
+     * Get the URL for a content item.
+     *
+     * Pass the item itself: `$ava->url($entry)`. The two-argument form takes a
+     * type and content key; for hierarchical types that key is the path (for
+     * example "about/team"), so passing `$entry->slug()` breaks nested pages.
      */
-    public function url(string $type, string $slug): ?string
+    public function url(Item|string $item, ?string $key = null): ?string
     {
-        return $this->app->router()->urlFor($type, $slug);
+        if ($item instanceof Item) {
+            return $this->app->router()->urlFor($item->type(), $item->contentKey());
+        }
+
+        return $key === null ? null : $this->app->router()->urlFor($item, $key);
     }
 
     public function termUrl(string $taxonomy, string $term): ?string
@@ -91,10 +98,15 @@ final class TemplateHelpers
     }
 
     /**
-     * Build a full URL from a path.
+     * Build a full URL from a path. Already-absolute URLs (https://…, //cdn…)
+     * are returned unchanged.
      */
     public function fullUrl(string $path): string
     {
+        if (preg_match('#^([a-z][a-z0-9+.-]*:)?//#i', $path) === 1) {
+            return $path;
+        }
+
         return rtrim($this->baseUrl(), '/') . '/' . ltrim($path, '/');
     }
 
@@ -237,8 +249,10 @@ final class TemplateHelpers
 
         // Canonical — use explicit frontmatter value, or fall back to the item's routed URL
         $canonical = $item->canonical();
-        if (!$canonical) {
-            $path = $this->url($item->type(), $item->contentKey());
+        if ($canonical) {
+            $canonical = $this->fullUrl($this->engine->expandAliases($canonical));
+        } else {
+            $path = $this->url($item);
             if ($path !== null) {
                 $canonical = $this->fullUrl($path);
             }

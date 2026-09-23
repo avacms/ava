@@ -53,22 +53,11 @@ final class Application
 
         // Handle version
         if ($command === 'version' || $command === '--version' || $command === '-v') {
+            // Offline and instant: the stale-file scan downloads a whole
+            // release, so it lives in ./ava update:stale instead.
             $this->output->showBanner(showVersion: true);
             $this->output->writeln('');
-            
-            // Quick stale file check
-            $updater = new \Ava\Updater($this->app);
-            if ($updater->checkPathSafety()['safe']) {
-                $staleResult = $updater->detectStaleFiles();
-                if ($staleResult['success'] && !empty($staleResult['stale_files'])) {
-                    $count = count($staleResult['stale_files']);
-                    $version = $staleResult['compared_to'];
-                    $this->output->writeln('  ' . $this->output->color('ℹ', Output::PRIMARY) . ' ' . $this->output->color("{$count} file(s) not in v{$version}", Output::YELLOW));
-                    $this->output->nextStep('./ava update:stale --clean', 'Review and remove');
-                    $this->output->writeln('');
-                }
-            }
-            
+
             return 0;
         }
 

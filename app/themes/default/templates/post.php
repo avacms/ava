@@ -63,7 +63,7 @@
                         <?php if (!empty($categories)): ?>
                             <span>
                                 <?php foreach ($categories as $i => $cat): ?>
-                                    <a href="<?= $ava->termUrl('category', $cat) ?>"><?= $ava->e($ava->termName('category', $cat)) ?></a><?= $i < count($categories) - 1 ? ', ' : '' ?>
+                                    <a href="<?= $ava->e($ava->termUrl('category', $cat) ?? '') ?>"><?= $ava->e($ava->termName('category', $cat)) ?></a><?= $i < count($categories) - 1 ? ', ' : '' ?>
                                 <?php endforeach; ?>
                             </span>
                         <?php endif; ?>
@@ -80,7 +80,7 @@
                     <footer class="entry-footer">
                         <div class="entry-tags">
                             <?php foreach ($tags as $tag): ?>
-                                <a href="<?= $ava->termUrl('tag', $tag) ?>" class="tag">#<?= $ava->e($tag) ?></a>
+                                <a href="<?= $ava->e($ava->termUrl('tag', $tag) ?? '') ?>" class="tag">#<?= $ava->e($tag) ?></a>
                             <?php endforeach; ?>
                         </div>
                     </footer>

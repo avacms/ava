@@ -70,12 +70,25 @@ server {
     # PERFORMANCE: Static file caching
     # ──────────────────────────────────────────────────────────────────────────
     
+    # Theme assets (/theme/...) live in app/themes/<theme>/assets, outside the
+    # web root, and are served by Ava. The ^~ prefix stops the static-file
+    # regex below from claiming them and returning 404.
+    location ^~ /theme/ {
+        try_files $uri /index.php?$query_string;
+    }
+
     # Cache static assets (images, fonts, etc.)
     location ~* \.(ico|gif|jpe?g|png|webp|avif|svg|woff2?|ttf|eot|otf|css|js)$ {
         expires 1y;
-        add_header Cache-Control "public, immutable";
         access_log off;
         try_files $uri =404;
+
+        # A location with its own add_header inherits none from the server
+        # block, so the security headers must be repeated here.
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     }
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -115,7 +128,8 @@ server {
     # SECURITY HEADERS
     # ──────────────────────────────────────────────────────────────────────────
     
-    # These are also set by Ava's PHP code, but nginx can add them for static files
+    # Ava sets these itself on PHP responses. Here they cover files nginx serves
+    # directly from locations without their own add_header (see above).
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;

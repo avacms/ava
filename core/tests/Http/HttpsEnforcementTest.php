@@ -92,6 +92,16 @@ final class HttpsEnforcementTest extends TestCase
         unset($_SERVER['REMOTE_ADDR']);
     }
 
+    public function testSpoofedLocalhostHostHeaderIsNotLocalhost(): void
+    {
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+        $request = new Request('GET', '/test', [], ['Host' => 'localhost']);
+
+        $this->assertFalse($request->isLocalhost());
+
+        unset($_SERVER['REMOTE_ADDR']);
+    }
+
     public function testIsLocalhostReturnsFalseForProductionDomain(): void
     {
         $_SERVER['REMOTE_ADDR'] = '1.2.3.4';

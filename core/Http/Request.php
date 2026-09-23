@@ -245,28 +245,13 @@ final class Request
     }
 
     /**
-     * Check if request is from localhost.
-     * 
-     * Considers localhost to be:
-     * - 127.0.0.1 (IPv4 loopback)
-     * - ::1 (IPv6 loopback)
-     * - localhost hostname
+     * Check if the request comes from the loopback interface.
+     *
+     * Only the connection's address counts. The Host header is chosen by the
+     * client, so "Host: localhost" from anywhere must not pass this check.
      */
     public function isLocalhost(): bool
     {
-        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
-        $host = $this->host();
-
-        // Check if remote address is localhost
-        if (in_array($remoteAddr, ['127.0.0.1', '::1'], true)) {
-            return true;
-        }
-
-        // Check if host is localhost (with or without port)
-        if (preg_match('/^localhost(:\d+)?$/i', $host)) {
-            return true;
-        }
-
-        return false;
+        return in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true);
     }
 }

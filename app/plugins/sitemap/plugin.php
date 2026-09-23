@@ -163,56 +163,38 @@ XSL;
             });
         }
 
-        // Add sitemap to robots.txt on content rebuild
-        Hooks::addAction('indexer.rebuild', function (Application $app) use ($baseUrl) {
+        // Keep robots.txt pointing at the sitemap. This runs after CLI rebuilds
+        // only, so web requests never need write access to public/.
+        Hooks::addAction('cli.rebuild', function (Application $app) use ($baseUrl) {
             $robotsFile = $app->path('public/robots.txt');
-            $sitemapUrl = $baseUrl . '/sitemap.xml';
-            $sitemapLine = "Sitemap: {$sitemapUrl}";
+            $sitemapLine = 'Sitemap: ' . $baseUrl . '/sitemap.xml';
 
-            if (file_exists($robotsFile)) {
-                $content = file_get_contents($robotsFile);
-                $lines = explode("\n", $content);
-                $newLines = [];
-                $found = false;
-                $updated = false;
-
-                foreach ($lines as $line) {
-                    if (str_starts_with(trim($line), 'Sitemap:')) {
-                        // If sitemap line exists, check if it matches current URL
-                        if (trim($line) === $sitemapLine) {
-                            $found = true;
-                            $newLines[] = $line;
-                        } else {
-                            // Update old sitemap URL
-                            $newLines[] = $sitemapLine;
-                            $found = true;
-                            $updated = true;
-                        }
-                    } else {
-                        $newLines[] = $line;
-                    }
-                }
-
-                if ($updated) {
-                    file_put_contents($robotsFile, implode("\n", $newLines));
-                    if (php_sapi_name() === 'cli') {
-                        echo "  \033[32m✔\033[0m Updated Sitemap URL in robots.txt\n";
-                    }
-                } elseif (!$found) {
-                    // Append if not present
-                    $separator = (substr($content, -1) !== "\n") ? "\n" : "";
-                    file_put_contents($robotsFile, $content . $separator . $sitemapLine . "\n");
-                    if (php_sapi_name() === 'cli') {
-                        echo "  \033[32m✔\033[0m Added Sitemap to robots.txt\n";
-                    }
-                }
-            } else {
-                // Create if it doesn't exist
+            if (!file_exists($robotsFile)) {
                 file_put_contents($robotsFile, "User-agent: *\nAllow: /\n\n" . $sitemapLine . "\n");
-                if (php_sapi_name() === 'cli') {
-                    echo "  \033[32m✔\033[0m Created robots.txt with Sitemap link\n";
+                echo "  \033[32m✔\033[0m Created robots.txt with Sitemap link\n";
+                return;
+            }
+
+            $lines = explode("\n", (string) file_get_contents($robotsFile));
+            if (in_array($sitemapLine, array_map('trim', $lines), true)) {
+                return;
+            }
+
+            // Replace only a line for this plugin's sitemap (e.g. after base_url
+            // changed); other Sitemap: lines, such as a news sitemap, are kept.
+            foreach ($lines as $i => $line) {
+                if (preg_match('#^\s*Sitemap:\s*\S+/sitemap\.xml\s*$#i', $line) === 1) {
+                    $lines[$i] = $sitemapLine;
+                    file_put_contents($robotsFile, implode("\n", $lines));
+                    echo "  \033[32m✔\033[0m Updated Sitemap URL in robots.txt\n";
+                    return;
                 }
             }
+
+            $content = implode("\n", $lines);
+            $separator = str_ends_with($content, "\n") ? '' : "\n";
+            file_put_contents($robotsFile, $content . $separator . $sitemapLine . "\n");
+            echo "  \033[32m✔\033[0m Added Sitemap to robots.txt\n";
         });
     },
 

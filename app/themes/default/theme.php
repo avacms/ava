@@ -61,7 +61,8 @@ return function (Application $app): void {
         // Get the search query from ?q= parameter
         // Typed accessors reject nested query-string arrays and bound work.
         $searchQuery = trim($request->queryString('q', '', 200) ?? '');
-        $page = $request->queryInt('page', 1, 1, 1_000_000);
+        // ?paged= matches the links $ava->pagination() generates.
+        $page = $request->queryInt('paged', 1, 1, 1_000_000);
 
         /**
          * Build a content query using Ava's fluent query API.

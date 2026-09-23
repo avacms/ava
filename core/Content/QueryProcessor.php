@@ -214,9 +214,9 @@ final class QueryProcessor
     {
         $score = 0;
         $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
-        $title = strtolower($data['title'] ?? '');
-        $excerpt = strtolower($meta['excerpt'] ?? $data['excerpt'] ?? '');
-        $body = strtolower($data['body'] ?? $meta['body'] ?? '');
+        $title = strtolower(self::searchableText($data['title'] ?? ''));
+        $excerpt = strtolower(self::searchableText($meta['excerpt'] ?? $data['excerpt'] ?? ''));
+        $body = strtolower(self::searchableText($data['body'] ?? $meta['body'] ?? ''));
 
         // Get weights with defaults
         $w = array_merge([
@@ -289,7 +289,7 @@ final class QueryProcessor
         // Custom field matches
         if (!empty($w['fields'])) {
             foreach ($w['fields'] as $field) {
-                $value = strtolower((string) ($meta[$field] ?? ''));
+                $value = strtolower(self::searchableText($meta[$field] ?? ''));
                 if ($value !== '') {
                     foreach ($expandedTokens as $variants) {
                         if (self::matchesAny($value, $variants)) {
@@ -300,12 +300,24 @@ final class QueryProcessor
             }
         }
 
-        // Featured boost
-        if ($w['featured'] > 0 && (!empty($meta['featured']) || !empty($data['featured']))) {
+        // Featured boost: ranks matches higher, but is not itself a match.
+        if ($score > 0 && $w['featured'] > 0 && (!empty($meta['featured']) || !empty($data['featured']))) {
             $score += $w['featured'];
         }
 
         return $score;
+    }
+
+    /**
+     * Flatten a frontmatter value (scalar or list) into searchable text.
+     */
+    public static function searchableText(mixed $value): string
+    {
+        if (is_array($value)) {
+            return implode(' ', array_map(self::searchableText(...), $value));
+        }
+
+        return is_scalar($value) ? (string) $value : '';
     }
 
     /**

@@ -25,13 +25,21 @@ final class Engine
 {
     private const SHORTCODE_EXPRESSION = '\[(?<tag>[a-zA-Z_][a-zA-Z0-9_-]*)(?<attributes>(?:\s+[^\]]+)?)\](?:(?<content>[^[]*)\[\/\k<tag>\])?';
 
+    /**
+     * Regions left untouched: HTML comments, and code so that documentation
+     * can show a shortcode without running it.
+     */
+    private const SKIPPED_REGIONS = '<!--[\s\S]*?-->(*SKIP)(*F)'
+        . '|<pre\b[\s\S]*?<\/pre>(*SKIP)(*F)'
+        . '|<code\b[\s\S]*?<\/code>(*SKIP)(*F)';
+
     /** Regex pattern for matching shortcodes (self-closing and paired) */
-    private const SHORTCODE_PATTERN = '/<!--[\s\S]*?-->(*SKIP)(*F)|' . self::SHORTCODE_EXPRESSION . '/';
+    private const SHORTCODE_PATTERN = '/' . self::SKIPPED_REGIONS . '|' . self::SHORTCODE_EXPRESSION . '/i';
 
     /** Also captures a paragraph containing only one shortcode. */
-    private const MARKDOWN_SHORTCODE_PATTERN = '/<!--[\s\S]*?-->(*SKIP)(*F)|(?:(?<paragraph_open><p>[ \t]*))?'
+    private const MARKDOWN_SHORTCODE_PATTERN = '/' . self::SKIPPED_REGIONS . '|(?:(?<paragraph_open><p>[ \t]*))?'
         . self::SHORTCODE_EXPRESSION
-        . '(?(paragraph_open)(?<paragraph_close>[ \t]*<\/p>))/';
+        . '(?(paragraph_open)(?<paragraph_close>[ \t]*<\/p>))/i';
 
     private Application $app;
 

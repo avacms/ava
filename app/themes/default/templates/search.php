@@ -64,7 +64,7 @@ $pageTitle = 'Search' . ($searchQuery ? ': ' . $searchQuery : '') . ' - ' . $sit
                         <?php foreach ($results as $entry): ?>
                             <article class="archive-item">
                                 <h2>
-                                    <a href="<?= $ava->url($entry->type(), $entry->slug()) ?>">
+                                    <a href="<?= $ava->e($ava->url($entry) ?? '') ?>">
                                         <?= $ava->e($entry->title()) ?>
                                     </a>
                                 </h2>

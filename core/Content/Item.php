@@ -45,31 +45,51 @@ final class Item
         $this->defaultedFields = $defaultedFields;
     }
 
+    /**
+     * Frontmatter fields that must hold text. YAML turns `title: 1984` into an
+     * int and `title: 2024-01-01` into a timestamp, so accessors coerce scalars
+     * rather than letting one unquoted value throw a TypeError at render time.
+     */
+    public const STRING_FIELDS = [
+        'id', 'title', 'slug', 'status', 'excerpt', 'template', 'meta_title',
+        'meta_description', 'canonical', 'og_image', 'featured_image', 'parent',
+    ];
+
     // === Core Fields ===
 
     public function id(): ?string
     {
-        return $this->frontmatter['id'] ?? null;
+        return $this->nullableString('id');
     }
 
     public function title(): string
     {
-        return $this->frontmatter['title'] ?? '';
+        return $this->nullableString('title') ?? '';
     }
 
     public function slug(): string
     {
-        return $this->frontmatter['slug'] ?? '';
+        return $this->nullableString('slug') ?? '';
     }
 
     public function contentKey(): string
     {
-        return $this->frontmatter['content_key'] ?? $this->slug();
+        return $this->nullableString('content_key') ?? $this->slug();
     }
 
     public function status(): string
     {
-        return $this->frontmatter['status'] ?? 'draft';
+        return $this->nullableString('status') ?? 'draft';
+    }
+
+    /**
+     * Read a text field, accepting any scalar YAML produced for it.
+     */
+    private function nullableString(string $key): ?string
+    {
+        $value = $this->frontmatter[$key] ?? null;
+
+        return is_string($value) || is_int($value) || is_float($value) ? (string) $value : null;
     }
 
     public function isPublished(): bool
@@ -145,7 +165,7 @@ final class Item
 
     public function excerpt(): ?string
     {
-        return $this->frontmatter['excerpt'] ?? null;
+        return $this->nullableString('excerpt');
     }
 
     /**
@@ -219,7 +239,7 @@ final class Item
 
     public function template(): ?string
     {
-        return $this->frontmatter['template'] ?? null;
+        return $this->nullableString('template');
     }
 
     // === Taxonomies ===
@@ -233,18 +253,17 @@ final class Item
     public function terms(?string $taxonomy = null): array
     {
         // Check for explicit 'tax' format
-        if (isset($this->frontmatter['tax'])) {
+        if (is_array($this->frontmatter['tax'] ?? null)) {
             $allTerms = $this->frontmatter['tax'];
             if ($taxonomy !== null) {
-                return $allTerms[$taxonomy] ?? [];
+                return self::stringList($allTerms[$taxonomy] ?? []);
             }
-            return $allTerms;
+            return array_map(self::stringList(...), $allTerms);
         }
 
         // Simple format: terms stored directly as keys
         if ($taxonomy !== null) {
-            $value = $this->frontmatter[$taxonomy] ?? [];
-            return is_array($value) ? $value : [$value];
+            return self::stringList($this->frontmatter[$taxonomy] ?? []);
         }
 
         // Simple format can't return all terms without knowing which keys are taxonomies
@@ -255,12 +274,12 @@ final class Item
 
     public function metaTitle(): ?string
     {
-        return $this->frontmatter['meta_title'] ?? null;
+        return $this->nullableString('meta_title');
     }
 
     public function metaDescription(): ?string
     {
-        return $this->frontmatter['meta_description'] ?? null;
+        return $this->nullableString('meta_description');
     }
 
     public function noindex(): bool
@@ -270,12 +289,12 @@ final class Item
 
     public function canonical(): ?string
     {
-        return $this->frontmatter['canonical'] ?? null;
+        return $this->nullableString('canonical');
     }
 
     public function ogImage(): ?string
     {
-        return $this->frontmatter['og_image'] ?? $this->frontmatter['featured_image'] ?? null;
+        return $this->nullableString('og_image') ?? $this->nullableString('featured_image');
     }
 
     // === Redirects ===
@@ -287,8 +306,7 @@ final class Item
      */
     public function redirectFrom(): array
     {
-        $redirects = $this->frontmatter['redirect_from'] ?? [];
-        return is_array($redirects) ? $redirects : [$redirects];
+        return self::stringList($this->frontmatter['redirect_from'] ?? []);
     }
 
     // === Assets ===
@@ -300,7 +318,7 @@ final class Item
      */
     public function css(): array
     {
-        return $this->frontmatter['assets']['css'] ?? [];
+        return self::stringList($this->frontmatter['assets']['css'] ?? []);
     }
 
     /**
@@ -310,19 +328,36 @@ final class Item
      */
     public function js(): array
     {
-        return $this->frontmatter['assets']['js'] ?? [];
+        return self::stringList($this->frontmatter['assets']['js'] ?? []);
     }
 
     // === Hierarchy ===
 
     public function parent(): ?string
     {
-        return $this->frontmatter['parent'] ?? null;
+        return $this->nullableString('parent');
     }
 
     public function order(): int
     {
-        return (int) ($this->frontmatter['order'] ?? 0);
+        $order = $this->frontmatter['order'] ?? 0;
+
+        return is_numeric($order) ? (int) $order : 0;
+    }
+
+    /**
+     * Normalise a scalar-or-list frontmatter value to a list of strings.
+     *
+     * @return array<string>
+     */
+    private static function stringList(mixed $value): array
+    {
+        $values = is_array($value) ? $value : [$value];
+
+        return array_values(array_map(
+            'strval',
+            array_filter($values, fn($entry) => is_string($entry) || is_int($entry) || is_float($entry))
+        ));
     }
 
     // === Generic Access ===

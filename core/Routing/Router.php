@@ -199,7 +199,7 @@ final class Router
     private function checkTrailingSlash(Request $request): ?RouteMatch
     {
         $path = $request->path();
-        $trailingSlash = $this->app->config('routing.trailing_slash', false);
+        $trailingSlash = (bool) $this->app->config('routing.trailing_slash', false);
 
         // Root path is always fine
         if ($path === '/') {
@@ -219,25 +219,23 @@ final class Router
 
         $hasTrailingSlash = str_ends_with($path, '/');
 
-        if ($trailingSlash && !$hasTrailingSlash) {
-            // Should have trailing slash, doesn't
-            return new RouteMatch(
-                type: 'redirect',
-                redirectUrl: $path . '/',
-                redirectCode: 301
-            );
+        if ($trailingSlash === $hasTrailingSlash) {
+            return null;
         }
 
-        if (!$trailingSlash && $hasTrailingSlash) {
-            // Should not have trailing slash, does
-            return new RouteMatch(
-                type: 'redirect',
-                redirectUrl: rtrim($path, '/'),
-                redirectCode: 301
-            );
+        $target = $trailingSlash ? $path . '/' : (rtrim($path, '/') ?: '/');
+
+        // Keep the query string: dropping it turned /blog/?paged=2 into /blog.
+        $query = parse_url($request->uri(), PHP_URL_QUERY);
+        if (is_string($query) && $query !== '') {
+            $target .= '?' . $query;
         }
 
-        return null;
+        return new RouteMatch(
+            type: 'redirect',
+            redirectUrl: $target,
+            redirectCode: 301
+        );
     }
 
     private function handleExactRoute(array $routeData, Repository $repository, Request $request): ?RouteMatch
@@ -292,7 +290,11 @@ final class Router
                 default => $query, // date_desc is the Query default
             };
 
-            $query = $query->fromParams($request->query());
+            // The route fixes the content type; a visitor's ?type= must not
+            // turn /blog into a listing of some other type.
+            $params = $request->query();
+            unset($params['type']);
+            $query = $query->fromParams($params);
 
             if ($this->isBeyondLastPage($query)) {
                 return null;

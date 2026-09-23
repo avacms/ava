@@ -130,6 +130,14 @@ final class Parser
     public function validate(Item $item): array
     {
         $errors = [];
+        $frontmatter = $item->frontmatter();
+
+        foreach (Item::STRING_FIELDS as $field) {
+            $value = $frontmatter[$field] ?? null;
+            if ($value !== null && !is_string($value) && !is_int($value) && !is_float($value)) {
+                $errors[] = "Field '{$field}' must be text, got " . get_debug_type($value);
+            }
+        }
 
         if (empty($item->title())) {
             $errors[] = "Missing required field: title — see https://ava.addy.zone/docs/content";
@@ -166,6 +174,13 @@ final class Parser
 
         if ($item->wasDefaulted('title')) {
             $warnings[] = 'Title auto-generated — add an explicit title';
+        }
+
+        foreach (Item::STRING_FIELDS as $field) {
+            $value = $item->frontmatter()[$field] ?? null;
+            if (is_int($value) || is_float($value)) {
+                $warnings[] = "Field '{$field}' was read by YAML as a number or date ({$value}) — wrap it in quotes to keep the text as written";
+            }
         }
 
         return $warnings;
