@@ -72,21 +72,31 @@ XSL;
          */
         $latestItems = function (?array $types) use ($app, $config): array {
             $limit = max(1, (int) $config['items_per_feed']);
-            $query = $app->query()->published()->orderBy('date', 'desc')->perPage(100);
-            $query = $types === null ? $query : $query->types($types);
-
             $items = [];
-            for ($page = 1; count($items) < $limit; $page++) {
-                $batch = $query->page($page)->get();
-                foreach ($batch as $item) {
-                    if (!$item->noindex()) {
-                        $items[] = $item;
+
+            // One query per type: each is answered from that type's pre-sorted
+            // recent cache, then the handful of results are merged.
+            foreach ($types ?? array_keys($app->contentTypes()) as $type) {
+                $query = $app->query()->type((string) $type)->published()->orderBy('date', 'desc')->perPage(100);
+                $found = 0;
+                for ($page = 1; $found < $limit; $page++) {
+                    $batch = $query->page($page)->get();
+                    foreach ($batch as $item) {
+                        if (!$item->noindex()) {
+                            $items[] = $item;
+                            $found++;
+                        }
+                    }
+                    if (count($batch) < 100) {
+                        break;
                     }
                 }
-                if (count($batch) < 100) {
-                    break;
-                }
             }
+
+            usort($items, static function ($a, $b): int {
+                $byDate = ($b->date()?->getTimestamp() ?? PHP_INT_MIN) <=> ($a->date()?->getTimestamp() ?? PHP_INT_MIN);
+                return $byDate !== 0 ? $byDate : strcmp($a->title(), $b->title());
+            });
 
             return array_slice($items, 0, $limit);
         };

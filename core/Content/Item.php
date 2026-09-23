@@ -294,7 +294,12 @@ final class Item
 
     public function noindex(): bool
     {
-        return (bool) ($this->frontmatter['noindex'] ?? false);
+        // Every YAML spelling of true/false, including quoted "false".
+        $noindex = $this->frontmatter['noindex'] ?? false;
+
+        return is_string($noindex)
+            ? filter_var($noindex, FILTER_VALIDATE_BOOLEAN)
+            : (bool) $noindex;
     }
 
     public function canonical(): ?string

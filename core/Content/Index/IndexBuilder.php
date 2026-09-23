@@ -131,6 +131,7 @@ final class IndexBuilder
                     'updated' => $item->updated()?->format('c'),
                     'status' => $item->status(),
                     'excerpt' => $item->excerpt(),
+                    'noindex' => $item->noindex(),
                     'taxonomies' => $taxonomies,
                 ];
 

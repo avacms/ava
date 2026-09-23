@@ -18,6 +18,9 @@ final class SignedCache
 {
     public const KEY_FILE = '.cache_key';
 
+    /** @var array<string, string> Signing keys already loaded, by directory */
+    private static array $writerKeys = [];
+
     /**
      * @param string|null $keyDirectory Directory holding the signing key;
      *                                  defaults to the cache file's directory.
@@ -30,30 +33,43 @@ final class SignedCache
             return null;
         }
 
-        $content = @file_get_contents($path);
-        if ($content === false) {
+        $handle = @fopen($path, 'rb');
+        if ($handle === false) {
             throw new SignedCacheException('Cannot read cache file ' . $path . self::ownershipHint($path));
         }
 
-        $key = self::readKey($keyDirectory ?? dirname($path));
-        if (strlen($content) < 36) {
-            throw new SignedCacheException('Cache file is truncated: ' . $path);
-        }
+        try {
+            $key = self::readKey($keyDirectory ?? dirname($path));
+            $mac = fread($handle, 32);
+            if (!is_string($mac) || strlen($mac) < 32) {
+                throw new SignedCacheException('Cache file is truncated: ' . $path);
+            }
 
-        $payload = substr($content, 32);
-        if (!hash_equals(substr($content, 0, 32), hash_hmac('sha256', $payload, $key, true))) {
-            throw new SignedCacheException('Cache file signature does not match: ' . $path);
+            // Verify by streaming, then read the payload once: substr() copies
+            // would hold a large index in memory three times over.
+            $context = hash_init('sha256', HASH_HMAC, $key);
+            hash_update_stream($context, $handle);
+            if (!hash_equals(hash_final($context, true), $mac)) {
+                throw new SignedCacheException('Cache file signature does not match: ' . $path);
+            }
+
+            fseek($handle, 32);
+            $format = fread($handle, 3);
+            $payload = stream_get_contents($handle);
+        } finally {
+            fclose($handle);
         }
 
         try {
-            $data = match (substr($payload, 0, 3)) {
-                'SZ:' => @unserialize(substr($payload, 3), ['allowed_classes' => false]),
-                'IG:' => function_exists('igbinary_unserialize') ? @igbinary_unserialize(substr($payload, 3)) : null,
+            $data = match ($format) {
+                'SZ:' => @unserialize((string) $payload, ['allowed_classes' => false]),
+                'IG:' => function_exists('igbinary_unserialize') ? @igbinary_unserialize((string) $payload) : null,
                 default => null,
             };
         } catch (\Throwable) {
             $data = null;
         }
+        unset($payload);
 
         if (!is_array($data)) {
             throw new SignedCacheException(
@@ -67,12 +83,16 @@ final class SignedCache
     /**
      * @param string|null $keyDirectory Directory holding the signing key;
      *                                  defaults to the cache file's directory.
+     * @param bool $atomic Write via a temporary file and rename. Only files
+     *                     nobody can be reading yet (inside an unpublished
+     *                     index generation) may skip this.
      */
     public static function write(
         string $path,
         array $data,
         bool $useIgbinary = true,
-        ?string $keyDirectory = null
+        ?string $keyDirectory = null,
+        bool $atomic = true
     ): void {
         $directory = dirname($path);
         if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) {
@@ -82,10 +102,24 @@ final class SignedCache
         $payload = $useIgbinary && function_exists('igbinary_serialize')
             ? 'IG:' . igbinary_serialize($data)
             : 'SZ:' . serialize($data);
-        $key = self::signingKey($keyDirectory ?? $directory);
-        if (!AtomicFile::write($path, hash_hmac('sha256', $payload, $key, true) . $payload)) {
+        $keyDirectory ??= $directory;
+        $key = self::$writerKeys[$keyDirectory] ??= self::signingKey($keyDirectory);
+        $contents = hash_hmac('sha256', $payload, $key, true) . $payload;
+
+        $written = $atomic
+            ? AtomicFile::write($path, $contents)
+            : @file_put_contents($path, $contents) === strlen($contents);
+        if (!$written) {
             throw new \RuntimeException('Unable to publish binary cache: ' . basename($path));
         }
+    }
+
+    /**
+     * Forget loaded keys (after a key file is deleted, e.g. in tests).
+     */
+    public static function forgetKeys(): void
+    {
+        self::$writerKeys = [];
     }
 
     /**

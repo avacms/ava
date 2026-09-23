@@ -347,6 +347,7 @@ final class Router
             taxonomy: [
                 'name' => $taxonomy,
                 'terms' => $terms,
+                'config' => $this->app->taxonomies()[$taxonomy] ?? [],
             ],
             template: 'taxonomy-index.php'
         );
@@ -390,6 +391,7 @@ final class Router
             taxonomy: [
                 'name' => $taxonomy,
                 'term' => $term,
+                'config' => $this->app->taxonomies()[$taxonomy] ?? [],
             ],
             template: 'taxonomy.php'
         );

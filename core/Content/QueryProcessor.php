@@ -22,14 +22,19 @@ final class QueryProcessor
      *
      * @return array{items: array, total: int}
      */
-    public static function query(BackendInterface $backend, array $params): array
+    /**
+     * @param callable(array): string|null $bodyOf Looks up an item's body for
+     *        scoring, so search need not copy every body into its item.
+     *        Without it, bodies are loaded into the items.
+     */
+    public static function query(BackendInterface $backend, array $params, ?callable $bodyOf = null): array
     {
         $types = $params['types'] ?? (isset($params['type']) ? [$params['type']] : $backend->types());
         $search = $params['search'] ?? '';
         $items = [];
         foreach ($types as $type) {
             // Append values: associative content keys may repeat across types.
-            foreach ($backend->allRaw($type, withBody: $search !== '') as $item) {
+            foreach ($backend->allRaw($type, withBody: $search !== '' && $bodyOf === null) as $item) {
                 $items[] = $item;
             }
         }
@@ -47,7 +52,7 @@ final class QueryProcessor
                 $params['stopWords'] ?? [],
                 $params['synonyms'] ?? []
             );
-            $items = $tokens === [] ? [] : self::applySearch($items, $search, $tokens, $params['searchWeights'] ?? null);
+            $items = $tokens === [] ? [] : self::applySearch($items, $search, $tokens, $params['searchWeights'] ?? null, $bodyOf);
         } else {
             $items = self::applySort($items, $params['orderBy'] ?? 'date', strtolower($params['order'] ?? 'desc'));
         }
@@ -188,14 +193,15 @@ final class QueryProcessor
         array $items,
         string $search,
         array $expandedTokens,
-        ?array $weights = null
+        ?array $weights = null,
+        ?callable $bodyOf = null
     ): array {
         $phrase = strtolower($search);
         $expandedTokens = array_slice($expandedTokens, 0, self::MAX_SEARCH_TOKENS);
 
         $scored = [];
         foreach ($items as $data) {
-            $score = self::scoreItem($data, $phrase, $expandedTokens, $weights);
+            $score = self::scoreItem($data, $phrase, $expandedTokens, $weights, $bodyOf === null ? null : $bodyOf($data));
             if ($score > 0) {
                 $scored[] = ['data' => $data, 'score' => $score];
             }
@@ -214,13 +220,18 @@ final class QueryProcessor
      * @param array $expandedTokens Array of token groups (each group = [original, ...synonyms])
      * @param array|null $weights Custom scoring weights (null = defaults)
      */
-    public static function scoreItem(array $data, string $phrase, array $expandedTokens, ?array $weights = null): int
-    {
+    public static function scoreItem(
+        array $data,
+        string $phrase,
+        array $expandedTokens,
+        ?array $weights = null,
+        ?string $body = null
+    ): int {
         $score = 0;
         $meta = $data['meta'] ?? $data['frontmatter'] ?? [];
         $title = strtolower(self::searchableText($data['title'] ?? ''));
         $excerpt = strtolower(self::searchableText($meta['excerpt'] ?? $data['excerpt'] ?? ''));
-        $body = strtolower(self::searchableText($data['body'] ?? $meta['body'] ?? ''));
+        $body = strtolower(self::searchableText($body ?? $data['body'] ?? $meta['body'] ?? ''));
 
         // Get weights with defaults
         $w = array_merge([

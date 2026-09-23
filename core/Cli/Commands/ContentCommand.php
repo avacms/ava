@@ -37,7 +37,7 @@ final class ContentCommand
         $title = implode(' ', $args);
 
         // Verify type exists
-        $contentTypes = require $this->app->path('app/config/content_types.php');
+        $contentTypes = $this->app->contentTypes();
         if (!isset($contentTypes[$type])) {
             $this->output->error("Unknown content type: {$type}");
             $this->output->writeln('');
@@ -72,7 +72,7 @@ final class ContentCommand
             return 1;
         }
 
-        $contentTypes = require $this->app->path('app/config/content_types.php');
+        $contentTypes = $this->app->contentTypes();
         $parser = new \Ava\Content\Parser();
         $renamed = 0;
         $skipped = 0;
@@ -119,7 +119,7 @@ final class ContentCommand
 
     public function showAvailableTypes(): void
     {
-        $contentTypes = require $this->app->path('app/config/content_types.php');
+        $contentTypes = $this->app->contentTypes();
         $this->output->writeln($this->output->color('  Available types:', Output::BOLD));
         $this->output->writeln('');
         foreach ($contentTypes as $name => $config) {
@@ -133,7 +133,7 @@ final class ContentCommand
     private function createContent(string $type, string $title, array $extra = []): int
     {
         // Load content type config
-        $contentTypes = require $this->app->path('app/config/content_types.php');
+        $contentTypes = $this->app->contentTypes();
         $typeConfig = $contentTypes[$type] ?? [];
         $contentDir = $typeConfig['content_dir'] ?? $type;
 

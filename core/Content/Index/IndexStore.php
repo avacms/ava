@@ -120,6 +120,10 @@ final class IndexStore
      */
     public function createGeneration(): array
     {
+        // Re-read the signing key for each build, in case storage/cache was
+        // cleared since this process last wrote.
+        SignedCache::forgetKeys();
+
         $id = gmdate('Ymd-His') . '-' . bin2hex(random_bytes(4));
         $path = $this->generationPath($id);
         if (!@mkdir($path, 0755, true) && !is_dir($path)) {
@@ -213,9 +217,13 @@ final class IndexStore
         return SignedCache::read($generationPath . '/' . $name, $this->keyDirectory());
     }
 
+    /**
+     * Write a file into a generation that is still being built. Nothing reads
+     * it until publish(), so the write need not be atomic.
+     */
     public function writeBinary(string $generationPath, string $name, array $data, bool $useIgbinary): void
     {
-        SignedCache::write($generationPath . '/' . $name, $data, $useIgbinary, $this->keyDirectory());
+        SignedCache::write($generationPath . '/' . $name, $data, $useIgbinary, $this->keyDirectory(), atomic: false);
     }
 
     public function keyIsReadable(): bool
@@ -272,9 +280,12 @@ final class IndexStore
             return false;
         }
 
+        clearstatcache(true, $this->cacheRoot . '/.checked');
         $checked = @filemtime($this->cacheRoot . '/.checked');
 
-        return $checked !== false && $checked > time() - $seconds;
+        // File times have whole-second resolution; ">=" keeps an interval of
+        // 1 from meaning "only within the same clock second".
+        return $checked !== false && $checked >= time() - $seconds;
     }
 
     public function markChecked(): void

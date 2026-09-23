@@ -56,7 +56,7 @@ final class StressCommand
         }
 
         // Verify type exists
-        $contentTypes = require $this->app->path('app/config/content_types.php');
+        $contentTypes = $this->app->contentTypes();
         if (!isset($contentTypes[$type])) {
             $this->output->error("Unknown content type: {$type}");
             $this->showAvailableTypes();
@@ -124,7 +124,7 @@ final class StressCommand
         $type = $args[0];
 
         // Verify type exists
-        $contentTypes = require $this->app->path('app/config/content_types.php');
+        $contentTypes = $this->app->contentTypes();
         if (!isset($contentTypes[$type])) {
             $this->output->error("Unknown content type: {$type}");
             $this->showAvailableTypes();
@@ -188,7 +188,7 @@ final class StressCommand
 
     private function showAvailableTypes(): void
     {
-        $contentTypes = require $this->app->path('app/config/content_types.php');
+        $contentTypes = $this->app->contentTypes();
         $this->output->writeln($this->output->color('  Available types:', Output::BOLD));
         $this->output->writeln('');
         foreach ($contentTypes as $name => $config) {

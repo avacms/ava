@@ -123,7 +123,16 @@ final class ArrayBackend implements BackendInterface
 
     public function query(array $params): array
     {
-        return QueryProcessor::query($this, $params);
+        // Search scores bodies in place rather than copying one into every
+        // item, which roughly halves its peak memory.
+        $bodies = null;
+        $bodyOf = function (array $data) use (&$bodies): string {
+            $bodies ??= $this->file('bodies');
+
+            return $bodies[($data['type'] ?? '') . ':' . ($data['content_key'] ?? '')] ?? '';
+        };
+
+        return QueryProcessor::query($this, $params, $bodyOf);
     }
 
     // -------------------------------------------------------------------------

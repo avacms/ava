@@ -23,7 +23,7 @@ final class ContentScanner
     }
 
     /**
-     * @param array<string, array> $contentTypes
+     * @param array<string, mixed> $contentTypes As configured; non-array entries are ignored.
      * @return array{items: array<string, list<Item>>, errors: list<string>, warnings: list<string>}
      */
     public function scan(array $contentTypes, bool $collectWarnings = false): array

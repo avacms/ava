@@ -28,7 +28,7 @@ final class Fingerprint
     /** Seconds within which a file's metadata cannot be trusted alone. */
     private const RACY_WINDOW = 2;
 
-    private const IGNORED_EXTENSIONS = ['log', 'cache', 'tmp', 'lock'];
+    private const IGNORED = ['log' => true, 'cache' => true, 'tmp' => true, 'lock' => true];
 
     /**
      * @param array<string, array{path: string, scope: string}> $sources
@@ -65,6 +65,7 @@ final class Fingerprint
      *
      * @param array|null $current Receives the current per-source summaries
      *                            (pass to identity() to name this state).
+     * @param-out array<string, array> $current
      * @return list<string> Empty when nothing changed.
      */
     public function changes(array $stored, ?array &$current = null): array
@@ -146,54 +147,52 @@ final class Fingerprint
             return [['exists' => false, 'count' => 0, 'digest' => null], []];
         }
 
-        $root = rtrim(str_replace('\\', '/', $path), '/');
-        $files = [];
+        $rootLength = strlen(rtrim($path, '/\\')) + 1;
+        $windows = DIRECTORY_SEPARATOR === '\\';
+        $lines = [];
+        $racy = [];
 
         try {
             $iterator = new \RecursiveIteratorIterator(
                 new \RecursiveCallbackFilterIterator(
                     new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-                    static function (\SplFileInfo $file): bool {
-                        // Dot entries are never content: this also skips a
-                        // .git directory, whose churn would force rebuilds.
-                        if (str_starts_with($file->getFilename(), '.')) {
-                            return false;
-                        }
-
-                        return $file->isDir()
-                            || !in_array(strtolower($file->getExtension()), self::IGNORED_EXTENSIONS, true);
-                    }
+                    // Dot entries are never content: this also skips a .git
+                    // directory, whose churn would otherwise force rebuilds.
+                    static fn(\SplFileInfo $file): bool => $file->getFilename()[0] !== '.'
                 )
             );
 
-            foreach ($iterator as $file) {
+            // This runs on every freshness check, so it stays lean: one stat
+            // per file, and one hash over the sorted lines at the end.
+            foreach ($iterator as $pathname => $file) {
                 if (!$file->isFile()) {
                     continue;
                 }
-                $pathname = $file->getPathname();
-                $relative = ltrim(substr(str_replace('\\', '/', $pathname), strlen($root)), '/');
-                $files[$relative] = $pathname;
+                $dot = strrpos($pathname, '.');
+                if ($dot !== false && isset(self::IGNORED[strtolower(substr($pathname, $dot + 1))])) {
+                    continue;
+                }
+
+                $relative = substr($pathname, $rootLength);
+                if ($windows) {
+                    $relative = str_replace('\\', '/', $relative);
+                }
+
+                $stat = @stat($pathname);
+                $lines[] = self::statLine($relative, $stat);
+
+                if ($hashRecent && $stat !== false && max($stat['mtime'], $stat['ctime']) >= $now - self::RACY_WINDOW) {
+                    $racy[$relative] = self::hashFile($pathname);
+                }
             }
         } catch (\UnexpectedValueException) {
             return [['exists' => true, 'count' => 0, 'digest' => 'unreadable'], []];
         }
 
-        ksort($files, SORT_STRING);
-        $context = hash_init('sha256');
-        $racy = [];
-
-        foreach ($files as $relative => $pathname) {
-            $relative = (string) $relative; // "2024" would otherwise be an int key
-            $stat = @stat($pathname);
-            hash_update($context, self::statLine($relative, $stat));
-
-            if ($hashRecent && $stat !== false && max($stat['mtime'], $stat['ctime']) >= $now - self::RACY_WINDOW) {
-                $racy[$relative] = self::hashFile($pathname);
-            }
-        }
+        sort($lines, SORT_STRING);
 
         return [
-            ['exists' => true, 'count' => count($files), 'digest' => hash_final($context)],
+            ['exists' => true, 'count' => count($lines), 'digest' => hash('sha256', implode('', $lines))],
             $racy,
         ];
     }
