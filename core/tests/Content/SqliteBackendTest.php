@@ -6,50 +6,56 @@ namespace Ava\Tests\Content;
 
 use Ava\Application;
 use Ava\Content\Backends\SqliteBackend;
-use Ava\Content\Indexer;
-use Ava\Content\Repository;
 use Ava\Testing\TestCase;
 
 final class SqliteBackendTest extends TestCase
 {
-    public function testConfiguredSqliteBackendDoesNotSilentlyUseMissingArrayIndex(): void
+    public function testSwitchingToSqliteBuildsAndServesASqliteIndex(): void
     {
+        // Regression: v26.9.0 could not build a first SQLite index at all,
+        // because clearing the repository tried to open the database that was
+        // still being built ("index is unavailable. Run: php ava rebuild").
+        if (!extension_loaded('pdo_sqlite')) {
+            $this->markSkipped('pdo_sqlite extension is not available');
+        }
+
+        $storage = 'storage/tmp/sqlite-switch-' . bin2hex(random_bytes(6));
         $config = $this->app->allConfig();
+        $config['paths']['storage'] = $storage;
         $config['content_index']['backend'] = 'sqlite';
-        $config['paths']['storage'] = 'storage/tmp/missing-sqlite-' . bin2hex(random_bytes(6));
-        $app = new Application($config);
-        $repository = new Repository($app);
-
-        $this->assertThrows(
-            \RuntimeException::class,
-            fn() => $repository->backend()
-        );
-    }
-
-    public function testPublishingDatabaseReplacesTheWholeSqliteGeneration(): void
-    {
-        $directory = $this->app->configPath('storage') . '/tmp/test-sqlite-swap-'
-            . bin2hex(random_bytes(6));
-        mkdir($directory, 0700, true);
-        $live = $directory . '/content_index.sqlite';
-        $temporary = $directory . '/new.sqlite';
-        file_put_contents($live, 'old database');
-        file_put_contents($live . '-wal', 'old wal');
-        file_put_contents($live . '-shm', 'old shm');
-        file_put_contents($temporary, 'new database');
+        $config['content_index']['mode'] = 'never';
 
         try {
-            $indexer = new Indexer($this->app);
-            $method = new \ReflectionMethod($indexer, 'publishSqliteDatabase');
-            $method->setAccessible(true);
-            $method->invoke($indexer, $temporary, $live);
+            $app = new Application($config);
+            $app->indexer()->rebuild();
 
-            $this->assertEquals('new database', file_get_contents($live));
-            $this->assertFalse(is_file($live . '-wal'));
-            $this->assertFalse(is_file($live . '-shm'));
-            $this->assertEquals([], glob($live . '.*.backup*') ?: []);
+            $this->assertEquals('sqlite', $app->repository()->backendName());
+            $this->assertEquals('sqlite', $app->indexStore()->backend());
+            $this->assertNotNull($app->router()->urlFor('post', 'hello-world'));
+            $this->assertTrue(is_file($app->indexStore()->currentPath() . '/content_index.sqlite'));
         } finally {
-            $this->removeDirectory($directory);
+            $this->removeDirectory(AVA_ROOT . '/' . $storage);
+        }
+    }
+
+    public function testTheLiveGenerationsBackendWinsOverConfiguration(): void
+    {
+        // Changing content_index.backend takes effect at the next rebuild; until
+        // then readers must use the index that actually exists.
+        $storage = 'storage/tmp/sqlite-config-' . bin2hex(random_bytes(6));
+        $config = $this->app->allConfig();
+        $config['paths']['storage'] = $storage;
+        $config['content_index']['backend'] = 'array';
+
+        try {
+            $builder = new Application($config);
+            $builder->indexer()->rebuild();
+
+            $config['content_index']['backend'] = 'sqlite';
+            $reader = new Application($config);
+            $this->assertEquals('array', $reader->repository()->backendName());
+        } finally {
+            $this->removeDirectory(AVA_ROOT . '/' . $storage);
         }
     }
 
@@ -61,11 +67,9 @@ final class SqliteBackendTest extends TestCase
 
         $directory = $this->app->configPath('storage') . '/tmp/test-sqlite-backend-'
             . bin2hex(random_bytes(6));
-        $storage = $directory . '/storage';
         $content = $directory . '/content';
-        mkdir($storage . '/cache', 0700, true);
         mkdir($content, 0700, true);
-        $backend = new SqliteBackend($storage, $content);
+        $backend = new SqliteBackend($directory . '/index.sqlite', $content, writable: true);
 
         try {
             $backend->createDatabase();
@@ -93,11 +97,9 @@ final class SqliteBackendTest extends TestCase
 
         $directory = $this->app->configPath('storage') . '/tmp/test-sqlite-routes-'
             . bin2hex(random_bytes(6));
-        $storage = $directory . '/storage';
         $content = $directory . '/content';
-        mkdir($storage . '/cache', 0700, true);
         mkdir($content, 0700, true);
-        $backend = new SqliteBackend($storage, $content);
+        $backend = new SqliteBackend($directory . '/index.sqlite', $content, writable: true);
 
         try {
             $backend->createDatabase();
@@ -126,11 +128,9 @@ final class SqliteBackendTest extends TestCase
 
         $directory = $this->app->configPath('storage') . '/tmp/test-sqlite-filters-'
             . bin2hex(random_bytes(6));
-        $storage = $directory . '/storage';
         $content = $directory . '/content';
-        mkdir($storage . '/cache', 0700, true);
         mkdir($content, 0700, true);
-        $backend = new SqliteBackend($storage, $content);
+        $backend = new SqliteBackend($directory . '/index.sqlite', $content, writable: true);
 
         try {
             $backend->createDatabase();
@@ -188,12 +188,10 @@ final class SqliteBackendTest extends TestCase
 
         $directory = $this->app->configPath('storage') . '/tmp/test-sqlite-publish-'
             . bin2hex(random_bytes(6));
-        $storage = $directory . '/storage';
         $content = $directory . '/content';
         $database = $directory . '/new-index.sqlite';
-        mkdir($storage . '/cache', 0700, true);
         mkdir($content, 0700, true);
-        $backend = new SqliteBackend($storage, $content, $database);
+        $backend = new SqliteBackend($database, $content, writable: true);
 
         try {
             $backend->createDatabase();

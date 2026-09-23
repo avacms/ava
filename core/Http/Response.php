@@ -7,13 +7,21 @@ namespace Ava\Http;
 /**
  * HTTP Response.
  *
- * Simple response builder for sending HTTP responses.
+ * Immutable response builder. A header name can carry several values
+ * (withAddedHeader), which are sent as separate header lines, as Set-Cookie
+ * requires. A file response streams its body from disk when sent instead of
+ * holding it in memory.
  */
 final class Response
 {
     private string $content;
     private int $status;
+
+    /** @var array<string, list<string>> */
     private array $headers;
+
+    /** @var array{path: string, offset: int, length: int}|null */
+    private ?array $file = null;
 
     public function __construct(
         string $content = '',
@@ -27,10 +35,13 @@ final class Response
 
     /**
      * Create a redirect response.
+     *
+     * Non-ASCII characters in the target are percent-encoded, as HTTP
+     * header values must be ASCII.
      */
     public static function redirect(string $url, int $status = 302): self
     {
-        return new self('', $status, ['Location' => $url]);
+        return new self('', $status, ['Location' => UrlPath::encodeForHeader($url)]);
     }
 
     /**
@@ -62,6 +73,30 @@ final class Response
     }
 
     /**
+     * Stream (part of) a file as the body.
+     */
+    public static function file(
+        string $path,
+        int $status = 200,
+        array $headers = [],
+        int $offset = 0,
+        ?int $length = null
+    ): self {
+        $size = @filesize($path);
+        if ($size === false) {
+            throw new \InvalidArgumentException('File is not readable: ' . $path);
+        }
+
+        $offset = max(0, min($offset, $size));
+        $length = $length === null ? $size - $offset : max(0, min($length, $size - $offset));
+
+        $response = new self('', $status, $headers);
+        $response->file = ['path' => $path, 'offset' => $offset, 'length' => $length];
+
+        return $response->withHeader('Content-Length', (string) $length);
+    }
+
+    /**
      * Create a 404 Not Found response.
      */
     public static function notFound(string $content = 'Not Found'): self
@@ -69,71 +104,134 @@ final class Response
         return new self($content, 404);
     }
 
+    /**
+     * The body. File responses read it from disk on demand.
+     */
     public function content(): string
     {
-        return $this->content;
+        if ($this->file === null) {
+            return $this->content;
+        }
+
+        if ($this->file['length'] === 0) {
+            return '';
+        }
+
+        $content = @file_get_contents($this->file['path'], false, null, $this->file['offset'], $this->file['length']);
+
+        return $content === false ? '' : $content;
     }
 
-    /**
-     * Get the status code.
-     */
+    public function isFile(): bool
+    {
+        return $this->file !== null;
+    }
+
     public function status(): int
     {
         return $this->status;
     }
 
+    /**
+     * A header's value; several values are joined with ", ".
+     */
     public function header(string $name): ?string
     {
-        foreach ($this->headers as $headerName => $value) {
+        $values = $this->headerValues($name);
+
+        return $values === [] ? null : implode(', ', $values);
+    }
+
+    /**
+     * Every value of a header, in the order added.
+     *
+     * @return list<string>
+     */
+    public function headerValues(string $name): array
+    {
+        foreach ($this->headers as $headerName => $values) {
             if (strcasecmp($headerName, $name) === 0) {
-                return $value;
+                return $values;
             }
         }
 
-        return null;
+        return [];
     }
 
+    /**
+     * Headers as name => value (several values joined with ", ").
+     *
+     * @return array<string, string>
+     */
     public function headers(): array
     {
-        return $this->headers;
+        return array_map(static fn(array $values): string => implode(', ', $values), $this->headers);
     }
 
+    /**
+     * Replace a header's values.
+     */
     public function withHeader(string $name, string $value): self
     {
         self::assertValidHeader($name, $value);
         $response = clone $this;
-        self::setHeader($response->headers, $name, $value);
+        self::setHeader($response->headers, $name, [$value]);
         return $response;
     }
 
     /**
-     * Set multiple headers.
+     * Add a value to a header, keeping existing values (e.g. Set-Cookie).
      */
-    public function withHeaders(array $headers): self
+    public function withAddedHeader(string $name, string $value): self
+    {
+        self::assertValidHeader($name, $value);
+        $response = clone $this;
+        self::setHeader($response->headers, $name, [...$response->headerValues($name), $value]);
+        return $response;
+    }
+
+    public function withoutHeader(string $name): self
     {
         $response = clone $this;
-        foreach (self::normalizeHeaders($headers) as $name => $value) {
-            self::setHeader($response->headers, $name, $value);
+        foreach (array_keys($response->headers) as $headerName) {
+            if (strcasecmp($headerName, $name) === 0) {
+                unset($response->headers[$headerName]);
+            }
         }
         return $response;
     }
 
     /**
-     * Validate and collapse headers with names that differ only by case.
+     * Set multiple headers, replacing existing values.
+     */
+    public function withHeaders(array $headers): self
+    {
+        $response = clone $this;
+        foreach (self::normalizeHeaders($headers) as $name => $values) {
+            self::setHeader($response->headers, $name, $values);
+        }
+        return $response;
+    }
+
+    /**
+     * Validate headers and collapse names that differ only by case.
      *
-     * @return array<string, string>
+     * @return array<string, list<string>>
      */
     private static function normalizeHeaders(array $headers): array
     {
         $normalized = [];
 
         foreach ($headers as $name => $value) {
-            if (!is_string($name) || !is_string($value)) {
+            $values = is_array($value) ? array_values($value) : [$value];
+            if (!is_string($name) || $values === [] || array_filter($values, 'is_string') !== $values) {
                 throw new \InvalidArgumentException('Header names and values must be strings');
             }
 
-            self::assertValidHeader($name, $value);
-            self::setHeader($normalized, $name, $value);
+            foreach ($values as $single) {
+                self::assertValidHeader($name, $single);
+            }
+            self::setHeader($normalized, $name, $values);
         }
 
         return $normalized;
@@ -142,18 +240,19 @@ final class Response
     /**
      * Replace a header using HTTP's case-insensitive name semantics.
      *
-     * @param array<string, string> $headers
+     * @param array<string, list<string>> $headers
+     * @param list<string> $values
      */
-    private static function setHeader(array &$headers, string $name, string $value): void
+    private static function setHeader(array &$headers, string $name, array $values): void
     {
-        foreach ($headers as $headerName => $_) {
+        foreach (array_keys($headers) as $headerName) {
             if (strcasecmp($headerName, $name) === 0) {
-                $headers[$headerName] = $value;
+                $headers[$headerName] = $values;
                 return;
             }
         }
 
-        $headers[$name] = $value;
+        $headers[$name] = $values;
     }
 
     /**
@@ -170,12 +269,12 @@ final class Response
     {
         $response = clone $this;
         $response->content = $content;
-        return $response;
+        $response->file = null;
+        return $response->withoutHeader('Content-Length');
     }
 
     /**
      * Default security headers applied to all responses.
-     * Defined as class constant to avoid array allocation on every send().
      */
     private const SECURITY_HEADERS = [
         'X-Content-Type-Options' => 'nosniff',
@@ -188,30 +287,60 @@ final class Response
      */
     public function send(): void
     {
-        // Set status code
         http_response_code($this->status);
 
-        // Set default content type if not set
+        $headers = $this->headers;
         if ($this->header('Content-Type') === null) {
-            $this->headers['Content-Type'] = 'text/html; charset=utf-8';
+            $headers['Content-Type'] = ['text/html; charset=utf-8'];
         }
-
-        // Add security headers if not already set (using class constant)
         foreach (self::SECURITY_HEADERS as $name => $value) {
             if ($this->header($name) === null) {
-                $this->headers[$name] = $value;
+                $headers[$name] = [$value];
             }
         }
 
-        // Send headers
-        foreach ($this->headers as $name => $value) {
-            self::assertValidHeader($name, $value);
-            header("{$name}: {$value}");
+        foreach ($headers as $name => $values) {
+            foreach ($values as $index => $value) {
+                self::assertValidHeader($name, $value);
+                header("{$name}: {$value}", $index === 0);
+            }
         }
 
-        // Send content (except for 204/304)
-        if ($this->status !== 204 && $this->status !== 304) {
+        if ($this->status === 204 || $this->status === 304) {
+            return;
+        }
+
+        if ($this->file === null) {
             echo $this->content;
+            return;
+        }
+
+        $this->streamFile();
+    }
+
+    private function streamFile(): void
+    {
+        $handle = @fopen($this->file['path'], 'rb');
+        if ($handle === false) {
+            return;
+        }
+
+        try {
+            if ($this->file['offset'] > 0) {
+                fseek($handle, $this->file['offset']);
+            }
+
+            $remaining = $this->file['length'];
+            while ($remaining > 0 && !feof($handle)) {
+                $chunk = fread($handle, min(1 << 16, $remaining));
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+                echo $chunk;
+                $remaining -= strlen($chunk);
+            }
+        } finally {
+            fclose($handle);
         }
     }
 
@@ -226,39 +355,26 @@ final class Response
         }
 
         // Conservative header-name validation (RFC 7230 token).
-        // Allow common header-name chars only.
         if (!preg_match('/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/', $name)) {
             throw new \InvalidArgumentException('Invalid header name');
         }
     }
 
-    /**
-     * Check if response is a redirect.
-     */
     public function isRedirect(): bool
     {
         return $this->status >= 300 && $this->status < 400;
     }
 
-    /**
-     * Check if response is successful.
-     */
     public function isSuccessful(): bool
     {
         return $this->status >= 200 && $this->status < 300;
     }
 
-    /**
-     * Check if response is a client error.
-     */
     public function isClientError(): bool
     {
         return $this->status >= 400 && $this->status < 500;
     }
 
-    /**
-     * Check if response is a server error.
-     */
     public function isServerError(): bool
     {
         return $this->status >= 500;

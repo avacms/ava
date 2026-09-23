@@ -166,10 +166,12 @@ final class MarkdownExtensionsTest extends TestCase
 
             $app->boot();
 
-            $htmlCache = file_get_contents($absoluteDirectory . '/storage/cache/html_cache.bin');
-            $this->assertIsString($htmlCache);
-            $this->assertStringContains('class="footnote-ref"', $htmlCache);
-            $this->assertStringContains('class="footnotes"', $htmlCache);
+            $item = $app->repository()->get('page', 'footnotes');
+            $this->assertNotNull($item);
+            $html = $app->repository()->prerenderedHtml($item);
+            $this->assertIsString($html);
+            $this->assertStringContains('class="footnote-ref"', $html);
+            $this->assertStringContains('class="footnotes"', $html);
         } finally {
             $this->removeDirectory($absoluteDirectory);
         }

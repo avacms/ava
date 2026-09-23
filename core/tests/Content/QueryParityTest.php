@@ -7,8 +7,8 @@ namespace Ava\Tests\Content;
 use Ava\Application;
 use Ava\Content\Backends\ArrayBackend;
 use Ava\Content\Backends\SqliteBackend;
+use Ava\Content\Index\IndexStore;
 use Ava\Content\Query;
-use Ava\Support\SignedCache;
 use Ava\Testing\TestCase;
 
 final class QueryParityTest extends TestCase
@@ -18,11 +18,15 @@ final class QueryParityTest extends TestCase
     private ArrayBackend $array;
     private ?SqliteBackend $sqlite = null;
 
+    /** @var array<string, string> backend => generation id */
+    private array $generations = [];
+    private IndexStore $store;
+
     public function setUp(): void
     {
         $this->relative = 'storage/tmp/query-parity-' . bin2hex(random_bytes(6));
         $this->directory = AVA_ROOT . '/' . $this->relative;
-        mkdir($this->directory . '/cache', 0700, true);
+        mkdir($this->directory, 0700, true);
         $items = [
             $this->item('post', 'shared', 'Bicycle guide', 'published', '2026-09-03', 'Acme'),
             $this->item('post', 'draft', 'Draft guide', 'draft', '2026-09-04', 'Other'),
@@ -30,20 +34,32 @@ final class QueryParityTest extends TestCase
             $this->item('page', 'shared', 'Page guide', 'published', '2026-09-01', 'Acme'),
         ];
         $items[2]['body'] = 'A unique bodyneedle appears here.';
+
+        // One real generation per backend, built the way the indexer lays
+        // them out, so Applications pointed at this storage can read them.
+        $this->store = new IndexStore($this->directory);
+        [$this->generations['array'], $arrayPath] = $this->store->createGeneration();
         $index = ['by_type' => []];
+        $bodies = [];
         foreach ($items as $item) {
+            $bodies[$item['type'] . ':' . $item['slug']] = $item['body'] ?? '';
+            unset($item['body']);
             $index['by_type'][$item['type']][$item['slug']] = $item;
         }
-        SignedCache::write($this->directory . '/cache/content_index.bin', $index, false);
-        SignedCache::write($this->directory . '/cache/recent_cache.bin', [
-            'post' => ['items' => [$items[0], $items[2]], 'total' => 2],
+        $this->store->writeBinary($arrayPath, 'content_index.bin', $index, false);
+        $this->store->writeBinary($arrayPath, 'bodies.bin', $bodies, false);
+        $this->store->writeBinary($arrayPath, 'recent_cache.bin', [
+            'post' => ['items' => [$index['by_type']['post']['shared'], $index['by_type']['post']['other']], 'total' => 2],
         ], false);
-        SignedCache::write($this->directory . '/cache/synonyms.bin', ['bike' => ['bicycle']], false);
-        SignedCache::write($this->directory . '/cache/stopwords.bin', ['the' => true], false);
-        $this->array = new ArrayBackend($this->directory, $this->directory);
+        $this->store->writeBinary($arrayPath, 'synonyms.bin', ['bike' => ['bicycle']], false);
+        $this->store->writeBinary($arrayPath, 'stopwords.bin', ['the' => true], false);
+        $this->array = new ArrayBackend($arrayPath, $this->directory, $this->store->keyDirectory());
 
         if (extension_loaded('pdo_sqlite')) {
-            $this->sqlite = new SqliteBackend($this->directory, $this->directory);
+            [$this->generations['sqlite'], $sqlitePath] = $this->store->createGeneration();
+            $this->store->writeBinary($sqlitePath, 'synonyms.bin', ['bike' => ['bicycle']], false);
+            $this->store->writeBinary($sqlitePath, 'stopwords.bin', ['the' => true], false);
+            $this->sqlite = new SqliteBackend($sqlitePath . '/content_index.sqlite', $this->directory, writable: true);
             $this->sqlite->createDatabase();
             foreach ($items as $item) {
                 $this->sqlite->insertContent($item);
@@ -103,9 +119,9 @@ final class QueryParityTest extends TestCase
             if ($backend === 'sqlite' && $this->sqlite === null) {
                 continue;
             }
+            $this->store->publish($this->generations[$backend], $backend, []);
             $config = $this->app->allConfig();
             $config['paths']['storage'] = $this->relative;
-            $config['content_index']['backend'] = $backend;
             $app = new Application($config);
             $query = new Query($app);
             // SECURITY: the fixture holds three posts, one of them a draft. A

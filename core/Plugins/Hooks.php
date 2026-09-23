@@ -88,6 +88,26 @@ final class Hooks
     }
 
     /**
+     * Capture every registered hook (for testing).
+     *
+     * @return array{0: array, 1: array}
+     */
+    public static function snapshot(): array
+    {
+        return [self::$filters, self::$actions];
+    }
+
+    /**
+     * Put back hooks captured by snapshot() (for testing).
+     *
+     * @param array{0: array, 1: array} $snapshot
+     */
+    public static function restore(array $snapshot): void
+    {
+        [self::$filters, self::$actions] = $snapshot;
+    }
+
+    /**
      * Clear all hooks (for testing).
      */
     public static function reset(): void

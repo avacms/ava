@@ -176,7 +176,24 @@ final class WebpageCache
 
         $contentType = $response->header('Content-Type');
         return $contentType === null
-            || strtolower(trim(explode(';', $contentType, 2)[0])) === 'text/html';
+            || self::mediaType($contentType) === 'text/html'
+            || self::isFeedType($contentType);
+    }
+
+    /**
+     * XML documents cached like pages: feeds and sitemaps change only when
+     * content does, and bots poll them constantly.
+     */
+    public static function isFeedType(?string $contentType): bool
+    {
+        return $contentType !== null && in_array(self::mediaType($contentType), [
+            'application/xml', 'text/xml', 'application/rss+xml', 'application/atom+xml', 'text/xsl',
+        ], true);
+    }
+
+    private static function mediaType(string $contentType): string
+    {
+        return strtolower(trim(explode(';', $contentType, 2)[0]));
     }
 
     public function clear(): int

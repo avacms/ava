@@ -7,6 +7,7 @@ namespace Ava\Rendering;
 use Ava\Application;
 use Ava\Content\Item;
 use Ava\Content\Query;
+use Ava\Content\Terms;
 
 /**
  * Template Helpers
@@ -37,9 +38,7 @@ final class TemplateHelpers
      */
     public function body(Item $item): string
     {
-        // Use stored content_key from index, fallback to slug
-        $contentKey = $item->get('content_key') ?? $item->slug();
-        return $this->engine->renderItem($item, $contentKey);
+        return $this->engine->renderItem($item);
     }
 
     /**
@@ -207,14 +206,12 @@ final class TemplateHelpers
      * Get the display name for a taxonomy term.
      * Returns the proper name from taxonomy config, or title-cases the slug.
      */
-    public function termName(string $taxonomy, string $slug): string
+    public function termName(string $taxonomy, string $term): string
     {
-        $terms = $this->app->repository()->terms($taxonomy);
-        if (isset($terms[$slug]['name'])) {
-            return $terms[$slug]['name'];
-        }
-        // Fallback: convert slug to title case
-        return ucwords(str_replace(['-', '_'], ' ', $slug));
+        $slug = Terms::slug($term);
+        $name = $this->app->repository()->term($taxonomy, $slug)['name'] ?? null;
+
+        return is_scalar($name) ? (string) $name : Terms::displayName($term, $slug);
     }
 
     // === SEO Helpers ===

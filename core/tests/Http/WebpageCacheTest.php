@@ -95,6 +95,18 @@ final class WebpageCacheTest extends TestCase
     public function testNonHtmlResponseIsNotCached(): void
     {
         $cache = $this->createCache();
+        $request = new Request('GET', '/api/data.json');
+
+        $cache->put($request, Response::json(['visitor' => 'specific']));
+
+        $this->assertEquals(0, $cache->stats()['count']);
+        $this->assertNull($cache->get($request));
+    }
+
+    public function testFeedsAndSitemapsAreCachedLikePages(): void
+    {
+        // Bots poll these constantly and they only change when content does.
+        $cache = $this->createCache();
         $request = new Request('GET', '/feed.xml');
 
         $cache->put(
@@ -102,8 +114,8 @@ final class WebpageCacheTest extends TestCase
             new Response('<rss></rss>', 200, ['Content-Type' => 'application/rss+xml; charset=utf-8'])
         );
 
-        $this->assertEquals(0, $cache->stats()['count']);
-        $this->assertNull($cache->get($request));
+        $this->assertEquals('<rss></rss>', $cache->get($request)?->content());
+        $this->assertEquals('application/rss+xml; charset=utf-8', $cache->get($request)?->header('Content-Type'));
     }
 
     public function testExplicitHtmlResponseCanBeCached(): void

@@ -26,8 +26,8 @@ final class IndexCommand
         // This runs on every rebuild to ensure upgrades are clean
         $this->cleanupStaleDirectories();
 
-        // Load plugins so they can hook into the rebuild process
-        $this->app->loadPlugins();
+        // Load plugins and the theme so they can hook into the rebuild
+        $this->app->loadExtensions();
 
         $this->output->writeln('');
         $this->output->withSpinner('Rebuilding content index', function () use ($keepWebpageCache) {

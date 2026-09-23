@@ -34,8 +34,13 @@ interface BackendInterface
     // Bulk Retrieval
     // -------------------------------------------------------------------------
 
-    /** @return array<array> */
-    public function allRaw(string $type): array;
+    /**
+     * Every item of a type, keyed by content key.
+     *
+     * @param bool $withBody Include raw bodies (only search needs them).
+     * @return array<string, array>
+     */
+    public function allRaw(string $type, bool $withBody = false): array;
 
     /** @return array<string> Types that have at least one item */
     public function types(): array;
@@ -99,7 +104,27 @@ interface BackendInterface
     // Route Operations
     // -------------------------------------------------------------------------
 
+    /**
+     * The whole route table (redirects, exact, preview, taxonomy, reverse).
+     * Plugins enumerating the site use this; request handling uses the
+     * single-route lookups below.
+     */
     public function routes(): array;
+
+    /** Route data for a public URL path, or null. */
+    public function exactRoute(string $path): ?array;
+
+    /** Route data for an unpublished item's URL path (preview only), or null. */
+    public function previewRoute(string $path): ?array;
+
+    /** @return array{to: string, code: int}|null A redirect_from entry. */
+    public function redirectRoute(string $path): ?array;
+
+    /** URL path for "type:contentKey", or null. */
+    public function reverseUrl(string $type, string $contentKey): ?string;
+
+    /** @return array<string, array{base: string, hierarchical: bool}> */
+    public function taxonomyRoutes(): array;
 
     // -------------------------------------------------------------------------
     // Cache Management

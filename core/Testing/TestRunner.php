@@ -71,6 +71,11 @@ final class TestRunner
             echo "\n";
         }
 
+        // Boot the shared application once, so its plugin and theme hooks are
+        // part of the baseline every test starts from (hooks are restored to
+        // that baseline after each test).
+        $this->app->boot();
+
         // Discover test files
         $testFiles = $this->discoverTests($testsPath);
 
@@ -243,12 +248,17 @@ final class TestRunner
                 continue;
             }
 
+            // Hooks are global: a test that boots its own Application must
+            // not leave that app's plugin and theme hooks behind.
+            $hooks = \Ava\Plugins\Hooks::snapshot();
+
             // Run setUp
             if ($hasSetUp) {
                 try {
                     $instance->setUp();
                 } catch (\Throwable $e) {
                     $this->recordFailure($className, $methodName, $e);
+                    \Ava\Plugins\Hooks::restore($hooks);
                     continue;
                 }
             }
@@ -290,6 +300,8 @@ final class TestRunner
                     // Log but don't fail
                 }
             }
+
+            \Ava\Plugins\Hooks::restore($hooks);
         }
 
         // Add spacing after test class output (unless quiet mode)

@@ -25,10 +25,11 @@ final class QueryProcessor
     public static function query(BackendInterface $backend, array $params): array
     {
         $types = $params['types'] ?? (isset($params['type']) ? [$params['type']] : $backend->types());
+        $search = $params['search'] ?? '';
         $items = [];
         foreach ($types as $type) {
             // Append values: associative content keys may repeat across types.
-            foreach ($backend->allRaw($type) as $item) {
+            foreach ($backend->allRaw($type, withBody: $search !== '') as $item) {
                 $items[] = $item;
             }
         }
@@ -40,7 +41,6 @@ final class QueryProcessor
             $params['fields'] ?? []
         );
 
-        $search = $params['search'] ?? '';
         if ($search !== '') {
             $tokens = self::expandTokens(
                 self::tokenize($search),
@@ -66,6 +66,9 @@ final class QueryProcessor
         array $taxonomies,
         array $fields
     ): array {
+        // Terms compare by slug, so "Web Dev", "web-dev" and a URL all agree.
+        $taxonomies = array_map(static fn($term) => Terms::slug((string) $term), $taxonomies);
+
         return array_filter($items, function (array $data) use ($status, $taxonomies, $fields) {
             // Status filter
             if ($status !== null) {
@@ -88,7 +91,8 @@ final class QueryProcessor
                     $terms = [$terms];
                 }
 
-                if (!in_array($term, $terms, true)) {
+                $terms = array_filter($terms, static fn($value) => is_scalar($value));
+                if (!in_array($term, Terms::slugs(array_map('strval', $terms)), true)) {
                     return false;
                 }
             }

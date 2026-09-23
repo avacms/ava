@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Ava;
 
+use Ava\Content\Index\IndexStore;
 use Ava\Content\Indexer;
 use Ava\Content\Repository;
+use Ava\Http\ThemeAssets;
 use Ava\Http\WebpageCache;
 use Ava\Http\Request;
 use Ava\Http\Response;
@@ -29,9 +31,16 @@ final class Application
 {
     private array $config;
     private bool $booted = false;
+    private bool $environmentPrepared = false;
+    private bool $pluginsLoaded = false;
+    private bool $themeLoaded = false;
+    private bool $indexRefreshed = false;
 
     /** @var array<string, object> */
     private array $services = [];
+
+    private ?array $contentTypes = null;
+    private ?array $taxonomies = null;
 
     public function __construct(array $config)
     {
@@ -39,7 +48,7 @@ final class Application
     }
 
     /**
-     * Boot the application.
+     * Boot the application: plugins, theme, and a current content index.
      */
     public function boot(): void
     {
@@ -47,59 +56,64 @@ final class Application
             return;
         }
 
-        // Set timezone
-        date_default_timezone_set($this->config('site.timezone', 'UTC'));
-
-        // Ensure storage directories exist
-        $this->ensureStorageDirectories();
-
-        // Load plugins
-        $this->loadPlugins();
-
-        // Check cache freshness and rebuild if needed
-        $this->ensureCacheFresh();
-
-        // Load theme
-        $this->loadTheme();
+        $this->prepareEnvironment();
+        $this->loadExtensions();
+        $this->refreshIndex();
 
         $this->booted = true;
     }
 
     /**
      * Handle an HTTP request.
+     *
+     * Three paths, cheapest first:
+     * 1. Theme assets depend only on the file, so they are served without
+     *    loading plugins or looking at the content index.
+     * 2. Cacheable pages: manual index mode serves a cached copy straight
+     *    away; automatic modes first confirm the index is current (a
+     *    throttled, metadata-only check; a rebuild clears stale pages).
+     * 3. Everything else boots fully and is routed.
      */
     public function handle(Request $request): Response
     {
-        // Automatic modes check source freshness before serving cached HTML.
-        // Manual mode can serve a hit before boot; a rebuild clears its cache.
-        if ($this->config('content_index.mode', 'auto') !== 'never') {
-            $this->boot();
+        $this->prepareEnvironment();
+
+        if (str_starts_with($request->path(), ThemeAssets::PREFIX)) {
+            $asset = $this->themeAssets()->serve($request);
+            if ($asset !== null) {
+                return $this->applyPublicSecurityHeaders($asset, $request);
+            }
         }
 
-        $response = $this->webpageCache()->get($request);
-        if ($response === null) {
-            $this->boot();
-            $response = $this->dispatch($request);
+        $cache = $this->webpageCache();
+        if ($cache->isCacheable($request)) {
+            if ($this->indexMode() !== 'never') {
+                $this->refreshIndex();
+            }
+
+            $hit = $cache->get($request);
+            if ($hit !== null) {
+                return $this->applyPublicSecurityHeaders($hit, $request);
+            }
         }
 
-        return $this->applyPublicSecurityHeaders($response, $request);
+        $this->boot();
+
+        return $this->applyPublicSecurityHeaders($this->dispatch($request), $request);
     }
 
     private function dispatch(Request $request): Response
     {
-        $router = $this->router();
-        $match = $router->match($request);
+        $match = $this->router()->match($request);
 
         if ($match === null) {
             return $this->render404($request);
         }
 
-        // Handle redirect routes
         if ($match->isRedirect()) {
             return Response::redirect($match->getRedirectUrl(), $match->getRedirectCode());
         }
 
-        // Handle routes with embedded Response objects
         if ($match->hasResponse()) {
             return $match->getResponse();
         }
@@ -108,30 +122,37 @@ final class Application
         if (in_array($match->getType(), ['plugin', 'response'], true)) {
             $response = $match->getParam('response');
             if ($response instanceof Response) {
-                return $response;
+                // Feeds and sitemaps are cached like pages. Other plugin
+                // output is left alone: it may be per-visitor without saying so.
+                return WebpageCache::isFeedType($response->header('Content-Type'))
+                    ? $this->cacheResponse($request, $response, null)
+                    : $response;
             }
         }
 
-        // Render the matched route
         $response = $this->renderRoute($match, $request);
 
-        // Store in webpage cache if enabled
-        if ($this->webpageCache()->isEnabled() && $response->status() === 200) {
-            // Check for content-level cache override. Accept every YAML
-            // spelling of false (false, 0, "no", "off") rather than the
-            // boolean alone, so `cache: 0` is not silently cached; anything
-            // unrecognised leaves the default policy in place.
-            $cacheOverride = null;
-            $override = $match->getContentItem()?->get('cache');
-            if ($override !== null) {
-                $cacheOverride = filter_var($override, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            }
-
-            $stored = $this->webpageCache()->put($request, $response, $cacheOverride);
-            $response = $response->withHeader('X-Page-Cache', $stored ? 'MISS' : 'BYPASS');
+        // Content can opt out of (or explicitly into) caching. Every YAML
+        // spelling of false (false, 0, "no", "off") counts, not the boolean
+        // alone; anything unrecognised leaves the default policy in place.
+        $cacheOverride = null;
+        $override = $match->getContentItem()?->get('cache');
+        if ($override !== null) {
+            $cacheOverride = filter_var($override, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         }
 
-        return $response;
+        return $this->cacheResponse($request, $response, $cacheOverride);
+    }
+
+    private function cacheResponse(Request $request, Response $response, ?bool $override): Response
+    {
+        if (!$this->webpageCache()->isEnabled() || $response->status() !== 200) {
+            return $response;
+        }
+
+        $stored = $this->webpageCache()->put($request, $response, $override);
+
+        return $response->withHeader('X-Page-Cache', $stored ? 'MISS' : 'BYPASS');
     }
 
     /**
@@ -158,29 +179,77 @@ final class Application
         return AVA_ROOT . ($relative ? '/' . ltrim($relative, '/') : '');
     }
 
+    /** Standard locations, used when paths.<key> is not configured. */
+    private const DEFAULT_PATHS = [
+        'content' => 'content',
+        'themes' => 'app/themes',
+        'plugins' => 'app/plugins',
+        'snippets' => 'app/snippets',
+        'storage' => 'storage',
+    ];
+
     /**
      * Get a path from config and make it absolute.
      */
     public function configPath(string $key): string
     {
-        $relative = $this->config("paths.{$key}");
-        if ($relative === null) {
+        $relative = $this->config("paths.{$key}") ?? self::DEFAULT_PATHS[$key] ?? null;
+        if (!is_string($relative)) {
             throw new \InvalidArgumentException("Unknown path key: {$key}");
         }
         return $this->path($relative);
     }
 
     /**
-     * Get content type definitions (cached).
+     * Content type definitions (app/config/content_types.php).
      */
     public function contentTypes(): array
     {
-        static $cache = null;
-        if ($cache === null) {
-            $path = $this->path('app/config/content_types.php');
-            $cache = file_exists($path) ? require $path : [];
-        }
-        return $cache;
+        return $this->contentTypes ??= $this->loadConfigFile('content_types.php');
+    }
+
+    /**
+     * Taxonomy definitions (app/config/taxonomies.php).
+     */
+    public function taxonomies(): array
+    {
+        return $this->taxonomies ??= $this->loadConfigFile('taxonomies.php');
+    }
+
+    /**
+     * The active theme's folder name (validated; falls back to 'default').
+     */
+    public function themeName(): string
+    {
+        $theme = $this->config('theme', 'default');
+
+        return is_string($theme) && preg_match('/^[a-z0-9_-]+$/i', $theme) ? $theme : 'default';
+    }
+
+    /**
+     * Enabled plugin folder names, in load order. Names that could escape
+     * the plugins directory are dropped.
+     *
+     * @return list<string>
+     */
+    public function pluginNames(): array
+    {
+        $plugins = $this->config('plugins', []);
+
+        return array_values(array_filter(
+            is_array($plugins) ? $plugins : [],
+            static fn($plugin): bool => is_string($plugin) && preg_match('/^[a-z0-9_-]+$/i', $plugin) === 1
+        ));
+    }
+
+    /**
+     * 'auto', 'never' or 'always'.
+     */
+    public function indexMode(): string
+    {
+        $mode = $this->config('content_index.mode', 'auto');
+
+        return in_array($mode, ['auto', 'never', 'always'], true) ? $mode : 'auto';
     }
 
     // -------------------------------------------------------------------------
@@ -190,6 +259,11 @@ final class Application
     public function router(): Router
     {
         return $this->service('router', fn() => new Router($this));
+    }
+
+    public function indexStore(): IndexStore
+    {
+        return $this->service('index_store', fn() => new IndexStore($this->configPath('storage')));
     }
 
     public function indexer(): Indexer
@@ -217,11 +291,18 @@ final class Application
         return $this->service('webpage_cache', fn() => new WebpageCache($this));
     }
 
+    public function themeAssets(): ThemeAssets
+    {
+        return $this->service('theme_assets', fn() => new ThemeAssets(
+            $this->configPath('themes') . '/' . $this->themeName() . '/assets'
+        ));
+    }
+
     /**
      * Get or create the shared Markdown converter.
-     * 
-     * This is used by both the rendering engine and the indexer to ensure
-     * consistent Markdown processing and avoid duplicating setup code.
+     *
+     * Used by both the rendering engine and the indexer so build-time and
+     * on-demand rendering are identical.
      */
     public function markdown(array $options = []): MarkdownConverter
     {
@@ -268,7 +349,7 @@ final class Application
 
     /**
      * Create a new content query.
-     * 
+     *
      * Unlike other services, this returns a new instance each time
      * since queries are single-use and immutable.
      */
@@ -289,60 +370,65 @@ final class Application
     }
 
     // -------------------------------------------------------------------------
-    // Internal
+    // Boot steps
     // -------------------------------------------------------------------------
 
-    private function ensureStorageDirectories(): void
+    /**
+     * Timezone and storage directories: needed by every request path.
+     */
+    private function prepareEnvironment(): void
     {
-        $storagePath = $this->configPath('storage');
-        $dirs = ['cache', 'logs', 'tmp'];
+        if ($this->environmentPrepared) {
+            return;
+        }
+        $this->environmentPrepared = true;
 
-        foreach ($dirs as $dir) {
+        date_default_timezone_set($this->config('site.timezone', 'UTC'));
+
+        $storagePath = $this->configPath('storage');
+        foreach (['cache', 'logs', 'tmp'] as $dir) {
             $path = $storagePath . '/' . $dir;
             if (!is_dir($path)) {
-                mkdir($path, 0755, true);
+                @mkdir($path, 0755, true);
             }
-        }
-    }
-
-    private function ensureCacheFresh(): void
-    {
-        $mode = $this->config('content_index.mode', 'auto');
-        $indexer = $this->indexer();
-
-        // Keep all cache files on one generation for the duration of the
-        // request. Rebuilds wait until active readers have finished.
-        $indexer->acquireReadLock();
-
-        if ($mode === 'never') {
-            return;
-        }
-
-        if ($mode === 'always') {
-            $indexer->rebuild();
-            return;
-        }
-
-        if (!$indexer->isCacheFresh()) {
-            $indexer->rebuildIfStale();
         }
     }
 
     /**
-     * Load enabled plugins.
+     * Load plugins and the theme (once). The indexer calls this before a
+     * build, so build-time rendering sees the same hooks as a page request.
+     */
+    public function loadExtensions(): void
+    {
+        $this->loadPlugins();
+        $this->loadTheme();
+    }
+
+    /**
+     * Bring the content index up to date (once per request).
+     */
+    private function refreshIndex(): void
+    {
+        if ($this->indexRefreshed) {
+            return;
+        }
+        $this->indexRefreshed = true;
+
+        $this->indexer()->refresh($this->indexMode());
+    }
+
+    /**
+     * Load enabled plugins (once).
      */
     public function loadPlugins(): void
     {
-        $plugins = $this->config('plugins', []);
-        $pluginsPath = $this->configPath('plugins');
+        if ($this->pluginsLoaded) {
+            return;
+        }
+        $this->pluginsLoaded = true;
 
-        foreach ($plugins as $plugin) {
-            // Security: Validate plugin name to prevent path traversal
-            // Even though config is filesystem-based, this is defense-in-depth
-            if (!is_string($plugin) || !preg_match('/^[a-z0-9_-]+$/i', $plugin)) {
-                continue;
-            }
-            
+        $pluginsPath = $this->configPath('plugins');
+        foreach ($this->pluginNames() as $plugin) {
             $pluginFile = $pluginsPath . '/' . $plugin . '/plugin.php';
             if (file_exists($pluginFile)) {
                 $manifest = require $pluginFile;
@@ -355,15 +441,12 @@ final class Application
 
     private function loadTheme(): void
     {
-        $theme = $this->config('theme', 'default');
-        
-        // Security: Validate theme name to prevent path traversal
-        if (!is_string($theme) || !preg_match('/^[a-z0-9_-]+$/i', $theme)) {
-            $theme = 'default';
+        if ($this->themeLoaded) {
+            return;
         }
-        
-        $themePath = $this->configPath('themes') . '/' . $theme . '/theme.php';
+        $this->themeLoaded = true;
 
+        $themePath = $this->configPath('themes') . '/' . $this->themeName() . '/theme.php';
         if (file_exists($themePath)) {
             $themeBootstrap = require $themePath;
             if (is_callable($themeBootstrap)) {
@@ -371,120 +454,25 @@ final class Application
             }
         }
 
-        // Register theme assets route
-        $this->registerThemeAssetsRoute($theme);
+        // handle() serves assets before booting; this route covers requests
+        // that reach the router some other way.
+        $this->router()->addPrefixRoute(
+            ThemeAssets::PREFIX,
+            fn(Request $request) => $this->themeAssets()->serve($request)
+        );
     }
 
-    /**
-     * Register a route to serve theme assets with proper caching.
-     * 
-    * Security: Only serves files with allowed extensions (CSS, JS, images, fonts, media).
-     * Hidden files (dotfiles) and executable files (PHP, etc.) return 404.
-     * Treat your theme's assets/ folder as a public directory.
-     */
-    private function registerThemeAssetsRoute(string $theme): void
+    private function loadConfigFile(string $file): array
     {
-        $themesPath = $this->configPath('themes');
+        $path = $this->path('app/config/' . $file);
+        $data = file_exists($path) ? require $path : [];
 
-        $this->router()->addPrefixRoute('/theme/', function (Request $request) use ($themesPath, $theme) {
-            $path = $request->path();
-            // Remove /theme/ prefix
-            $assetPath = substr($path, 7);
-
-            // Security: block hidden files (dotfiles like .env, .htaccess)
-            $filename = basename($assetPath);
-            if (str_starts_with($filename, '.')) {
-                return null; // 404
-            }
-
-            // Security: prevent directory traversal using realpath validation
-            // Note: str_replace('..', '') is insufficient as '....//etc/passwd' becomes '../etc/passwd'
-            $assetsDir = realpath($themesPath . '/' . $theme . '/assets');
-            if ($assetsDir === false) {
-                return null;
-            }
-
-            // Normalize path separators for Windows compatibility
-            $normalizedAssetPath = str_replace('/', DIRECTORY_SEPARATOR, $assetPath);
-            $fullPath = $assetsDir . DIRECTORY_SEPARATOR . $normalizedAssetPath;
-            $realPath = realpath($fullPath);
-
-            // Ensure the resolved path is within the assets directory
-            // Use DIRECTORY_SEPARATOR for cross-platform compatibility (Windows uses backslashes)
-            if ($realPath === false || !str_starts_with($realPath, $assetsDir . DIRECTORY_SEPARATOR)) {
-                return null; // Let it 404
-            }
-
-            if (!is_file($realPath)) {
-                return null; // Let it 404
-            }
-
-            return $this->serveAsset($request, $realPath);
-        });
-    }
-
-
-
-    /**
-     * Serve a static asset file with appropriate headers.
-     * 
-     * Returns null for disallowed extensions or hidden files.
-     */
-    private function serveAsset(Request $request, string $fullPath): ?Response
-    {
-        // Security: block hidden files (dotfiles)
-        $filename = basename($fullPath);
-        if (str_starts_with($filename, '.')) {
-            return null;
-        }
-
-        // Security: only serve files with allowed extensions
-        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-        $allowedExtensions = $this->getAllowedAssetExtensions();
-        if (!isset($allowedExtensions[$ext])) {
-            return null;
-        }
-
-        $mtime = @filemtime($fullPath);
-        if ($mtime === false) {
-            return null;
-        }
-
-        $size = @filesize($fullPath);
-        $etag = '"' . dechex($mtime) . '-' . dechex($size !== false ? $size : 0) . '"';
-
-        $headers = [
-            'Content-Type' => $allowedExtensions[$ext],
-            'Cache-Control' => 'public, max-age=31536000, immutable',
-            'Last-Modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
-            'ETag' => $etag,
-        ];
-
-        $ifNoneMatch = $request->header('if-none-match');
-        if ($ifNoneMatch !== null && trim($ifNoneMatch) === $etag) {
-            return new Response('', 304, $headers);
-        }
-
-        $ifModifiedSince = $request->header('if-modified-since');
-        if ($ifModifiedSince !== null) {
-            $since = strtotime($ifModifiedSince);
-            if ($since !== false && $since >= $mtime) {
-                return new Response('', 304, $headers);
-            }
-        }
-
-        $content = @file_get_contents($fullPath);
-        if ($content === false) {
-            return null;
-        }
-
-        return new Response($content, 200, $headers);
+        return is_array($data) ? $data : [];
     }
 
     private function render404(Request $request): Response
     {
-        $renderer = $this->renderer();
-        $content = $renderer->render('404', [
+        $content = $this->renderer()->render('404', [
             'request' => $request,
         ]);
 
@@ -493,29 +481,24 @@ final class Application
 
     private function renderRoute(Routing\RouteMatch $match, Request $request): Response
     {
-        $renderer = $this->renderer();
-
         $context = [
             'request' => $request,
             'route' => $match,
         ];
 
-        // Add content context for single routes
         if ($match->getContentItem() !== null) {
             $context['content'] = $match->getContentItem();
         }
 
-        // Add query context for archives
         if ($match->getQuery() !== null) {
             $context['query'] = $match->getQuery();
         }
 
-        // Add taxonomy context
         if ($match->getTaxonomy() !== null) {
             $context['tax'] = $match->getTaxonomy();
         }
 
-        $content = $renderer->render($match->getTemplate(), $context);
+        $content = $this->renderer()->render($match->getTemplate(), $context);
 
         // Add generator footer comment (opt-in: see addGeneratorComment)
         if ($this->config('generator_comment', false)) {
@@ -581,64 +564,13 @@ final class Application
         $version = defined('AVA_VERSION') ? AVA_VERSION : 'dev';
         $timestamp = date('Y-m-d H:i:s');
         $renderTime = defined('AVA_START') ? round((microtime(true) - AVA_START) * 1000, 1) : 0;
-        
+
         $comment = "\n<!-- Generated by Ava CMS v{$version} | Rendered: {$timestamp} | {$renderTime}ms -->";
 
-        // Add before </html> if present
         if (preg_match('/<\/html>\s*$/i', $content)) {
             return preg_replace('/<\/html>\s*$/i', $comment . "\n</html>", $content);
         }
 
         return $content . $comment;
-    }
-
-    /**
-     * Allowlist of permitted asset file extensions and their MIME types.
-     * 
-     * Only these file types can be served via /theme/ routes.
-     * This prevents serving PHP source code, config files, or other sensitive files.
-     * 
-     * Defined as a constant to avoid re-creating the array on every asset request.
-     */
-    private const ALLOWED_ASSET_EXTENSIONS = [
-        // Stylesheets
-        'css'   => 'text/css',
-        // JavaScript
-        'js'    => 'application/javascript',
-        'mjs'   => 'application/javascript',
-        // Data formats
-        'json'  => 'application/json',
-        'map'   => 'application/json', // Source maps
-        // Images
-        'svg'   => 'image/svg+xml',
-        'png'   => 'image/png',
-        'jpg'   => 'image/jpeg',
-        'jpeg'  => 'image/jpeg',
-        'gif'   => 'image/gif',
-        'webp'  => 'image/webp',
-        'ico'   => 'image/x-icon',
-        'avif'  => 'image/avif',
-        // Fonts
-        'woff'  => 'font/woff',
-        'woff2' => 'font/woff2',
-        'ttf'   => 'font/ttf',
-        'otf'   => 'font/otf',
-        'eot'   => 'application/vnd.ms-fontobject',
-        // Audio
-        'mp3'   => 'audio/mpeg',
-        'ogg'   => 'audio/ogg',
-        'wav'   => 'audio/wav',
-        'm4a'   => 'audio/mp4',
-        // Video
-        'webm'  => 'video/webm',
-        'mp4'   => 'video/mp4',
-    ];
-
-    /**
-     * @return array<string, string> Extension => MIME type mapping
-     */
-    private function getAllowedAssetExtensions(): array
-    {
-        return self::ALLOWED_ASSET_EXTENSIONS;
     }
 }

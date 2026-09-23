@@ -7,23 +7,28 @@ namespace Ava\Routing;
 use Ava\Application;
 use Ava\Content\Query;
 use Ava\Content\Repository;
+use Ava\Content\Terms;
 use Ava\Http\Request;
 use Ava\Http\Response;
+use Ava\Http\UrlPath;
 use Ava\Plugins\Hooks;
 
 /**
  * Matches incoming requests to routes, in this order:
  *
- * 1. Hook interception (router.before_match filter)
- * 2. Prefix routes (addPrefixRoute) — before trailing-slash enforcement,
+ * 1. Canonical encoding redirect (/%61bout -> /about, lowercase hex -> upper)
+ * 2. Hook interception (router.before_match filter)
+ * 3. Prefix routes (addPrefixRoute) — before trailing-slash enforcement,
  *    which applies to content URLs only
- * 3. Trailing slash redirect (canonical URL enforcement)
- * 4. Redirects (from redirect_from frontmatter)
- * 5. System routes (addRoute), exact then parameterised
- * 6. Exact routes (from content cache)
- * 7. Preview mode (unpublished content with a valid token)
- * 8. Taxonomy routes (index and term pages)
- * 9. 404
+ * 4. Trailing slash redirect (canonical URL enforcement)
+ * 5. Redirects (from redirect_from frontmatter)
+ * 6. System routes (addRoute), exact then parameterised
+ * 7. Exact routes (from the content index)
+ * 8. Preview (unpublished content, with a valid preview link)
+ * 9. Taxonomy routes (index and term pages)
+ * 10. 404
+ *
+ * Paths are matched decoded ("/café"), so non-ASCII URLs work.
  */
 final class Router
 {
@@ -38,6 +43,8 @@ final class Router
     /** @var array<string, callable> Prefix routes registered at runtime */
     private array $prefixRoutes = [];
 
+    private ?PreviewLinks $previewLinks = null;
+
     public function __construct(Application $app)
     {
         $this->app = $app;
@@ -45,7 +52,7 @@ final class Router
 
     /**
      * Register a system route.
-     * 
+     *
      * Routes are stored separately based on whether they have parameters,
      * allowing O(1) lookup for exact matches.
      */
@@ -66,11 +73,27 @@ final class Router
         $this->prefixRoutes[$prefix] = $handler;
     }
 
+    public function previewLinks(): PreviewLinks
+    {
+        return $this->previewLinks ??= new PreviewLinks($this->app->config('security.preview_token'));
+    }
+
     public function match(Request $request): ?RouteMatch
     {
-        $path = $this->normalizePath($request->path());
+        // One spelling per URL: otherwise every percent-encoding variant of
+        // a page is a separate page (and a separate webpage-cache entry).
+        $canonical = UrlPath::canonical($request->path());
+        if ($canonical !== $request->path() && in_array($request->method(), ['GET', 'HEAD'], true)) {
+            return new RouteMatch(
+                type: 'redirect',
+                // Exactly one leading slash: "//host" would leave the site.
+                redirectUrl: $this->withQuery($request, '/' . ltrim($canonical, '/')),
+                redirectCode: 301
+            );
+        }
+
+        $path = $this->normalizePath(UrlPath::decode($request->path()));
         $repository = $this->app->repository();
-        $routes = $repository->routes();
 
         // Allow hooks to intercept routing
         $match = Hooks::apply('router.before_match', null, $request, $this);
@@ -100,8 +123,8 @@ final class Router
         }
 
         // Redirects from redirect_from frontmatter
-        if (isset($routes['redirects'][$path])) {
-            $redirect = $routes['redirects'][$path];
+        $redirect = $repository->redirectRoute($path);
+        if ($redirect !== null) {
             return new RouteMatch(
                 type: 'redirect',
                 redirectUrl: $redirect['to'],
@@ -116,42 +139,39 @@ final class Router
         }
         // Then check parameterized routes
         foreach ($this->paramSystemRoutes as $routePath => $handler) {
-            $match = $this->matchSystemRoute($routePath, $path);
-            if ($match !== null) {
-                return $this->invokeHandler($handler, $request, $match);
+            $params = $this->matchSystemRoute($routePath, $path);
+            if ($params !== null) {
+                return $this->invokeHandler($handler, $request, $params);
             }
         }
 
-        // Exact routes from the content cache
-        if (isset($routes['exact'][$path])) {
-            return $this->handleExactRoute($routes['exact'][$path], $repository, $request);
+        // Exact routes from the content index
+        $route = $repository->exactRoute($path);
+        if ($route !== null) {
+            return $this->handleExactRoute($route, $repository, $request, $path);
         }
 
-        // Preview mode: match unpublished content by URL pattern
-        if ($this->hasPreviewAccess($request)) {
-            $previewMatch = $this->tryPreviewMatch($path, $request);
-            if ($previewMatch !== null) {
-                return $previewMatch;
+        // Unpublished content, at the URL it will be published at
+        if ($this->hasPreviewAccess($request, $path)) {
+            $route = $repository->previewRoute($path);
+            if ($route !== null) {
+                return $this->handleExactRoute($route, $repository, $request, $path);
             }
         }
 
         // Taxonomy index and term pages
-        foreach ($routes['taxonomy'] ?? [] as $taxName => $taxRoute) {
+        foreach ($repository->taxonomyRoutes() as $taxName => $taxRoute) {
             $base = rtrim($taxRoute['base'], '/');
 
-            // Exact match to taxonomy base (index of all terms)
             if ($path === $base) {
                 return $this->handleTaxonomyIndex($taxName, $repository->terms($taxName));
             }
 
-            // Match term under taxonomy base
             if (str_starts_with($path, $base . '/')) {
-                $termPath = substr($path, strlen($base) + 1);
-                return $this->handleTaxonomyTerm($taxName, $termPath, $repository, $request);
+                return $this->handleTaxonomyTerm($taxName, $base, substr($path, strlen($base) + 1), $repository, $request);
             }
         }
 
-        // No match
         return null;
     }
 
@@ -165,7 +185,7 @@ final class Router
             $path = rtrim($path, '/');
         }
 
-        return $path;
+        return $path === '' ? '/' : $path;
     }
 
     /**
@@ -181,11 +201,17 @@ final class Router
             return $pattern === $path ? [] : null;
         }
 
-        // Convert {param} to regex
-        $regex = preg_replace('/\{([^}]+)\}/', '(?P<$1>[^/]+)', $pattern);
-        $regex = '#^' . $regex . '$#';
+        // Convert {param} to regex; literal parts are quoted so a "." in
+        // "/feed/{type}.xml" matches only a dot.
+        $parts = preg_split('/(\{[^}]+\})/', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
+        $regex = '';
+        foreach ($parts as $part) {
+            $regex .= preg_match('/^\{([A-Za-z_][A-Za-z0-9_]*)\}$/', $part, $name) === 1
+                ? '(?P<' . $name[1] . '>[^/]+)'
+                : preg_quote($part, '#');
+        }
 
-        if (preg_match($regex, $path, $matches)) {
+        if (preg_match('#^' . $regex . '$#u', $path, $matches)) {
             // Filter to only named captures
             return array_filter($matches, fn($key) => is_string($key), ARRAY_FILTER_USE_KEY);
         }
@@ -226,31 +252,31 @@ final class Router
         $target = $trailingSlash ? $path . '/' : (rtrim($path, '/') ?: '/');
 
         // Keep the query string: dropping it turned /blog/?paged=2 into /blog.
-        $query = parse_url($request->uri(), PHP_URL_QUERY);
-        if (is_string($query) && $query !== '') {
-            $target .= '?' . $query;
-        }
-
         return new RouteMatch(
             type: 'redirect',
-            redirectUrl: $target,
+            redirectUrl: $this->withQuery($request, $target),
             redirectCode: 301
         );
     }
 
-    private function handleExactRoute(array $routeData, Repository $repository, Request $request): ?RouteMatch
+    private function withQuery(Request $request, string $target): string
+    {
+        $query = parse_url($request->uri(), PHP_URL_QUERY);
+
+        return is_string($query) && $query !== '' ? $target . '?' . $query : $target;
+    }
+
+    private function handleExactRoute(array $routeData, Repository $repository, Request $request, ?string $path = null): ?RouteMatch
     {
         $type = $routeData['type'] ?? 'single';
 
         if ($type === 'single') {
-            // Use file path for lookup (more reliable for hierarchical content)
             if (!isset($routeData['file'])) {
                 return null;
             }
 
-            // Parse the single file directly from its route entry. This avoids
-            // loading the full content index (with every item body) into memory
-            // just to render one page.
+            // Parse the single file named by the route: rendering one page
+            // must not load the whole content index.
             $item = $repository->getByFile(
                 $routeData['file'],
                 $routeData['content_type'] ?? '',
@@ -261,16 +287,18 @@ final class Router
                 return null;
             }
 
-            // Check preview access for non-published content
-            // Unlisted items are accessible via direct URL without token
-            if (!$item->isPublished() && !$item->isUnlisted() && !$this->hasPreviewAccess($request)) {
+            // The file is re-read on every request, so its status may be
+            // newer than the index's. Unlisted items are reachable by URL.
+            if (!$item->isPublished() && !$item->isUnlisted()
+                && !$this->hasPreviewAccess($request, $path ?? $this->normalizePath(UrlPath::decode($request->path())))
+            ) {
                 return null;
             }
 
             return new RouteMatch(
                 type: 'single',
                 contentItem: $item,
-                template: $routeData['template'] ?? 'single.php',
+                template: $item->template() ?? $routeData['template'] ?? 'single.php',
                 params: ['content_type' => $routeData['content_type']]
             );
         }
@@ -323,18 +351,32 @@ final class Router
         );
     }
 
-    private function handleTaxonomyTerm(string $taxonomy, string $termPath, Repository $repository, Request $request): ?RouteMatch
-    {
-        $term = $repository->term($taxonomy, $termPath);
-
+    private function handleTaxonomyTerm(
+        string $taxonomy,
+        string $base,
+        string $termPath,
+        Repository $repository,
+        Request $request
+    ): ?RouteMatch {
+        $slug = Terms::slug($termPath);
+        $term = $slug === '' ? null : $repository->term($taxonomy, $slug);
         if ($term === null) {
             return null;
         }
 
-        // Build query for items with this term
+        // /tag/Web-Dev and /tag/web-dev are one page; send visitors (and
+        // search engines) to the canonical spelling.
+        if ($slug !== $termPath) {
+            return new RouteMatch(
+                type: 'redirect',
+                redirectUrl: $this->withQuery($request, $this->applyTrailingSlash($base . '/' . $slug)),
+                redirectCode: 301
+            );
+        }
+
         $query = $this->app->query()
             ->published()
-            ->whereTax($taxonomy, $termPath)
+            ->whereTax($taxonomy, $slug)
             ->fromParams($request->query());
 
         if ($this->isBeyondLastPage($query)) {
@@ -377,7 +419,7 @@ final class Router
         }
 
         // Handle direct Response objects from plugins
-        if ($result instanceof \Ava\Http\Response) {
+        if ($result instanceof Response) {
             return new RouteMatch(
                 type: 'plugin',
                 template: '__raw__',
@@ -389,109 +431,39 @@ final class Router
     }
 
     /**
-     * Try to match a preview request against content type URL patterns.
-     * 
-     * This allows previewing draft content that isn't in the routes cache.
+     * May this request see unpublished content at $path?
      */
-    private function tryPreviewMatch(string $path, Request $request): ?RouteMatch
+    private function hasPreviewAccess(Request $request, string $path): bool
     {
-        // Load content_types directly from file (not in main config)
-        $contentTypesFile = $this->app->path('app/config/content_types.php');
-        if (!file_exists($contentTypesFile)) {
-            return null;
-        }
-        $contentTypes = require $contentTypesFile;
-        $repository = $this->app->repository();
-
-        foreach ($contentTypes as $typeName => $typeConfig) {
-            $urlConfig = $typeConfig['url'] ?? [];
-            $pattern = $urlConfig['pattern'] ?? '/' . $typeName . '/{slug}';
-
-            // Convert pattern to regex
-            $regex = preg_replace('/\{slug\}/', '([^/]+)', $pattern);
-            $regex = '#^' . $regex . '$#';
-
-            if (preg_match($regex, $path, $matches)) {
-                $slug = $matches[1] ?? null;
-                if ($slug === null) {
-                    continue;
-                }
-
-                // Try to get the content item (including drafts)
-                $item = $repository->get($typeName, $slug);
-                if ($item !== null) {
-                    return new RouteMatch(
-                        type: 'single',
-                        contentItem: $item,
-                        template: $item->template() ?? $typeConfig['templates']['single'] ?? 'single.php',
-                        params: ['content_type' => $typeName]
-                    );
-                }
-            }
-        }
-
-        return null;
+        return $this->previewLinks()->allows($request, $path);
     }
 
     /**
-     * Check if request has preview access.
-     * 
-     * Validates the preview token using timing-safe comparison.
-     */
-    private function hasPreviewAccess(Request $request): bool
-    {
-        if (!$request->queryString('preview')) {
-            return false;
-        }
-
-        $token = $request->queryString('token');
-        if (!$token) {
-            return false;
-        }
-
-        $expectedToken = $this->app->config('security.preview_token');
-
-        // Reject if no token configured
-        if ($expectedToken === null || $expectedToken === '') {
-            return false;
-        }
-
-        return hash_equals($expectedToken, $token);
-    }
-
-    /**
-     * Generate URL for a content item.
-     * 
-     * Uses O(1) reverse lookup index built during cache rebuild.
+     * Generate URL for a content item (O(1) reverse lookup).
+     *
+     * For hierarchical content, $slug is the path-based content key
+     * (for example "about/team"). Pattern content uses its slug.
      */
     public function urlFor(string $type, string $slug): ?string
     {
-        $repository = $this->app->repository();
-        $routes = $repository->routes();
-
-        // Use reverse lookup for O(1) performance (vs O(n) linear scan)
-        // For hierarchical content, $slug is the path-based content key
-        // (for example, "about/team"). Pattern content still uses its slug.
-        $url = $routes['reverse'][$type . ':' . $slug] ?? null;
+        $url = $this->app->repository()->reverseUrl($type, $slug);
 
         return $url !== null ? $this->applyTrailingSlash($url) : null;
     }
 
     /**
-     * Generate URL for a taxonomy term.
+     * Generate URL for a taxonomy term. Any spelling of the term works
+     * ("Web Dev" and "web-dev" give the same URL).
      */
     public function urlForTerm(string $taxonomy, string $term): ?string
     {
-        $repository = $this->app->repository();
-        $routes = $repository->routes();
-
-        $taxRoute = $routes['taxonomy'][$taxonomy] ?? null;
-        if ($taxRoute === null) {
+        $taxRoute = $this->app->repository()->taxonomyRoutes()[$taxonomy] ?? null;
+        $slug = Terms::slug($term);
+        if ($taxRoute === null || $slug === '') {
             return null;
         }
 
-        $base = rtrim($taxRoute['base'], '/');
-        return $this->applyTrailingSlash($base . '/' . $term);
+        return $this->applyTrailingSlash(rtrim($taxRoute['base'], '/') . '/' . $slug);
     }
 
     /**

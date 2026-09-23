@@ -6,1464 +6,477 @@ namespace Ava\Content;
 
 use Ava\Application;
 use Ava\Content\Backends\SqliteBackend;
+use Ava\Content\Index\ContentScanner;
+use Ava\Content\Index\Fingerprint;
+use Ava\Content\Index\IndexBuilder;
+use Ava\Content\Index\IndexStore;
+use Ava\Content\Index\ItemPaths;
+use Ava\Content\Index\PrerenderedHtml;
 use Ava\Plugins\Hooks;
-use Ava\Support\AtomicFile;
 use Ava\Support\LogRotator;
-use Ava\Support\Path;
 use Ava\Support\SignedCache;
 
 /**
- * Content Indexer
+ * Builds content index generations and decides, per request, whether the live
+ * one is still current.
  *
- * Scans content files and generates cache files:
- * - content_index.bin - All content items indexed by type and slug
- * - content_index.sqlite - SQLite database for large sites
- * - tax_index.bin - Taxonomy terms with counts
- * - routes.bin - Compiled route map
- * - fingerprint.json - Change detection data
+ * A build writes a complete new generation beside the live one and then
+ * publishes it atomically (see IndexStore), so requests never wait on a
+ * rebuild and never read a half-written index.
  */
 final class Indexer
 {
-    private const int FINGERPRINT_VERSION = 4;
-    private const int MAX_REBUILD_ATTEMPTS = 3;
-    private const array FINGERPRINT_HASH_EXTENSIONS = [
-        'css',
-        'htm',
-        'html',
-        'js',
-        'json',
-        'md',
-        'mjs',
-        'php',
-        'phtml',
-        'svg',
-        'twig',
-        'yaml',
-        'yml',
-    ];
+    private const MAX_BUILD_ATTEMPTS = 3;
 
     private Application $app;
-    private Parser $parser;
+    private IndexStore $store;
+    private ItemPaths $paths;
+    private ?Fingerprint $fingerprint = null;
 
-    /** @var array<string, string> Track IDs during indexing */
-    private array $seenIds = [];
-
-    /** @var string|null Override backend for benchmark comparison */
-    private ?string $backendOverride = null;
-
-    /** @var bool|null Override igbinary setting for benchmark comparison */
-    private ?bool $igbinaryOverride = null;
-
-    /** @var resource|null Shared lock held while a request reads cache artifacts. */
-    private $readLock = null;
-
-    private bool $rebuilding = false;
-
-    public function __construct(Application $app, ?string $backendOverride = null, ?bool $igbinaryOverride = null)
-    {
+    public function __construct(
+        Application $app,
+        private ?string $backendOverride = null,
+        private ?bool $igbinaryOverride = null
+    ) {
         $this->app = $app;
-        $this->parser = new Parser();
-        $this->backendOverride = $backendOverride;
-        $this->igbinaryOverride = $igbinaryOverride;
+        $this->store = $app->indexStore();
+        $this->paths = new ItemPaths($app->configPath('content'));
     }
 
-    public function __destruct()
+    public function store(): IndexStore
     {
-        $this->releaseReadLock();
+        return $this->store;
     }
 
     /**
-     * Hold a shared generation lock for the lifetime of the current request.
+     * The sources an index depends on, and what a change to each requires.
      */
-    public function acquireReadLock(): void
+    public function fingerprint(): Fingerprint
     {
-        if (is_resource($this->readLock)) {
-            return;
+        if ($this->fingerprint !== null) {
+            return $this->fingerprint;
         }
 
-        $lock = $this->openRebuildLock();
-        if (!flock($lock, LOCK_SH)) {
-            fclose($lock);
-            throw new \RuntimeException('Unable to acquire content index read lock.');
+        $theme = $this->app->themeName();
+        $themePath = $this->app->configPath('themes') . '/' . $theme;
+
+        $sources = [
+            'content' => ['path' => $this->app->configPath('content'), 'scope' => Fingerprint::SCOPE_INDEX],
+            'config' => ['path' => $this->app->path('app/config'), 'scope' => Fingerprint::SCOPE_INDEX],
+            // theme.php can register hooks that change how content renders.
+            'theme-bootstrap' => ['path' => $themePath . '/theme.php', 'scope' => Fingerprint::SCOPE_INDEX],
+            // Templates, partials and assets only affect cached pages.
+            'theme' => ['path' => $themePath, 'scope' => Fingerprint::SCOPE_PRESENTATION],
+            'snippets' => ['path' => $this->app->configPath('snippets'), 'scope' => Fingerprint::SCOPE_PRESENTATION],
+            'redirects' => [
+                'path' => $this->app->configPath('storage') . '/redirects.json',
+                'scope' => Fingerprint::SCOPE_PRESENTATION,
+            ],
+        ];
+
+        foreach ($this->app->pluginNames() as $plugin) {
+            $sources['plugin:' . $plugin] = [
+                'path' => $this->app->configPath('plugins') . '/' . $plugin,
+                'scope' => Fingerprint::SCOPE_INDEX,
+            ];
         }
 
-        $this->readLock = $lock;
+        return $this->fingerprint = new Fingerprint($sources);
     }
 
+    /**
+     * Is the live generation built from the current sources?
+     */
     public function isCacheFresh(): bool
     {
-        $fingerprintPath = $this->getCachePath('fingerprint.json');
+        $state = $this->store->reloadState();
 
-        if (!file_exists($fingerprintPath)) {
-            return false;
-        }
-
-        $contents = @file_get_contents($fingerprintPath);
-        if ($contents === false) {
-            return false;
-        }
-
-        try {
-            $stored = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return false;
-        }
-        if (!is_array($stored)) {
-            return false;
-        }
-
-        $current = $this->computeFingerprint();
-
-        return $stored === $current;
+        return $state !== null && $this->fingerprint()->changes($state['fingerprint']) === [];
     }
 
     /**
-     * Rebuild all cache files.
+     * Rebuild now, waiting for any other rebuild to finish first.
      */
     public function rebuild(bool $clearWebpageCache = true): void
     {
-        $this->withRebuildLock(
-            fn() => $this->rebuildUnlocked($clearWebpageCache)
-        );
+        $this->store->withRebuildLock(fn() => $this->build($clearWebpageCache));
     }
 
     /**
-     * Rebuild only if another process has not already refreshed the cache.
+     * Rebuild only if sources changed; presentation-only changes just clear
+     * cached pages. Waits for any other rebuild to finish first.
      */
     public function rebuildIfStale(bool $clearWebpageCache = true): void
     {
-        $this->withRebuildLock(function () use ($clearWebpageCache): void {
-            if (!$this->isCacheFresh()) {
-                $this->rebuildUnlocked($clearWebpageCache);
+        $this->store->withRebuildLock(function () use ($clearWebpageCache): void {
+            $state = $this->store->reloadState();
+            $changes = $state === null
+                ? [Fingerprint::SCOPE_INDEX]
+                : $this->fingerprint()->changes($state['fingerprint']);
+
+            if (in_array(Fingerprint::SCOPE_INDEX, $changes, true)) {
+                $this->build($clearWebpageCache);
+            } elseif ($changes !== []) {
+                $this->refreshPresentation();
             }
         });
     }
 
-    private function rebuildUnlocked(bool $clearWebpageCache, int $attempt = 1): void
+    /**
+     * Bring the index up to date for the current request.
+     *
+     * - Nothing built yet: build, waiting if another process is building.
+     * - never:  use the live generation as is (./ava rebuild updates it).
+     * - always: rebuild on every request (debugging only).
+     * - auto:   at most once per check_interval seconds, compare file
+     *           metadata with the live generation. Presentation-only changes
+     *           clear cached pages. Content changes are rebuilt by one
+     *           request while every other request keeps using the live
+     *           generation. A failed automatic rebuild is logged and not
+     *           retried for the same sources for a few minutes, so a build
+     *           that runs out of memory cannot take every request down with it.
+     */
+    public function refresh(string $mode): void
     {
-        $fingerprint = $this->computeFingerprint();
-
-        // Reset seen IDs for duplicate detection
-        $this->seenIds = [];
-
-        $contentTypes = $this->loadContentTypes();
-        $taxonomies = $this->loadTaxonomies();
-
-        // Parse all content
-        $allItems = [];
-        $errors = [];
-
-        foreach ($contentTypes as $typeName => $typeConfig) {
-            $items = $this->scanContentType($typeName, $typeConfig, $errors);
-            $allItems[$typeName] = $items;
+        if ($this->store->state() === null) {
+            $this->store->withRebuildLock(function (): void {
+                if ($this->store->reloadState() === null) {
+                    $this->build(true);
+                }
+            });
+            return;
         }
 
-        // Build indexes
-        $contentIndex = $this->buildContentIndex($allItems, $contentTypes);
-        $taxIndex = $this->buildTaxonomyIndex($allItems, $taxonomies, $contentTypes);
-        $routes = $this->buildRoutes($allItems, $contentTypes, $taxonomies);
-        $recentCache = $this->buildRecentCache($allItems);
-        $slugLookup = $this->buildSlugLookup($allItems, $contentTypes);
-        $synonyms = $this->buildSynonymsCache();
-        $stopWords = $this->loadStopWords();
-        $htmlCache = $this->app->config('content_index.prerender_html', false)
-            ? $this->buildHtmlCache($allItems)
-            : null;
+        if ($mode === 'never') {
+            return;
+        }
 
-        // Do not publish a mixed snapshot if files changed while being parsed.
-        // Retry before writing any cache artifact so readers retain the prior
-        // complete generation until a stable source snapshot is available.
-        if ($fingerprint !== $this->computeFingerprint()) {
-            if ($attempt >= self::MAX_REBUILD_ATTEMPTS) {
-                throw new \RuntimeException(
-                    'Source files kept changing during the content index rebuild.'
+        if ($mode === 'always') {
+            $this->rebuild();
+            return;
+        }
+
+        $interval = max(0, (int) $this->app->config('content_index.check_interval', 1));
+        if ($this->store->checkedWithin($interval)) {
+            return;
+        }
+
+        if (!$this->store->keyIsReadable()) {
+            error_log('Ava: ' . SignedCache::describeUnreadableKey($this->store->keyDirectory()));
+        }
+
+        $current = null;
+        $changes = $this->fingerprint()->changes($this->store->state()['fingerprint'], $current);
+
+        if ($changes === []) {
+            $this->store->markChecked();
+            return;
+        }
+
+        if (!in_array(Fingerprint::SCOPE_INDEX, $changes, true)) {
+            $this->store->withRebuildLock(function (): void {
+                $state = $this->store->reloadState();
+                $changes = $state === null ? [] : $this->fingerprint()->changes($state['fingerprint']);
+                if ($changes !== [] && !in_array(Fingerprint::SCOPE_INDEX, $changes, true)) {
+                    $this->refreshPresentation();
+                }
+            }, wait: false);
+            return;
+        }
+
+        $identity = Fingerprint::identity(['sources' => $current]);
+        if ($this->store->recentlyFailed($identity)) {
+            return;
+        }
+
+        $this->store->withRebuildLock(function () use ($identity): void {
+            $state = $this->store->reloadState();
+            if ($state !== null && $this->fingerprint()->changes($state['fingerprint']) === []) {
+                return; // Another process rebuilt while we waited for the lock.
+            }
+
+            $this->store->recordAttempt($identity);
+            try {
+                $this->build(true);
+                $this->store->clearAttempt();
+            } catch (\Throwable $e) {
+                // The attempt marker stays, so this is not retried on every
+                // request; visitors keep getting the previous generation.
+                error_log(
+                    'Ava: automatic content index rebuild failed, still serving the previous index: '
+                    . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine()
+                    . '. It is retried when files change again or in 5 minutes; run ./ava rebuild for details.'
                 );
             }
-            $this->rebuildUnlocked($clearWebpageCache, $attempt + 1);
-            return;
-        }
-
-        // Determine which backend to build (use override if set, otherwise config)
-        $backendConfig = $this->backendOverride ?? $this->app->config('content_index.backend', 'array');
-
-        // Always write shared cache files (used by both backends)
-        $this->writeBinaryCacheFile('tax_index.bin', $taxIndex);
-        $this->writeBinaryCacheFile('routes.bin', $routes);
-        $this->writeBinaryCacheFile('recent_cache.bin', $recentCache);
-        $this->writeBinaryCacheFile('slug_lookup.bin', $slugLookup);
-
-        // Build search config caches (synonyms and stop words)
-        $this->writeSearchCache('synonyms.bin', $synonyms);
-        $this->writeSearchCache('stopwords.bin', $stopWords);
-
-        // Pre-render HTML if enabled (trades rebuild time for faster page loads)
-        if ($htmlCache !== null) {
-            $this->writeBinaryCacheFile('html_cache.bin', $htmlCache);
-        } else {
-            // Clean up old HTML cache if it exists
-            $htmlCachePath = $this->getCachePath('html_cache.bin');
-            if (file_exists($htmlCachePath)) {
-                @unlink($htmlCachePath);
-            }
-        }
-
-        // Write only the configured backend
-        if ($backendConfig === 'sqlite') {
-            if (!extension_loaded('pdo_sqlite')) {
-                throw new \RuntimeException(
-                    "SQLite backend requires the pdo_sqlite extension. " .
-                    "Install it or set backend to 'array' in config."
-                );
-            }
-            $this->writeSqliteIndex($allItems, $contentTypes, $taxIndex, $routes, $fingerprint);
-            // If we are using SQLite, remove any stale binary array index to avoid wasting disk
-            // and to prevent confusion when inspecting cache size.
-            $this->cleanupUnusedBinaryIndex();
-        } else {
-            $this->writeBinaryCacheFile('content_index.bin', $contentIndex);
-            // If we are not using SQLite, remove any stale SQLite index to avoid wasting disk
-            // and to prevent confusion when inspecting cache size.
-            $this->cleanupUnusedSqliteIndex();
-        }
-
-        // A source may also change during the disk publication phase. Readers
-        // are still excluded, so overwrite this unpublished generation with a
-        // fresh one before clearing webpages or committing the fingerprint.
-        if ($fingerprint !== $this->computeFingerprint()) {
-            if ($attempt >= self::MAX_REBUILD_ATTEMPTS) {
-                throw new \RuntimeException(
-                    'Source files kept changing during the content index rebuild.'
-                );
-            }
-            $this->rebuildUnlocked($clearWebpageCache, $attempt + 1);
-            return;
-        }
-
-        // Clear webpage cache when content cache is rebuilt (unless skipped)
-        if ($clearWebpageCache) {
-            $this->clearWebpageCache();
-        }
-
-        // Publish freshness last. In automatic mode this is the commit marker:
-        // readers cannot observe a fresh fingerprint with old index artifacts.
-        $this->writeJsonCacheFile('fingerprint.json', $fingerprint);
-
-        // Trigger rebuild hook (allows observing plugins to run actions)
-        Hooks::doAction('indexer.rebuild', $this->app);
-
-        // Log any errors
-        if (!empty($errors)) {
-            $this->logErrors($errors);
-        }
+        }, wait: false);
     }
 
     /**
-     * Run a rebuild while excluding readers and other rebuild processes.
-     */
-    private function withRebuildLock(callable $callback): void
-    {
-        if ($this->rebuilding) {
-            throw new \LogicException('A content index rebuild is already in progress.');
-        }
-
-        $hadReadLock = is_resource($this->readLock);
-        $this->releaseReadLock();
-        $lock = $this->openRebuildLock();
-
-        if (!flock($lock, LOCK_EX)) {
-            fclose($lock);
-            if ($hadReadLock) {
-                $this->acquireReadLock();
-            }
-            throw new \RuntimeException('Unable to acquire content index rebuild lock.');
-        }
-
-        $this->rebuilding = true;
-        try {
-            $callback();
-        } finally {
-            $this->rebuilding = false;
-            flock($lock, LOCK_UN);
-            fclose($lock);
-            if ($hadReadLock) {
-                $this->acquireReadLock();
-            }
-        }
-    }
-
-    /**
-     * @return resource
-     */
-    private function openRebuildLock()
-    {
-        $cachePath = $this->getCachePath();
-        if (!is_dir($cachePath) && !mkdir($cachePath, 0755, true) && !is_dir($cachePath)) {
-            throw new \RuntimeException('Unable to create content cache directory.');
-        }
-
-        $lock = @fopen($cachePath . '/.rebuild.lock', 'c+b');
-        if ($lock === false) {
-            throw new \RuntimeException('Unable to open content index rebuild lock.');
-        }
-
-        return $lock;
-    }
-
-    private function releaseReadLock(): void
-    {
-        if (!is_resource($this->readLock)) {
-            $this->readLock = null;
-            return;
-        }
-
-        flock($this->readLock, LOCK_UN);
-        fclose($this->readLock);
-        $this->readLock = null;
-    }
-
-    /**
-     * Remove unused SQLite index artifacts when the configured backend is not sqlite.
-     */
-    private function cleanupUnusedSqliteIndex(): void
-    {
-        $cachePath = $this->getCachePath();
-        $sqlitePath = $cachePath . '/content_index.sqlite';
-
-        if (!file_exists($sqlitePath)) {
-            return;
-        }
-
-        @unlink($sqlitePath);
-        @unlink($sqlitePath . '-wal');
-        @unlink($sqlitePath . '-shm');
-    }
-
-    /**
-     * Remove unused binary array index artifact when the configured backend is sqlite.
-     */
-    private function cleanupUnusedBinaryIndex(): void
-    {
-        $cachePath = $this->getCachePath();
-        $binPath = $cachePath . '/content_index.bin';
-
-        if (!file_exists($binPath)) {
-            return;
-        }
-
-        @unlink($binPath);
-    }
-
-    /**
-     * Write the SQLite index database.
-     */
-    private function writeSqliteIndex(
-        array $allItems,
-        array $contentTypes,
-        array $taxIndex,
-        array $routes,
-        array $fingerprint
-    ): void
-    {
-        $livePath = $this->getCachePath('content_index.sqlite');
-        $temporaryPath = $livePath . '.' . bin2hex(random_bytes(8)) . '.tmp';
-        $sqlite = new SqliteBackend(
-            $this->app->configPath('storage'),
-            $this->app->configPath('content'),
-            $temporaryPath
-        );
-        
-        try {
-            // Create fresh database
-            $sqlite->createDatabase();
-            $sqlite->beginTransaction();
-
-            // Insert all content items
-            foreach ($allItems as $typeName => $items) {
-                $typeConfig = $contentTypes[$typeName] ?? [];
-                foreach ($items as $item) {
-                    $data = $item->toArray();
-                    $data['type'] = $typeName;
-                    $data['content_key'] = $this->contentKey($item, $typeConfig);
-                    $data['file_path'] = $this->getRelativePath($item->filePath());
-                    $data['meta'] = $data['frontmatter'] ?? [];
-                    $data['taxonomies'] = [];
-                    foreach ($typeConfig['taxonomies'] ?? [] as $taxonomy) {
-                        $data['taxonomies'][$taxonomy] = $item->terms($taxonomy);
-                    }
-                    $sqlite->insertContent($data);
-                }
-            }
-
-            // Insert taxonomy terms
-            foreach ($taxIndex as $taxonomy => $taxData) {
-                foreach ($taxData['terms'] ?? [] as $term) {
-                    $sqlite->insertTerm($taxonomy, $term);
-                }
-            }
-
-            // Insert routes
-            foreach ($routes['redirects'] ?? [] as $path => $data) {
-                $sqlite->insertRoute($path, 'redirect', $data);
-            }
-            foreach ($routes['exact'] ?? [] as $path => $data) {
-                $sqlite->insertRoute($path, 'exact', $data);
-            }
-            foreach ($routes['taxonomy'] ?? [] as $name => $data) {
-                $sqlite->insertRoute($data['base'] ?? '/' . $name, 'taxonomy', $data, $name);
-            }
-            foreach ($routes['reverse'] ?? [] as $key => $url) {
-                $sqlite->insertRoute($key, 'reverse', ['url' => $url]);
-            }
-
-            // Store fingerprint
-            $sqlite->setMetadata('fingerprint', $fingerprint);
-            $sqlite->setMetadata('built_at', date('c'));
-
-            $sqlite->commit();
-            $sqlite->prepareForPublication();
-            $this->app->repository()->clearCache();
-            $this->publishSqliteDatabase($temporaryPath, $livePath);
-        } catch (\Throwable $e) {
-            $sqlite->rollback();
-            $sqlite->clearMemoryCache();
-            throw new \RuntimeException('SQLite index build failed: ' . $e->getMessage(), 0, $e);
-        } finally {
-            foreach ([$temporaryPath, $temporaryPath . '-wal', $temporaryPath . '-shm'] as $file) {
-                if (is_file($file)) {
-                    @unlink($file);
-                }
-            }
-        }
-    }
-
-    /**
-     * Replace the live SQLite database and restore it if activation fails.
-     */
-    private function publishSqliteDatabase(string $temporaryPath, string $livePath): void
-    {
-        if (!is_file($temporaryPath)) {
-            throw new \RuntimeException('Completed SQLite index file is missing');
-        }
-
-        $backupBase = $livePath . '.' . bin2hex(random_bytes(8)) . '.backup';
-        $backups = [];
-        $published = false;
-
-        try {
-            foreach (['', '-wal', '-shm'] as $suffix) {
-                $liveFile = $livePath . $suffix;
-                if (!is_file($liveFile)) {
-                    continue;
-                }
-
-                $backupFile = $backupBase . $suffix;
-                if (!@rename($liveFile, $backupFile)) {
-                    throw new \RuntimeException('Failed to back up the live SQLite index');
-                }
-                $backups[$liveFile] = $backupFile;
-            }
-
-            if (!@rename($temporaryPath, $livePath)) {
-                throw new \RuntimeException('Failed to publish the new SQLite index');
-            }
-            @chmod($livePath, 0644);
-            $published = true;
-        } catch (\Throwable $e) {
-            $restoreErrors = [];
-            foreach (array_reverse($backups, true) as $liveFile => $backupFile) {
-                if (is_file($backupFile) && !@rename($backupFile, $liveFile)) {
-                    $restoreErrors[] = $backupFile;
-                }
-            }
-
-            if ($restoreErrors !== []) {
-                throw new \RuntimeException(
-                    $e->getMessage() . '; old SQLite files preserved at: '
-                        . implode(', ', $restoreErrors),
-                    0,
-                    $e
-                );
-            }
-            throw $e;
-        } finally {
-            if ($published) {
-                foreach ($backups as $backupFile) {
-                    if (is_file($backupFile)) {
-                        @unlink($backupFile);
-                    }
-                }
-            }
-        }
-    }
-
-    private function clearWebpageCache(): void
-    {
-        $this->app->webpageCache()->clear();
-    }
-
-    /**
-     * Validate content files without rebuilding the index.
+     * Validate content files without building anything.
      *
      * @return array{errors: array<string>, warnings: array<string>}
      */
     public function lint(): array
     {
-        $contentTypes = $this->loadContentTypes();
-        $errors = [];
-        $warnings = [];
+        $contentTypes = $this->app->contentTypes();
+        $scan = $this->scanner()->scan($contentTypes, collectWarnings: true);
 
-        foreach ($contentTypes as $typeName => $typeConfig) {
-            $this->scanContentType($typeName, $typeConfig, $errors, $warnings);
-        }
+        $builder = $this->builder();
+        $builder->routes($scan['items'], $contentTypes, $this->app->taxonomies());
+        $builder->taxonomyIndex($scan['items'], $this->app->taxonomies(), $contentTypes);
+        $builder->synonyms();
+        $builder->stopWords();
 
         return [
-            'errors' => $errors,
-            'warnings' => $warnings,
+            'errors' => array_values(array_merge($scan['errors'], $builder->errors())),
+            'warnings' => $scan['warnings'],
         ];
     }
 
-    /**
-     * Scan a content type directory.
-     *
-     * @return array<Item>
-     */
-    private function scanContentType(
-        string $typeName,
-        array $typeConfig,
-        array &$errors,
-        ?array &$warnings = null
-    ): array
-    {
-        $contentDir = $typeConfig['content_dir'] ?? $typeName;
-        $basePath = $this->app->configPath('content') . '/' . $contentDir;
-
-        if (!is_dir($basePath)) {
-            return [];
-        }
-
-        $items = [];
-        $keys = []; // Track content keys for uniqueness: key => ['file' => path, 'format' => format]
-        $itemsByKey = []; // Track items by content key for collision resolution
-
-        $files = $this->findContentFiles($basePath);
-
-        foreach ($files as $filePath) {
-            try {
-                $item = $this->parser->parseFile($filePath, $typeName);
-
-                // Validate item (core fields: title, slug, status)
-                $itemErrors = $this->parser->validate($item);
-                foreach ($itemErrors as $error) {
-                    $errors[] = "{$filePath}: {$error}";
-                }
-
-                if ($warnings !== null) {
-                    foreach ($this->parser->validateWarnings($item) as $warning) {
-                        $warnings[] = "{$filePath}: {$warning}";
-                    }
-                }
-
-                // Check content key uniqueness (path-based for hierarchical, slug for pattern)
-                $key = $this->contentKey($item, $typeConfig);
-                if (isset($keys[$key])) {
-                    $existingFormat = $keys[$key]['format'];
-                    $newFormat = $item->format();
-
-                    // Cross-format collision: .html takes priority over .md
-                    if ($existingFormat !== $newFormat) {
-                        if ($newFormat === Item::FORMAT_HTML) {
-                            // New .html file wins — replace the .md item
-                            $errors[] = "{$keys[$key]['file']}: Overridden by .html file with same content key '{$key}' ({$filePath})";
-                            // Remove the old .md item and untrack its ID
-                            $oldItem = $itemsByKey[$key];
-                            $items = array_values(array_filter($items, fn($i) => $i !== $oldItem));
-                            if ($oldItem->id() !== null) {
-                                unset($this->seenIds[$oldItem->id()]);
-                            }
-                            $keys[$key] = ['file' => $filePath, 'format' => $newFormat];
-                            $itemsByKey[$key] = $item;
-                            // Fall through to ID check and $items[] below
-                        } else {
-                            // Existing .html file already wins — skip this .md file
-                            $errors[] = "{$filePath}: Overridden by .html file with same content key '{$key}' ({$keys[$key]['file']})";
-                            continue;
-                        }
-                    } else {
-                        // Same-format collision is always an error
-                        $errors[] = "{$filePath}: Duplicate content key '{$key}' (also in {$keys[$key]['file']})";
-                    }
-                } else {
-                    $keys[$key] = ['file' => $filePath, 'format' => $item->format()];
-                    $itemsByKey[$key] = $item;
-                }
-
-                // Check ID uniqueness (if IDs are used)
-                $id = $item->id();
-                if ($id !== null) {
-                    if (isset($this->seenIds[$id])) {
-                        $errors[] = "{$filePath}: Duplicate ID '{$id}' (also in {$this->seenIds[$id]})";
-                    } else {
-                        $this->seenIds[$id] = $filePath;
-                    }
-                }
-
-                $items[] = $item;
-            } catch (\Throwable $e) {
-                // One bad file must not take the whole index (and site) down.
-                $errors[] = "{$filePath}: " . $e->getMessage();
-            }
-        }
-
-        return $items;
-    }
+    // -------------------------------------------------------------------------
+    // Building
+    // -------------------------------------------------------------------------
 
     /**
-     * Find all content files (.md and .html) recursively.
-     *
-     * @return array<string>
+     * Build and publish a generation. Callers hold the rebuild lock.
      */
-    private function findContentFiles(string $directory): array
+    private function build(bool $clearWebpageCache): void
     {
-        $files = [];
+        // Pre-rendering must see the same plugin and theme hooks as a page.
+        $this->app->loadExtensions();
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS)
-        );
-
-        foreach ($iterator as $file) {
-            if ($file->isFile() && in_array($file->getExtension(), ['md', 'html'], true)) {
-                $files[] = $file->getPathname();
-            }
+        $backend = $this->backendOverride ?? (string) $this->app->config('content_index.backend', 'array');
+        if (!in_array($backend, ['array', 'sqlite'], true)) {
+            throw new \RuntimeException("Unknown content_index.backend '{$backend}'; use 'array' or 'sqlite'.");
         }
-
-        return $files;
-    }
-
-    private function buildContentIndex(array $allItems, array $contentTypes): array
-    {
-        $index = [
-            'by_type' => [],
-            'by_key' => [],   // type:contentKey (path-based for hierarchical, slug for pattern)
-            'by_id' => [],
-            'by_path' => [],
-        ];
-
-        foreach ($allItems as $typeName => $items) {
-            $typeConfig = $contentTypes[$typeName] ?? [];
-            $index['by_type'][$typeName] = [];
-
-            foreach ($items as $item) {
-                $data = $item->toArray();
-                $contentKey = $this->contentKey($item, $typeConfig);
-                
-                // Store the content key in the data for retrieval
-                $data['content_key'] = $contentKey;
-
-                // Index by type + content key
-                $index['by_type'][$typeName][$contentKey] = $data;
-
-                // Global key index (type:contentKey)
-                $key = $typeName . ':' . $contentKey;
-                $index['by_key'][$key] = $data;
-
-                // Index by ID if present
-                if ($item->id()) {
-                    $index['by_id'][$item->id()] = $data;
-                }
-
-                // Index by relative file path
-                $relativePath = $this->getRelativePath($item->filePath());
-                $index['by_path'][$relativePath] = $data;
-            }
-        }
-
-        return $index;
-    }
-
-    /**
-     * Build the recent cache.
-     * 
-     * A lightweight index containing pre-sorted, minimal data for each content type.
-     * This enables fast archive queries without loading the full content index.
-     * 
-     * Structure: [
-     *     'post' => [
-     *         'total' => 1000,
-     *         'items' => [ {id, slug, title, date, status, excerpt, taxonomies}, ... ]
-     *     ],
-     *     ...
-     * ]
-     */
-    private function buildRecentCache(array $allItems): array
-    {
-        $cache = [];
-        $maxItems = 200; // Cache top 200 items per type (covers ~20 pages at 10/page)
-        $contentTypes = $this->loadContentTypes();
-
-        foreach ($allItems as $typeName => $items) {
-            // Get cache_fields config for this type
-            $typeConfig = $contentTypes[$typeName] ?? [];
-            $cacheFields = $typeConfig['cache_fields'] ?? [];
-            
-            // Filter to published only and collect minimal data
-            $published = [];
-            foreach ($items as $item) {
-                if (!$item->isPublished()) {
-                    continue;
-                }
-                
-                // Extract taxonomy terms and custom cache fields from frontmatter
-                $taxonomies = [];
-                $extraFields = [];
-                $frontmatter = $item->toArray()['frontmatter'] ?? [];
-                
-                foreach ($frontmatter as $key => $value) {
-                    // Skip core fields
-                    if (in_array($key, ['id', 'title', 'slug', 'status', 'date', 'excerpt', 'template', 'updated'], true)) {
-                        continue;
-                    }
-                    // Capture taxonomy arrays
-                    if (is_array($value)) {
-                        $taxonomies[$key] = $value;
-                    }
-                    // Capture configured cache fields
-                    if (in_array($key, $cacheFields, true)) {
-                        $extraFields[$key] = $value;
-                    }
-                }
-                
-                $itemData = [
-                    'id' => $item->id(),
-                    'slug' => $item->slug(),
-                    'content_key' => $this->contentKey($item, $typeConfig),
-                    'title' => $item->title(),
-                    'type' => $typeName,
-                    'date' => $item->date()?->format('c'),
-                    'status' => $item->status(),
-                    'excerpt' => mb_substr($item->excerpt() ?? '', 0, 200),
-                    'taxonomies' => $taxonomies,
-                ];
-                
-                // Merge in any extra configured cache fields
-                if (!empty($extraFields)) {
-                    $itemData = array_merge($itemData, $extraFields);
-                }
-                
-                $published[] = $itemData;
-            }
-
-            // Sort by date descending
-            usort($published, function ($a, $b) {
-                $aDate = $a['date'] ?? '';
-                $bDate = $b['date'] ?? '';
-                return strcmp($bDate, $aDate);
-            });
-
-            $cache[$typeName] = [
-                'total' => count($published),
-                'items' => array_slice($published, 0, $maxItems),
-            ];
-        }
-
-        return $cache;
-    }
-
-    /**
-     * Build pre-rendered HTML cache.
-     * 
-     * Renders all content markdown during rebuild to eliminate the ~20ms
-     * CommonMark initialization cost on first page load.
-     * 
-     * Structure: [
-     *     'type:slug' => '<p>Rendered HTML...</p>',
-     *     ...
-     * ]
-     */
-    private function buildHtmlCache(array $allItems): array
-    {
-        $cache = [];
-        $contentTypes = $this->loadContentTypes();
-        
-        // Path aliases for expansion
-        $aliases = $this->app->config('paths.aliases', []);
-        
-        foreach ($allItems as $typeName => $items) {
-            $typeConfig = $contentTypes[$typeName] ?? [];
-            
-            foreach ($items as $item) {
-                // Only pre-render published content
-                if (!$item->isPublished()) {
-                    continue;
-                }
-
-                // Skip HTML format items - they don't need Markdown rendering
-                if ($item->isHtml()) {
-                    continue;
-                }
-                
-                $contentKey = $this->contentKey($item, $typeConfig);
-                $key = $typeName . ':' . $contentKey;
-                
-                try {
-                    $markdownExtensions = $item->get('markdown_extensions', []);
-                    $options = is_array($markdownExtensions) ? ['markdown_extensions' => $markdownExtensions] : [];
-                    $converter = $this->app->markdown($options);
-                    $html = $converter->convert($item->rawContent())->getContent();
-                    
-                    // Expand path aliases
-                    foreach ($aliases as $alias => $path) {
-                        $html = str_replace($alias, $path, $html);
-                    }
-                    
-                    // Note: Shortcodes are NOT processed here because they may depend
-                    // on request context. They're processed at render time.
-                    
-                    $cache[$key] = $html;
-                } catch (\Throwable $e) {
-                    // Log error but don't fail the rebuild
-                    error_log("HTML pre-render failed for {$key}: " . $e->getMessage());
-                }
-            }
-        }
-        
-        return $cache;
-    }
-
-    /**
-     * Build the content key lookup table.
-     * 
-     * A lightweight index mapping type/contentKey to file path and minimal metadata.
-     * Used for fast single-item lookups without loading the full content index.
-     * 
-     * For hierarchical types, contentKey is the path (e.g., 'about/team').
-     * For pattern types, contentKey is the slug (e.g., 'hello-world').
-     * 
-     * Structure: [
-     *     'page' => [
-     *         'about/team' => ['file' => 'pages/about/team.md', 'id' => '...', 'status' => 'published'],
-     *         ...
-     *     ],
-     *     'post' => [
-     *         'hello-world' => ['file' => 'posts/hello-world.md', 'id' => '...', 'status' => 'published'],
-     *         ...
-     *     ],
-     * ]
-     */
-    private function buildSlugLookup(array $allItems, array $contentTypes): array
-    {
-        $lookup = [];
-
-        foreach ($allItems as $typeName => $items) {
-            $typeConfig = $contentTypes[$typeName] ?? [];
-            $lookup[$typeName] = [];
-            
-            foreach ($items as $item) {
-                $contentKey = $this->contentKey($item, $typeConfig);
-                $lookup[$typeName][$contentKey] = [
-                    'file' => $this->getRelativePath($item->filePath()),
-                    'id' => $item->id(),
-                    'status' => $item->status(),
-                    'slug' => $item->slug(), // Keep slug for reference
-                ];
-            }
-        }
-
-        return $lookup;
-    }
-
-    private function buildTaxonomyIndex(array $allItems, array $taxonomies, array $contentTypes): array
-    {
-        $index = [];
-
-        foreach ($taxonomies as $taxName => $taxConfig) {
-            $index[$taxName] = [
-                'config' => $taxConfig,
-                'terms' => [],
-            ];
-        }
-
-        // Collect terms from all content
-        foreach ($allItems as $typeName => $items) {
-            $typeConfig = $contentTypes[$typeName] ?? [];
-            
-            foreach ($items as $item) {
-                if (!$item->isPublished()) {
-                    continue;
-                }
-
-                $contentKey = $this->contentKey($item, $typeConfig);
-
-                foreach ($taxonomies as $taxName => $taxConfig) {
-                    if (!in_array($taxName, $typeConfig['taxonomies'] ?? [], true)) {
-                        continue;
-                    }
-
-                    $terms = $item->terms($taxName);
-
-                    foreach ($terms as $term) {
-                        $termSlug = is_string($term) ? $term : ($term['slug'] ?? $term['name'] ?? '');
-                        if (empty($termSlug)) {
-                            continue;
-                        }
-
-                        if (!isset($index[$taxName]['terms'][$termSlug])) {
-                            $index[$taxName]['terms'][$termSlug] = [
-                                'slug' => $termSlug,
-                                'name' => ucwords(str_replace(['-', '_', '/'], ' ', $termSlug)),
-                                'count' => 0,
-                                'items' => [],
-                            ];
-                        }
-
-                        $index[$taxName]['terms'][$termSlug]['count']++;
-                        $index[$taxName]['terms'][$termSlug]['items'][] = $typeName . ':' . $contentKey;
-                    }
-                }
-            }
-        }
-
-        // Load term registries if they exist
-        $taxonomiesPath = $this->app->configPath('content') . '/_taxonomies';
-        foreach ($taxonomies as $taxName => $taxConfig) {
-            $registryPath = $taxonomiesPath . '/' . $taxName . '.yml';
-            if (file_exists($registryPath)) {
-                // Use PARSE_EXCEPTION_ON_INVALID_TYPE for defense-in-depth against object injection
-                $registry = \Symfony\Component\Yaml\Yaml::parseFile($registryPath, \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
-                if (is_array($registry)) {
-                    foreach ($registry as $termData) {
-                        $slug = $termData['slug'] ?? '';
-                        if ($slug && isset($index[$taxName]['terms'][$slug])) {
-                            // Merge registry data with collected data
-                            $index[$taxName]['terms'][$slug] = array_merge(
-                                $index[$taxName]['terms'][$slug],
-                                $termData
-                            );
-                        } elseif ($slug) {
-                            // Term from registry not used in content
-                            $index[$taxName]['terms'][$slug] = array_merge(
-                                ['slug' => $slug, 'count' => 0, 'items' => []],
-                                $termData
-                            );
-                        }
-                    }
-                }
-            }
-        }
-
-        return $index;
-    }
-
-    /**
-     * Build the routes index.
-     */
-    private function buildRoutes(array $allItems, array $contentTypes, array $taxonomies): array
-    {
-        $routes = [
-            'redirects' => [],      // From redirect_from
-            'exact' => [],          // Exact path => handler
-            'patterns' => [],       // Pattern routes for CPTs
-            'taxonomy' => [],       // Taxonomy archive routes
-            'reverse' => [],        // Reverse lookup: type:contentKey => url (O(1) URL generation)
-        ];
-
-        foreach ($allItems as $typeName => $items) {
-            $typeConfig = $contentTypes[$typeName] ?? [];
-            $urlConfig = $typeConfig['url'] ?? [];
-
-            foreach ($items as $item) {
-                // Skip drafts for route generation
-                // - drafts are only accessible via preview token
-                // - unlisted items should be accessible via direct URL
-                if ($item->isDraft()) {
-                    continue;
-                }
-
-                // Generate URL for this item
-                $url = $this->generateUrl($item, $typeConfig);
-
-                $contentKey = $this->contentKey($item, $typeConfig);
-
-                // Add to exact routes
-                $routes['exact'][$url] = [
-                    'type' => 'single',
-                    'content_type' => $typeName,
-                    'content_key' => $contentKey,
-                    'slug' => $item->slug(),
-                    'file' => $this->getRelativePath($item->filePath()),
-                    'template' => $item->template() ?? $typeConfig['templates']['single'] ?? 'single.php',
-                ];
-
-                // Hierarchical types need their path-based key here; using only
-                // the basename slug makes siblings such as about/team and
-                // company/team overwrite one another.
-                $routes['reverse'][$typeName . ':' . $contentKey] = $url;
-
-                // Add redirect_from routes
-                foreach ($item->redirectFrom() as $fromUrl) {
-                    $routes['redirects'][$fromUrl] = [
-                        'to' => $url,
-                        'code' => 301,
-                    ];
-                }
-            }
-
-            // Add archive route if configured
-            if (isset($urlConfig['archive'])) {
-                $routes['exact'][$urlConfig['archive']] = [
-                    'type' => 'archive',
-                    'content_type' => $typeName,
-                    'template' => $typeConfig['templates']['archive'] ?? 'archive.php',
-                ];
-            }
-        }
-
-        // Add taxonomy routes
-        foreach ($taxonomies as $taxName => $taxConfig) {
-            if (!($taxConfig['public'] ?? true)) {
-                continue;
-            }
-
-            $base = $taxConfig['rewrite']['base'] ?? '/' . $taxName;
-
-            $routes['taxonomy'][$taxName] = [
-                'base' => $base,
-                'hierarchical' => $taxConfig['hierarchical'] ?? false,
-            ];
-        }
-
-        return $routes;
-    }
-
-    /**
-     * Generate URL for a content item.
-     */
-    private function generateUrl(Item $item, array $typeConfig): string
-    {
-        $urlConfig = $typeConfig['url'] ?? [];
-        $type = $urlConfig['type'] ?? 'pattern';
-
-        if ($type === 'hierarchical') {
-            // URL reflects file path structure
-            return $this->generateHierarchicalUrl($item, $urlConfig);
-        }
-
-        // Pattern-based URL
-        $pattern = $urlConfig['pattern'] ?? '/{slug}';
-
-        $replacements = [
-            '{slug}' => $item->slug(),
-            '{id}' => $item->id() ?? '',
-        ];
-
-        // Date-based replacements
-        $date = $item->date();
-        if ($date) {
-            $replacements['{yyyy}'] = $date->format('Y');
-            $replacements['{mm}'] = $date->format('m');
-            $replacements['{dd}'] = $date->format('d');
-        }
-
-        return str_replace(array_keys($replacements), array_values($replacements), $pattern);
-    }
-
-    /**
-     * Compute the content key for an item.
-     * 
-     * For hierarchical types, this is the path-based key (e.g., 'about/team').
-     * For pattern-based types, this is just the slug.
-     * 
-     * The content key is used for uniqueness checks and index lookups.
-     */
-    private function contentKey(Item $item, array $typeConfig): string
-    {
-        $urlConfig = $typeConfig['url'] ?? [];
-        $urlType = $urlConfig['type'] ?? 'pattern';
-
-        if ($urlType !== 'hierarchical') {
-            return $item->slug();
-        }
-
-        // For hierarchical types, derive key from file path
-        return $this->pathKey($item);
-    }
-
-    /**
-     * Compute path-based key from an item's file path.
-     * 
-     * Strips the type folder prefix and .md extension.
-     * E.g., 'pages/about/team.md' -> 'about/team'
-     */
-    private function pathKey(Item $item): string
-    {
-        $relativePath = $this->getRelativePath($item->filePath());
-
-        // Remove type prefix (e.g., 'pages/')
-        $parts = explode('/', $relativePath);
-        array_shift($parts); // Remove type folder
-
-        // Get path without .md or .html extension
-        $pathParts = [];
-        foreach ($parts as $part) {
-            if (str_ends_with($part, '.md')) {
-                $part = substr($part, 0, -3);
-            } elseif (str_ends_with($part, '.html')) {
-                $part = substr($part, 0, -5);
-            }
-            // Handle index files (index.md or _index.md)
-            if ($part !== 'index' && $part !== '_index') {
-                $pathParts[] = $part;
-            }
-        }
-
-        return implode('/', $pathParts);
-    }
-
-    /**
-     * Generate hierarchical URL based on file path.
-     */
-    private function generateHierarchicalUrl(Item $item, array $urlConfig): string
-    {
-        $base = $urlConfig['base'] ?? '/';
-        $path = $this->pathKey($item);
-
-        if ($base === '/') {
-            // For root base, just prepend slash (empty path becomes just /)
-            return $path === '' ? '/' : '/' . ltrim($path, '/');
-        }
-
-        // Handle empty path (index.md) - return just the base without trailing slash
-        if ($path === '') {
-            return rtrim($base, '/');
-        }
-
-        return rtrim($base, '/') . '/' . $path;
-    }
-
-    /**
-     * Compute fingerprint for change detection.
-     */
-    private function computeFingerprint(): array
-    {
-        $activeTheme = $this->app->config('theme', 'default');
-        if (!is_string($activeTheme) || !preg_match('/^[a-z0-9_-]+$/i', $activeTheme)) {
-            $activeTheme = 'default';
-        }
-
-        $watchDirs = [
-            'content' => $this->app->configPath('content'),
-            'config' => $this->app->path('app/config'),
-            'theme' => $this->app->configPath('themes') . '/' . $activeTheme,
-            'snippets' => $this->app->configPath('snippets'),
-        ];
-
-        $plugins = $this->app->config('plugins', []);
-        foreach (is_array($plugins) ? $plugins : [] as $plugin) {
-            if (!is_string($plugin) || !preg_match('/^[a-z0-9_-]+$/i', $plugin)) {
-                continue;
-            }
-            $watchDirs['plugin:' . $plugin] = $this->app->configPath('plugins') . '/' . $plugin;
-        }
-
-        $directories = [];
-        foreach ($watchDirs as $name => $path) {
-            $directories[$name] = $this->fingerprintDirectory($path);
-        }
-
-        return [
-            'version' => self::FINGERPRINT_VERSION,
-            'directories' => $directories,
-            'files' => [
-                'redirects' => $this->fingerprintFile(
-                    $this->app->configPath('storage') . '/redirects.json'
-                ),
-            ],
-        ];
-    }
-
-    /**
-     * Build a deterministic digest for a source directory.
-     *
-     * Text/source files are content-hashed so same-size edits within one
-     * filesystem timestamp tick are still detected. Binary assets use size and
-     * mtime to avoid rereading potentially large files on every auto-mode hit.
-     *
-     * @return array{exists: bool, count: int, digest: string|null}
-     */
-    private function fingerprintDirectory(string $path): array
-    {
-        if (!is_dir($path)) {
-            return ['exists' => false, 'count' => 0, 'digest' => null];
-        }
-
-        $files = [];
-        try {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS)
+        if ($backend === 'sqlite' && !extension_loaded('pdo_sqlite')) {
+            throw new \RuntimeException(
+                "SQLite backend requires the pdo_sqlite extension. Install it or set backend to 'array' in config."
             );
-            foreach ($iterator as $file) {
-                if (!$file->isFile() || $this->skipFingerprintFile($file)) {
+        }
+
+        for ($attempt = 1; ; $attempt++) {
+            $snapshot = $this->fingerprint()->capture();
+            [$generation, $path] = $this->store->createGeneration();
+
+            try {
+                $errors = $this->writeGeneration($path, $backend);
+
+                // Publish a consistent snapshot only: if content changed while
+                // it was being read, build again from the new state.
+                $stable = !in_array(Fingerprint::SCOPE_INDEX, $this->fingerprint()->changes($snapshot), true);
+                if ($stable) {
+                    $this->store->publish($generation, $backend, $snapshot);
+                }
+            } catch (\Throwable $e) {
+                $this->store->discardGeneration($path);
+                throw $e;
+            }
+
+            if ($stable) {
+                break;
+            }
+
+            $this->store->discardGeneration($path);
+            if ($attempt >= self::MAX_BUILD_ATTEMPTS) {
+                throw new \RuntimeException('Source files kept changing during the content index rebuild.');
+            }
+        }
+
+        $this->app->repository()->clearCache();
+        if ($clearWebpageCache) {
+            $this->app->webpageCache()->clear();
+        }
+        $this->store->markChecked();
+        $this->store->collectGarbage();
+        $this->store->removeLegacyArtifacts();
+
+        if ($errors !== []) {
+            $this->logErrors($errors);
+        }
+
+        Hooks::doAction('indexer.rebuild', $this->app);
+    }
+
+    /**
+     * Write every artifact of one generation.
+     *
+     * @return list<string> Problems worth logging.
+     */
+    private function writeGeneration(string $path, string $backend): array
+    {
+        $contentTypes = $this->app->contentTypes();
+        $taxonomies = $this->app->taxonomies();
+        $igbinary = $this->igbinaryOverride ?? (bool) $this->app->config('content_index.use_igbinary', true);
+
+        $scan = $this->scanner()->scan($contentTypes);
+        $items = $scan['items'];
+        $builder = $this->builder();
+
+        $routes = $builder->routes($items, $contentTypes, $taxonomies);
+        $taxIndex = $builder->taxonomyIndex($items, $taxonomies, $contentTypes);
+
+        $this->store->writeBinary($path, 'routes.bin', $routes, $igbinary);
+        $this->store->writeBinary($path, 'tax_index.bin', $taxIndex, $igbinary);
+        $this->store->writeBinary($path, 'slug_lookup.bin', $builder->slugLookup($items, $contentTypes), $igbinary);
+        $this->store->writeBinary($path, 'recent_cache.bin', $builder->recentCache($items, $contentTypes), $igbinary);
+        $this->store->writeBinary($path, 'synonyms.bin', $builder->synonyms(), $igbinary);
+        $this->store->writeBinary($path, 'stopwords.bin', $builder->stopWords(), $igbinary);
+
+        if ($backend === 'sqlite') {
+            $this->writeSqlite($path . '/content_index.sqlite', $items, $contentTypes, $taxIndex, $routes, $builder);
+        } else {
+            $this->store->writeBinary($path, 'content_index.bin', $builder->contentIndex($items, $contentTypes), $igbinary);
+            $this->store->writeBinary($path, 'bodies.bin', $builder->bodies($items, $contentTypes), $igbinary);
+        }
+        unset($routes, $taxIndex);
+
+        $errors = array_merge($scan['errors'], $builder->errors());
+
+        if ($this->app->config('content_index.prerender_html', true)) {
+            $errors = array_merge($errors, $this->prerender($path, $items, $contentTypes, $igbinary));
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param array<string, list<Item>> $items
+     */
+    private function writeSqlite(
+        string $database,
+        array $items,
+        array $contentTypes,
+        array $taxIndex,
+        array $routes,
+        IndexBuilder $builder
+    ): void {
+        $sqlite = new SqliteBackend($database, $this->app->configPath('content'), writable: true);
+
+        try {
+            $sqlite->createDatabase();
+            $sqlite->beginTransaction();
+
+            foreach ($items as $type => $typeItems) {
+                $typeConfig = $contentTypes[$type] ?? [];
+                foreach ($typeItems as $item) {
+                    $key = $this->paths->contentKey($item, $typeConfig);
+                    $data = $builder->metadata($item, (string) $type, $key, $typeConfig);
+                    $data['file_path'] = $data['relative_path'];
+                    $data['body'] = $item->rawContent();
+                    $data['meta'] = $data['frontmatter'];
+                    $sqlite->insertContent($data);
+                }
+            }
+
+            foreach ($taxIndex as $taxonomy => $taxData) {
+                foreach ($taxData['terms'] ?? [] as $term) {
+                    $sqlite->insertTerm((string) $taxonomy, $term);
+                }
+            }
+
+            foreach (['redirects' => 'redirect', 'exact' => 'exact', 'preview' => 'preview'] as $group => $routeType) {
+                foreach ($routes[$group] ?? [] as $routePath => $data) {
+                    $sqlite->insertRoute((string) $routePath, $routeType, $data);
+                }
+            }
+            foreach ($routes['taxonomy'] ?? [] as $name => $data) {
+                $sqlite->insertRoute($data['base'] ?? '/' . $name, 'taxonomy', $data, (string) $name);
+            }
+            foreach ($routes['reverse'] ?? [] as $key => $url) {
+                $sqlite->insertRoute((string) $key, 'reverse', ['url' => $url]);
+            }
+
+            $sqlite->commit();
+            $sqlite->prepareForPublication();
+        } catch (\Throwable $e) {
+            $sqlite->rollback();
+            $sqlite->clearMemoryCache();
+            throw new \RuntimeException('SQLite index build failed: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Render each public Markdown item into its own file.
+     *
+     * @param array<string, list<Item>> $items
+     * @return list<string>
+     */
+    private function prerender(string $path, array $items, array $contentTypes, bool $igbinary): array
+    {
+        $errors = [];
+
+        foreach ($items as $type => $typeItems) {
+            $typeConfig = $contentTypes[$type] ?? [];
+
+            foreach ($typeItems as $item) {
+                if ($item->isHtml() || (!$item->isPublished() && !$item->isUnlisted())) {
                     continue;
                 }
-                $files[] = $file->getPathname();
+
+                $key = $this->paths->contentKey($item, $typeConfig);
+                try {
+                    $html = $this->app->markdown($item->markdownOptions())
+                        ->convert($item->rawContent())
+                        ->getContent();
+                    $this->store->writeBinary(
+                        $path,
+                        PrerenderedHtml::relativePath((string) $type, $key),
+                        PrerenderedHtml::entry($item, $html),
+                        $igbinary
+                    );
+                } catch (\Throwable $e) {
+                    $errors[] = "{$item->filePath()}: pre-rendering failed: " . $e->getMessage();
+                }
             }
-        } catch (\UnexpectedValueException) {
-            return ['exists' => true, 'count' => 0, 'digest' => 'unreadable'];
         }
 
-        sort($files, SORT_STRING);
-        $context = hash_init('sha256');
-        $root = rtrim(str_replace('\\', '/', $path), '/');
-
-        foreach ($files as $file) {
-            $normalized = str_replace('\\', '/', $file);
-            $relative = ltrim(substr($normalized, strlen($root)), '/');
-            hash_update($context, $relative . "\0");
-            $this->updateFingerprintHash($context, $file);
-        }
-
-        return [
-            'exists' => true,
-            'count' => count($files),
-            'digest' => hash_final($context),
-        ];
+        return $errors;
     }
 
     /**
-     * @return array{exists: bool, digest: string|null}
+     * Templates, snippets or redirects changed: cached pages are stale, the
+     * index is not. Callers hold the rebuild lock.
      */
-    private function fingerprintFile(string $path): array
+    private function refreshPresentation(): void
     {
-        if (!is_file($path)) {
-            return ['exists' => false, 'digest' => null];
-        }
-
-        $context = hash_init('sha256');
-        $this->updateFingerprintHash($context, $path);
-
-        return ['exists' => true, 'digest' => hash_final($context)];
+        $this->app->webpageCache()->clear();
+        $this->store->updateFingerprint($this->fingerprint()->capture());
+        $this->store->markChecked();
     }
 
-    private function skipFingerprintFile(\SplFileInfo $file): bool
+    private function scanner(): ContentScanner
     {
-        return str_starts_with($file->getFilename(), '.')
-            || in_array(strtolower($file->getExtension()), ['log', 'cache', 'tmp', 'lock'], true);
+        return new ContentScanner($this->app->configPath('content'), $this->paths);
     }
 
-    /**
-     * @param \HashContext $context
-     */
-    private function updateFingerprintHash(\HashContext $context, string $path): void
+    private function builder(): IndexBuilder
     {
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        if (in_array($extension, self::FINGERPRINT_HASH_EXTENSIONS, true)) {
-            $digest = @hash_file('sha256', $path);
-            hash_update($context, 'content:' . ($digest === false ? 'unreadable' : $digest) . "\0");
-            return;
-        }
-
-        $stat = @stat($path);
-        if ($stat === false) {
-            hash_update($context, "metadata:unreadable\0");
-            return;
-        }
-
-        hash_update($context, 'metadata:' . $stat['size'] . ':' . $stat['mtime'] . "\0");
+        return new IndexBuilder($this->paths, $this->app->configPath('content'));
     }
 
     /**
-     * Get the cache directory path.
-     */
-    private function getCachePath(string $filename = ''): string
-    {
-        $path = $this->app->configPath('storage') . '/cache';
-        return $filename ? $path . '/' . $filename : $path;
-    }
-
-    /**
-     * Write a binary cache file atomically.
-     * Uses igbinary if available and enabled (faster, smaller), otherwise PHP serialize.
-     * Adds a format marker prefix for reliable deserialization.
-     * Includes HMAC signature to detect tampering.
-     */
-    private function writeBinaryCacheFile(string $filename, array $data): void
-    {
-        SignedCache::write(
-            $this->getCachePath($filename),
-            $data,
-            $this->igbinaryOverride ?? $this->app->config('content_index.use_igbinary', true)
-        );
-    }
-
-    /**
-     * Write a JSON cache file atomically.
-     */
-    private function writeJsonCacheFile(string $filename, array $data): void
-    {
-        $cachePath = $this->getCachePath();
-        if (!is_dir($cachePath)) {
-            mkdir($cachePath, 0755, true);
-        }
-
-        $targetPath = $cachePath . '/' . $filename;
-
-        $content = json_encode(
-            $data,
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-        );
-
-        if (!AtomicFile::write($targetPath, $content)) {
-            throw new \RuntimeException("Unable to publish cache file: {$filename}");
-        }
-    }
-
-    /**
-     * Get relative path from content directory.
-     */
-    private function getRelativePath(string $absolutePath): string
-    {
-        // Normalize path separators for cross-platform compatibility
-        $absolutePath = str_replace('\\', '/', $absolutePath);
-        $contentPath = str_replace('\\', '/', $this->app->configPath('content'));
-        
-        if (str_starts_with($absolutePath, $contentPath)) {
-            return ltrim(substr($absolutePath, strlen($contentPath)), '/');
-        }
-        return $absolutePath;
-    }
-
-    /**
-     * Load content type definitions.
-     */
-    private function loadContentTypes(): array
-    {
-        $path = $this->app->path('app/config/content_types.php');
-        if (!file_exists($path)) {
-            return [];
-        }
-        return require $path;
-    }
-
-    /**
-     * Load taxonomy definitions.
-     */
-    private function loadTaxonomies(): array
-    {
-        $path = $this->app->path('app/config/taxonomies.php');
-        if (!file_exists($path)) {
-            return [];
-        }
-        return require $path;
-    }
-
-    /**
-     * Log errors to storage.
+     * @param list<string> $errors
      */
     private function logErrors(array $errors): void
     {
         $logPath = $this->app->configPath('storage') . '/logs';
-        if (!is_dir($logPath)) {
-            mkdir($logPath, 0755, true);
+        if (!is_dir($logPath) && !@mkdir($logPath, 0755, true) && !is_dir($logPath)) {
+            return;
         }
 
         $logFile = $logPath . '/indexer.log';
-
         LogRotator::rotateIfNeeded(
             $logFile,
             (int) $this->app->config('logs.max_size', 10 * 1024 * 1024),
             (int) $this->app->config('logs.max_files', 3)
         );
 
-        $content = "[" . date('c') . "] Indexer errors:\n";
+        $content = '[' . date('c') . "] Indexer errors:\n";
         foreach ($errors as $error) {
             $content .= "  - {$error}\n";
         }
-        $content .= "\n";
 
-        file_put_contents($logFile, $content, FILE_APPEND | LOCK_EX);
-    }
-
-    /**
-     * Write a search cache file, or delete if empty.
-     */
-    private function writeSearchCache(string $filename, array $data): void
-    {
-        $path = $this->getCachePath($filename);
-        if (!empty($data)) {
-            $this->writeBinaryCacheFile($filename, $data);
-        } elseif (file_exists($path)) {
-            @unlink($path);
-        }
-    }
-
-    /**
-     * Load stop words from content/_search/stopwords.yml.
-     */
-    private function loadStopWords(): array
-    {
-        $path = $this->app->configPath('content') . '/_search/stopwords.yml';
-        if (!file_exists($path)) {
-            return [];
-        }
-        try {
-            $words = \Symfony\Component\Yaml\Yaml::parseFile($path, \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
-            if (!is_array($words)) {
-                return [];
-            }
-            return array_flip(array_filter(array_map(
-                fn($w) => is_string($w) ? strtolower(trim($w)) : '',
-                $words
-            )));
-        } catch (\Throwable $e) {
-            $this->logErrors(['Failed to parse stopwords.yml: ' . $e->getMessage()]);
-            return [];
-        }
-    }
-
-    /**
-     * Build search synonyms from content/_search/synonyms.yml.
-     */
-    private function buildSynonymsCache(): array
-    {
-        $path = $this->app->configPath('content') . '/_search/synonyms.yml';
-        
-        if (!file_exists($path)) {
-            return [];
-        }
-        
-        try {
-            $groups = \Symfony\Component\Yaml\Yaml::parseFile($path, \Symfony\Component\Yaml\Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
-        } catch (\Throwable $e) {
-            $this->logErrors(['Failed to parse synonyms.yml: ' . $e->getMessage()]);
-            return [];
-        }
-        
-        if (!is_array($groups)) {
-            return [];
-        }
-        
-        // Build bidirectional map: each word points to all other words in its group
-        $map = [];
-        foreach ($groups as $group) {
-            if (!is_array($group) || count($group) < 2) {
-                continue;
-            }
-            
-            // Normalize to lowercase, filter empty
-            $words = array_values(array_unique(array_filter(
-                array_map(fn($w) => is_string($w) ? strtolower(trim($w)) : '', $group)
-            )));
-            
-            if (count($words) < 2) {
-                continue;
-            }
-            
-            // Each word maps to all OTHER words in its group
-            foreach ($words as $word) {
-                $others = array_values(array_filter($words, fn($w) => $w !== $word));
-                $map[$word] = array_values(array_unique(array_merge($map[$word] ?? [], $others)));
-            }
-        }
-        
-        return $map;
+        @file_put_contents($logFile, $content . "\n", FILE_APPEND | LOCK_EX);
     }
 }

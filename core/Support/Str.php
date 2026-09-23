@@ -10,14 +10,33 @@ namespace Ava\Support;
 final class Str
 {
     /**
-     * Convert a string to a URL-safe slug.
+     * Convert a string to a URL slug.
+     *
+     * Letters and digits from any script are kept ("Café" -> "café",
+     * "日本語" -> "日本語"); punctuation is dropped and whitespace becomes the
+     * separator. Text is NFC-normalised when intl is available, so a macOS
+     * (NFD) filename and a browser's (NFC) URL produce the same slug.
      */
     public static function slug(string $value, string $separator = '-'): string
     {
-        $value = mb_strtolower($value, 'UTF-8');
-        $value = preg_replace('/[^a-z0-9\s-]/u', '', $value);
-        $value = preg_replace('/[\s-]+/', $separator, $value);
+        $value = self::nfc(mb_strtolower($value, 'UTF-8'));
+        $value = preg_replace('/[^\p{L}\p{M}\p{N}\s-]+/u', '', $value) ?? '';
+        $value = preg_replace('/[\s-]+/u', $separator, $value) ?? '';
         return trim($value, $separator);
+    }
+
+    /**
+     * Normalise to Unicode NFC when the intl extension is available.
+     */
+    public static function nfc(string $value): string
+    {
+        if ($value === '' || !class_exists(\Normalizer::class) || preg_match('/[\x80-\xFF]/', $value) !== 1) {
+            return $value;
+        }
+
+        $normalized = \Normalizer::normalize($value, \Normalizer::FORM_C);
+
+        return is_string($normalized) ? $normalized : $value;
     }
 
     /**

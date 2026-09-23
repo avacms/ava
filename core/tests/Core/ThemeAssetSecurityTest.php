@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ava\Tests\Core;
 
 use Ava\Http\Request;
+use Ava\Http\ThemeAssets;
 use Ava\Testing\TestCase;
 
 /**
@@ -227,12 +228,7 @@ final class ThemeAssetSecurityTest extends TestCase
 
     public function testAllowedExtensionsList(): void
     {
-        // Use reflection to access private method
-        $reflection = new \ReflectionClass($this->app);
-        $method = $reflection->getMethod('getAllowedAssetExtensions');
-        $method->setAccessible(true);
-        
-        $extensions = $method->invoke($this->app);
+        $extensions = ThemeAssets::MIME_TYPES;
 
         // Verify expected extensions are present
         $expectedExtensions = [

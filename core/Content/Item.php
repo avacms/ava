@@ -242,6 +242,16 @@ final class Item
         return $this->nullableString('template');
     }
 
+    /**
+     * Options for Application::markdown(), from the item's frontmatter.
+     */
+    public function markdownOptions(): array
+    {
+        $extensions = $this->frontmatter['markdown_extensions'] ?? [];
+
+        return is_array($extensions) && $extensions !== [] ? ['markdown_extensions' => $extensions] : [];
+    }
+
     // === Taxonomies ===
 
     /**

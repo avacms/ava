@@ -49,28 +49,22 @@ final class Engine
      */
     public function renderMarkdown(string $markdown, array $options = []): string
     {
-        $converter = $this->getMarkdownConverter($options);
-        $html = $converter->convert($markdown)->getContent();
-
-        // Apply shortcodes after Markdown and unwrap standalone block output
-        $html = $this->app->shortcodes()->process($html, true);
-
-        // Expand path aliases
-        $html = $this->expandAliases($html);
-
-        return $html;
+        return $this->finishMarkdownHtml(
+            $this->getMarkdownConverter($options)->convert($markdown)->getContent()
+        );
     }
 
     /**
      * Render a content item (process its body).
-     * 
-     * Returns the rendered HTML. Uses pre-rendered cache if available,
-     * otherwise renders markdown on demand.
-     * 
+     *
+     * Uses HTML rendered at build time when it was made from this exact
+     * source, otherwise renders the Markdown now. Both paths finish through
+     * finishMarkdownHtml(), so they produce the same page.
+     *
      * HTML format items (.html files) skip Markdown parsing — the body
      * is treated as raw HTML. Shortcodes and path aliases are still processed.
-     * 
-     * @param string|null $contentKey Optional content key for pre-render cache lookup
+     *
+     * @param string|null $contentKey Deprecated; the item's own content key is used.
      */
     public function renderItem(Item $item, ?string $contentKey = null): string
     {
@@ -85,19 +79,26 @@ final class Engine
             return $this->expandAliases($html);
         }
 
-        // Try pre-rendered HTML cache (if enabled during rebuild)
-        if ($contentKey !== null) {
-            $prerendered = $this->app->repository()->getPrerenderedHtml($item->type(), $contentKey);
-            if ($prerendered !== null) {
-                // Still need to process shortcodes (they weren't processed during pre-render)
-                return $this->app->shortcodes()->process($prerendered);
-            }
+        if ($contentKey !== null && $contentKey !== $item->contentKey()) {
+            $item = $item->withContentKey($contentKey);
         }
 
-        $markdownExtensions = $item->get('markdown_extensions', []);
-        $options = is_array($markdownExtensions) ? ['markdown_extensions' => $markdownExtensions] : [];
+        $prerendered = $this->app->repository()->prerenderedHtml($item);
+        if ($prerendered !== null) {
+            return $this->finishMarkdownHtml($prerendered);
+        }
 
-        return $this->renderMarkdown($item->rawContent(), $options);
+        return $this->renderMarkdown($item->rawContent(), $item->markdownOptions());
+    }
+
+    /**
+     * Steps applied to Markdown output at render time: shortcodes (which may
+     * depend on the request) with standalone block output unwrapped from its
+     * paragraph, then path aliases, so shortcode output gets them too.
+     */
+    private function finishMarkdownHtml(string $html): string
+    {
+        return $this->expandAliases($this->app->shortcodes()->process($html, true));
     }
 
     /**
