@@ -6,6 +6,7 @@ namespace Ava\Rendering;
 
 use Ava\Application;
 use Ava\Content\Item;
+use Ava\Http\ThemeAssets;
 use Ava\Plugins\Hooks;
 
 /**
@@ -114,11 +115,11 @@ final class Engine
         ];
 
         // Add theme context
-        $theme = $this->app->config('theme', 'default');
+        $theme = $this->app->themeName();
         $context['theme'] = [
             'name' => $theme,
             'path' => $this->app->configPath('themes') . '/' . $theme,
-            'url' => '/themes/' . $theme,
+            'url' => rtrim(ThemeAssets::PREFIX, '/'),
         ];
 
         // Add rendering helpers
@@ -149,8 +150,7 @@ final class Engine
             return null;
         }
 
-        $theme = $this->app->config('theme', 'default');
-        $themePath = $this->app->configPath('themes') . '/' . $theme;
+        $themePath = $this->app->configPath('themes') . '/' . $this->app->themeName();
 
         // Templates to try (in order of preference)
         $candidates = [];
@@ -234,10 +234,7 @@ final class Engine
      */
     public function partial(string $name, array $data = []): string
     {
-        $theme = $this->app->config('theme', 'default');
-        $themePath = $this->app->configPath('themes') . '/' . $theme;
-
-        $partialPath = $themePath . '/partials/' . $name . '.php';
+        $partialPath = $this->app->configPath('themes') . '/' . $this->app->themeName() . '/partials/' . $name . '.php';
 
         if (!file_exists($partialPath)) {
             throw new \RuntimeException("Partial not found: {$name}");

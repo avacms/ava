@@ -132,8 +132,7 @@ final class TemplateHelpers
         }
 
         // Otherwise, it's a theme asset
-        $theme = $this->app->config('theme', 'default');
-        $themePath = $this->app->configPath('themes') . '/' . $theme . '/assets/' . $path;
+        $themePath = $this->app->configPath('themes') . '/' . $this->app->themeName() . '/assets/' . $path;
         $mtime = $this->getAssetMtime($themePath);
 
         if ($mtime !== false) {
