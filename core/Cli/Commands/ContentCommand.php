@@ -8,6 +8,7 @@ use Ava\Application as AvaApp;
 use Ava\Cli\Output;
 use Ava\Support\Str;
 use Ava\Support\Ulid;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Content management commands: make, prefix.
@@ -88,7 +89,7 @@ final class ContentCommand
                 continue;
             }
 
-            $contentDir = $this->app->path('content/' . ($typeConfig['content_dir'] ?? $typeName));
+            $contentDir = $this->app->configPath('content') . '/' . ($typeConfig['content_dir'] ?? $typeName);
             if (!is_dir($contentDir)) {
                 continue;
             }
@@ -139,6 +140,10 @@ final class ContentCommand
 
         // Generate slug and ID
         $slug = Str::slug($title);
+        if ($slug === '') {
+            $this->output->error('The title needs at least one letter or number.');
+            return 1;
+        }
         $id = Ulid::generate();
 
         // Build frontmatter
@@ -148,20 +153,7 @@ final class ContentCommand
             'slug' => $slug,
         ], $extra);
 
-        // Generate YAML
-        $yaml = "---\n";
-        foreach ($frontmatter as $key => $value) {
-            if (is_array($value)) {
-                $yaml .= "{$key}:\n";
-                foreach ($value as $item) {
-                    $yaml .= "  - {$item}\n";
-                }
-            } else {
-                $yaml .= "{$key}: {$value}\n";
-            }
-        }
-        $yaml .= "---\n\n";
-        $yaml .= "Your content here.\n";
+        $yaml = "---\n" . Yaml::dump($frontmatter) . "---\n\nYour content here.\n";
 
         // Determine file path
         $basePath = $this->app->configPath('content') . '/' . $contentDir;
