@@ -175,10 +175,10 @@ return [
         // ?preview=1&token=<secret> form still works but exposes the secret.
         'preview_token' => null,
 
-        // Security headers for public responses. Defaults are permissive to support
-        // common use cases: 'unsafe-inline' and https: in script-src mean this CSP
-        // does little against XSS. Tighten for hardened sites (e.g. drop
-        // 'unsafe-inline' once your theme has no inline scripts).
+        // Security headers for public responses. Scripts may only load from
+        // this site: add a host to script-src for third-party scripts (e.g.
+        // analytics), or 'unsafe-inline' for inline snippets, at the cost of
+        // weaker XSS protection.
         // Docs: https://ava.addy.zone/docs/configuration#content-security
         'headers' => [
             'content_security_policy' => [
@@ -192,7 +192,7 @@ return [
                 "img-src 'self' data: https:",      // External images
                 "font-src 'self' data: https:",     // Google Fonts, CDNs
                 "style-src 'self' 'unsafe-inline' https:",
-                "script-src 'self' 'unsafe-inline' https:",
+                "script-src 'self'",
             ],
 
             'permissions_policy' => [

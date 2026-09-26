@@ -50,6 +50,8 @@ final class ReleaseChecksTest extends TestCase
         foreach ($expected as $key => $value) {
             $this->assertSame($value, Arr::get($config, $key), "$key should be " . $this->export($value));
         }
+
+        $this->assertContains("script-src 'self'", Arr::get($config, 'security.headers.content_security_policy'));
     }
 
     public function testVersionFollowsCalVer(): void
