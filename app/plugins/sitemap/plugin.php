@@ -155,15 +155,19 @@ XSL;
             return $typeSitemap($matches[1], (int) $matches[2]);
         });
 
-        // Keep robots.txt pointing at the sitemap. This runs after CLI rebuilds
-        // only, so web requests never need write access to public/.
+        // Served only when public/robots.txt doesn't exist; the web server
+        // answers with the file otherwise.
+        $router->addRoute('/robots.txt', fn() => Response::text(
+            "User-agent: *\nAllow: /\n\nSitemap: {$baseUrl}/sitemap.xml\n"
+        ));
+
+        // Keep a custom public/robots.txt pointing at the sitemap. This runs
+        // after CLI rebuilds only, so web requests never write to public/.
         Hooks::addAction('cli.rebuild', function (Application $app) use ($baseUrl) {
             $robotsFile = $app->path('public/robots.txt');
             $sitemapLine = 'Sitemap: ' . $baseUrl . '/sitemap.xml';
 
             if (!file_exists($robotsFile)) {
-                file_put_contents($robotsFile, "User-agent: *\nAllow: /\n\n" . $sitemapLine . "\n");
-                echo "  \033[32m✔\033[0m Created robots.txt with Sitemap link\n";
                 return;
             }
 

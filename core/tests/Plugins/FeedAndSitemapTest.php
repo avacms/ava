@@ -80,4 +80,12 @@ final class FeedAndSitemapTest extends TestCase
         $pages = $this->site->app()->handle(new Request('GET', '/sitemap-page.xml'))->content();
         $this->assertStringContains('<loc>https://example.test/about/team</loc>', $pages);
     }
+
+    public function testRobotsTxtPointsAtTheConfiguredSitemap(): void
+    {
+        $response = $this->site->app()->handle(new Request('GET', '/robots.txt'));
+
+        $this->assertEquals(200, $response->status());
+        $this->assertStringContains("Sitemap: https://example.test/sitemap.xml\n", $response->content());
+    }
 }
