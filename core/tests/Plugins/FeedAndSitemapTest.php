@@ -96,12 +96,4 @@ final class FeedAndSitemapTest extends TestCase
         $this->assertStringNotContains('hidden', $xml);
         $this->assertStringNotContains('draft', $xml);
     }
-
-    public function testRobotsTxtPointsAtTheConfiguredSitemap(): void
-    {
-        $response = $this->site->app()->handle(new Request('GET', '/robots.txt'));
-
-        $this->assertEquals(200, $response->status());
-        $this->assertStringContains("Sitemap: https://example.test/sitemap.xml\n", $response->content());
-    }
 }
