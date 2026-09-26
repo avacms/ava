@@ -66,22 +66,29 @@ final class IndexBuilder
     }
 
     /**
-     * Raw bodies keyed "type:contentKey", read only by search.
+     * Raw bodies keyed "type:contentKey" in shards of about $shardBytes, so
+     * search can read them one at a time.
      *
      * @param array<string, list<Item>> $allItems
-     * @return array<string, string>
+     * @return list<array<string, string>>
      */
-    public function bodies(array $allItems, array $contentTypes): array
+    public function bodies(array $allItems, array $contentTypes, int $shardBytes = 1 << 20): array
     {
-        $bodies = [];
+        $shards = [[]];
+        $size = 0;
         foreach ($allItems as $type => $items) {
             foreach ($items as $item) {
-                $key = $this->paths->contentKey($item, $contentTypes[$type] ?? []);
-                $bodies[$type . ':' . $key] = $item->rawContent();
+                if ($size >= $shardBytes) {
+                    $shards[] = [];
+                    $size = 0;
+                }
+                $key = $type . ':' . $this->paths->contentKey($item, $contentTypes[$type] ?? []);
+                $shards[array_key_last($shards)][$key] = $item->rawContent();
+                $size += strlen($item->rawContent());
             }
         }
 
-        return $bodies;
+        return $shards;
     }
 
     /**

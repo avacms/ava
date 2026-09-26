@@ -332,7 +332,9 @@ final class Indexer
             $this->writeSqlite($path . '/content_index.sqlite', $items, $contentTypes, $taxIndex, $routes, $builder);
         } else {
             $this->store->writeBinary($path, 'content_index.bin', $builder->contentIndex($items, $contentTypes), $igbinary);
-            $this->store->writeBinary($path, 'bodies.bin', $builder->bodies($items, $contentTypes), $igbinary);
+            foreach ($builder->bodies($items, $contentTypes) as $number => $shard) {
+                $this->store->writeBinary($path, "bodies/{$number}.bin", $shard, $igbinary);
+            }
         }
         unset($routes, $taxIndex);
 

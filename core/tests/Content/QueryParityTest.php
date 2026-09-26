@@ -106,6 +106,26 @@ final class QueryParityTest extends TestCase
         }
     }
 
+    public function testShardedBodiesSearchLikeTheSingleFileLayout(): void
+    {
+        $source = $this->directory . '/cache/index/' . $this->generations['array'];
+        [, $sharded] = $this->store->createGeneration();
+        $this->store->writeBinary($sharded, 'content_index.bin', $this->store->readBinary($source, 'content_index.bin'), false);
+        foreach (array_chunk($this->store->readBinary($source, 'bodies.bin'), 2, true) as $number => $shard) {
+            $this->store->writeBinary($sharded, "bodies/{$number}.bin", $shard, false);
+        }
+        $backend = new ArrayBackend($sharded, $this->directory, $this->store->keyDirectory());
+
+        foreach ([
+            ['search' => 'bodyneedle'],
+            ['search' => 'guide', 'perPage' => 2, 'page' => 2],
+            ['search' => 'Acme', 'searchWeights' => ['fields' => ['client']]],
+        ] as $params) {
+            $this->assertEquals($this->array->query($params), $backend->query($params), $params['search']);
+        }
+        $this->assertEquals('A unique bodyneedle appears here.', $backend->allRaw('post', withBody: true)['other']['body']);
+    }
+
     public function testCrossTypeQueriesDoNotOverwriteMatchingContentKeys(): void
     {
         $result = $this->array->query(['status' => 'published']);

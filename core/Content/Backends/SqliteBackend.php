@@ -219,8 +219,8 @@ final class SqliteBackend implements BackendInterface
 
     /**
      * Relevance search: SQL narrows the rows to those containing at least one
-     * search term, then the shared PHP scorer ranks them exactly as the array
-     * backend does. Only candidates' bodies are loaded into memory.
+     * search term, then they stream one at a time through the shared PHP
+     * scorer, so ranking matches the array backend and memory stays flat.
      */
     private function search(array $params, array $conditions, array $bindings): array
     {
@@ -234,21 +234,55 @@ final class SqliteBackend implements BackendInterface
             return ['items' => [], 'total' => 0];
         }
 
-        $prefilter = $this->searchPrefilter($tokens, $params['searchWeights'] ?? null, $bindings);
+        $weights = $params['searchWeights'] ?? null;
+        $prefilter = $this->searchPrefilter($tokens, $weights, $bindings);
         if ($prefilter !== null) {
             $conditions[] = $prefilter;
         }
 
         $where = $conditions === [] ? '' : 'WHERE ' . implode(' AND ', $conditions);
-        $stmt = $this->pdo()->prepare("SELECT * FROM content {$where}");
+        $stmt = $this->pdo()->prepare("SELECT rowid, title, excerpt, body, meta FROM content {$where} ORDER BY rowid");
         $stmt->execute($bindings);
-        $items = array_map(fn(array $row) => $this->rowToItem($row), $stmt->fetchAll());
 
-        $items = QueryProcessor::applySearch($items, $search, $tokens, $params['searchWeights'] ?? null);
+        $phrase = strtolower($search);
+        $scores = [];
+        while (($row = $stmt->fetch()) !== false) {
+            $data = ['title' => $row['title'], 'excerpt' => $row['excerpt'], 'meta' => json_decode($row['meta'] ?? '{}', true)];
+            $score = QueryProcessor::scoreItem($data, $phrase, $tokens, $weights, $row['body'] ?? '');
+            if ($score > 0) {
+                $scores[$row['rowid']] = $score;
+            }
+        }
+        arsort($scores);
+
         $perPage = $params['perPage'] ?? 10;
-        $offset = (($params['page'] ?? 1) - 1) * $perPage;
+        $page = array_slice(array_keys($scores), (($params['page'] ?? 1) - 1) * $perPage, $perPage);
 
-        return ['items' => array_slice($items, $offset, $perPage), 'total' => count($items)];
+        return ['items' => $this->rowsById($page), 'total' => count($scores)];
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return list<array>
+     */
+    private function rowsById(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $stmt = $this->pdo()->prepare(
+            'SELECT rowid, ' . self::META_COLUMNS . ' FROM content WHERE rowid IN ('
+            . implode(',', array_fill(0, count($ids), '?')) . ')'
+        );
+        $stmt->execute($ids);
+
+        $rows = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $rows[$row['rowid']] = $this->rowToItem($row);
+        }
+
+        return array_values(array_filter(array_map(fn(int $id): ?array => $rows[$id] ?? null, $ids)));
     }
 
     /**

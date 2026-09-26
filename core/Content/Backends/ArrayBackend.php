@@ -18,7 +18,7 @@ use Ava\Support\SignedCacheException;
  * - slug_lookup.bin:   type/key => file, for single items
  * - recent_cache.bin:  pre-sorted first pages of each archive
  * - content_index.bin: metadata for every item, stored once
- * - bodies.bin:        raw bodies, only for search
+ * - bodies/*.bin:      raw bodies in ~1 MB shards, only for search
  * - tax_index.bin:     taxonomy terms
  *
  * Best for: most sites. Memory grows with the number of items when a request
@@ -89,7 +89,10 @@ final class ArrayBackend implements BackendInterface
             return $items;
         }
 
-        $bodies = $this->file('bodies');
+        $bodies = [];
+        foreach ($this->bodyFiles() as $file) {
+            $bodies += $this->read($file) ?? [];
+        }
         foreach ($items as $key => $data) {
             $items[$key]['body'] = $bodies[$type . ':' . $key] ?? '';
         }
@@ -123,16 +126,38 @@ final class ArrayBackend implements BackendInterface
 
     public function query(array $params): array
     {
-        // Search scores bodies in place rather than copying one into every
-        // item, which roughly halves its peak memory.
-        $bodies = null;
-        $bodyOf = function (array $data) use (&$bodies): string {
-            $bodies ??= $this->file('bodies');
+        return QueryProcessor::query($this, $params, $this->bodies(...));
+    }
 
-            return $bodies[($data['type'] ?? '') . ':' . ($data['content_key'] ?? '')] ?? '';
-        };
+    /**
+     * Bodies of the given items, reading one shard at a time.
+     *
+     * @param list<array> $items
+     * @return \Generator<int, string>
+     */
+    private function bodies(array $items): \Generator
+    {
+        $wanted = [];
+        foreach ($items as $index => $data) {
+            $wanted[($data['type'] ?? '') . ':' . ($data['content_key'] ?? '')] = $index;
+        }
 
-        return QueryProcessor::query($this, $params, $bodyOf);
+        foreach ($this->bodyFiles() as $file) {
+            foreach ($this->read($file) ?? [] as $key => $body) {
+                if (isset($wanted[$key])) {
+                    yield $wanted[$key] => $body;
+                }
+            }
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function bodyFiles(): array
+    {
+        // Generations built before sharding kept every body in one file.
+        return glob($this->indexPath . '/bodies/*.bin') ?: [$this->indexPath . '/bodies.bin'];
     }
 
     // -------------------------------------------------------------------------
@@ -251,12 +276,7 @@ final class ArrayBackend implements BackendInterface
     private function file(string $name): array
     {
         if (!isset($this->loaded[$name])) {
-            $path = $this->indexPath . '/' . $name . '.bin';
-            try {
-                $data = SignedCache::read($path, $this->keyDirectory);
-            } catch (SignedCacheException $e) {
-                throw new \RuntimeException('The content index is unreadable: ' . $e->getMessage(), 0, $e);
-            }
+            $data = $this->read($this->indexPath . '/' . $name . '.bin');
 
             if ($data === null) {
                 throw new \RuntimeException(
@@ -268,5 +288,14 @@ final class ArrayBackend implements BackendInterface
         }
 
         return $this->loaded[$name];
+    }
+
+    private function read(string $path): ?array
+    {
+        try {
+            return SignedCache::read($path, $this->keyDirectory);
+        } catch (SignedCacheException $e) {
+            throw new \RuntimeException('The content index is unreadable: ' . $e->getMessage(), 0, $e);
+        }
     }
 }

@@ -18,23 +18,21 @@ final class QueryProcessor
     private const int MAX_SEARCH_TOKENS = 10;
 
     /**
-     * Execute an array query. SQLite uses this only for relevance search.
+     * Execute a query over raw item arrays (the array backend's query path).
      *
+     * @param (callable(list<array>): iterable<int, string>)|null $bodies Yields
+     *        index => body for the given items, so search never needs every
+     *        body in memory at once. Without it, bodies are loaded into the items.
      * @return array{items: array, total: int}
      */
-    /**
-     * @param callable(array): string|null $bodyOf Looks up an item's body for
-     *        scoring, so search need not copy every body into its item.
-     *        Without it, bodies are loaded into the items.
-     */
-    public static function query(BackendInterface $backend, array $params, ?callable $bodyOf = null): array
+    public static function query(BackendInterface $backend, array $params, ?callable $bodies = null): array
     {
         $types = $params['types'] ?? (isset($params['type']) ? [$params['type']] : $backend->types());
         $search = $params['search'] ?? '';
         $items = [];
         foreach ($types as $type) {
             // Append values: associative content keys may repeat across types.
-            foreach ($backend->allRaw($type, withBody: $search !== '' && $bodyOf === null) as $item) {
+            foreach ($backend->allRaw($type, withBody: $search !== '' && $bodies === null) as $item) {
                 $items[] = $item;
             }
         }
@@ -52,7 +50,7 @@ final class QueryProcessor
                 $params['stopWords'] ?? [],
                 $params['synonyms'] ?? []
             );
-            $items = $tokens === [] ? [] : self::applySearch($items, $search, $tokens, $params['searchWeights'] ?? null, $bodyOf);
+            $items = $tokens === [] ? [] : self::applySearch($items, $search, $tokens, $params['searchWeights'] ?? null, $bodies);
         } else {
             $items = self::applySort($items, $params['orderBy'] ?? 'date', strtolower($params['order'] ?? 'desc'));
         }
@@ -177,20 +175,28 @@ final class QueryProcessor
      * @param string $search Search query string
      * @param array $expandedTokens Array of token groups (each group = [original, ...synonyms])
      * @param array|null $weights Custom scoring weights (null = defaults)
+     * @param (callable(list<array>): iterable<int, string>)|null $bodies See query()
      */
     public static function applySearch(
         array $items,
         string $search,
         array $expandedTokens,
         ?array $weights = null,
-        ?callable $bodyOf = null
+        ?callable $bodies = null
     ): array {
         $phrase = strtolower($search);
         $expandedTokens = array_slice($expandedTokens, 0, self::MAX_SEARCH_TOKENS);
+        $items = array_values($items);
+
+        $scores = [];
+        foreach ($bodies === null ? [] : $bodies($items) as $index => $body) {
+            $scores[$index] = self::scoreItem($items[$index], $phrase, $expandedTokens, $weights, $body);
+        }
 
         $scored = [];
-        foreach ($items as $data) {
-            $score = self::scoreItem($data, $phrase, $expandedTokens, $weights, $bodyOf === null ? null : $bodyOf($data));
+        foreach ($items as $index => $data) {
+            $score = $scores[$index]
+                ?? self::scoreItem($data, $phrase, $expandedTokens, $weights, $bodies === null ? null : '');
             if ($score > 0) {
                 $scored[] = ['data' => $data, 'score' => $score];
             }

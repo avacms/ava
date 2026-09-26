@@ -166,7 +166,17 @@ final class IndexBuilderTest extends TestCase
         $this->assertEquals(['category' => [], 'tag' => ['web-dev']], $data['taxonomies']);
         $this->assertEquals(['post', 'with-id'], $index['by_id']['01HX']);
         $this->assertEquals(['post', 'with-id'], $index['by_path']['posts/with-id.md']);
-        $this->assertEquals(['post:with-id' => 'A long body'], $this->builder()->bodies(['post' => [$post]], ['post' => self::POST_TYPE]));
+        $this->assertEquals([['post:with-id' => 'A long body']], $this->builder()->bodies(['post' => [$post]], ['post' => self::POST_TYPE]));
+    }
+
+    public function testBodiesAreShardedBySize(): void
+    {
+        $posts = [$this->post('a', [], 'aaaa'), $this->post('b', [], 'bbbb'), $this->post('c', [], 'cc')];
+
+        $this->assertEquals(
+            [['post:a' => 'aaaa', 'post:b' => 'bbbb'], ['post:c' => 'cc']],
+            $this->builder()->bodies(['post' => $posts], ['post' => self::POST_TYPE], shardBytes: 8)
+        );
     }
 
     public function testRecentCacheSortsLikeTheFullQueryPath(): void
