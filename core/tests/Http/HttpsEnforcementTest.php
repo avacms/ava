@@ -32,6 +32,17 @@ final class HttpsEnforcementTest extends TestCase
         unset($_SERVER['HTTPS']);
     }
 
+    public function testIsSecureReturnsFalseForAnEmptyHttpsVariable(): void
+    {
+        // nginx sends HTTPS="" for plain HTTP unless the param uses if_not_empty.
+        $_SERVER['HTTPS'] = '';
+        $request = new Request('GET', '/test', []);
+
+        $this->assertFalse($request->isSecure());
+
+        unset($_SERVER['HTTPS']);
+    }
+
     public function testIsSecureDoesNotTrustXForwardedProtoByDefault(): void
     {
         $_SERVER['HTTPS'] = 'off';
