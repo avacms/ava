@@ -198,6 +198,7 @@ final class IndexBuilder
     public function taxonomyIndex(array $allItems, array $taxonomies, array $contentTypes): array
     {
         $index = [];
+        $seen = [];
         foreach ($taxonomies as $taxonomy => $config) {
             $index[$taxonomy] = ['config' => $config, 'terms' => []];
         }
@@ -226,7 +227,8 @@ final class IndexBuilder
                             'count' => 0,
                             'items' => [],
                         ];
-                        if (!in_array($itemKey, $index[$taxonomy]['terms'][$slug]['items'], true)) {
+                        if (!isset($seen[$taxonomy][$slug][$itemKey])) {
+                            $seen[$taxonomy][$slug][$itemKey] = true;
                             $index[$taxonomy]['terms'][$slug]['count']++;
                             $index[$taxonomy]['terms'][$slug]['items'][] = $itemKey;
                         }

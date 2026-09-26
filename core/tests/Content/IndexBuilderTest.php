@@ -120,6 +120,16 @@ final class IndexBuilderTest extends TestCase
         $this->assertArrayHasKey('guides/php-tips', $index['category']['terms']);
     }
 
+    public function testTwoSpellingsOfATermCountAnItemOnce(): void
+    {
+        $index = $this->builder()->taxonomyIndex(['post' => [
+            $this->post('one', ['tag' => ['Web Dev', 'web-dev']]),
+        ]], self::TAXONOMIES, ['post' => self::POST_TYPE]);
+
+        $this->assertEquals(1, $index['tag']['terms']['web-dev']['count']);
+        $this->assertEquals(['post:one'], $index['tag']['terms']['web-dev']['items']);
+    }
+
     public function testMetadataIsStoredOnceWithoutBodies(): void
     {
         $post = $this->post('with-id', ['id' => '01HX', 'tag' => ['Web Dev']], 'A long body');
