@@ -42,7 +42,7 @@ final class ItemPaths
             return $item->slug();
         }
 
-        return $this->pathKey($item);
+        return $this->pathKey($item, $typeConfig);
     }
 
     public function url(Item $item, array $typeConfig): string
@@ -51,7 +51,7 @@ final class ItemPaths
 
         if (($urlConfig['type'] ?? 'pattern') === 'hierarchical') {
             $base = $urlConfig['base'] ?? '/';
-            $path = $this->pathKey($item);
+            $path = $this->pathKey($item, $typeConfig);
 
             if ($base === '/') {
                 return $path === '' ? '/' : '/' . ltrim($path, '/');
@@ -78,13 +78,16 @@ final class ItemPaths
     /**
      * "pages/about/team.md" -> "about/team"; index files map to their folder.
      */
-    private function pathKey(Item $item): string
+    private function pathKey(Item $item, array $typeConfig): string
     {
-        $parts = explode('/', $this->relativePath($item));
-        array_shift($parts);
+        $directory = trim(str_replace('\\', '/', (string) ($typeConfig['content_dir'] ?? $item->type())), '/');
+        $relative = $this->relativePath($item);
+        $relative = str_starts_with($relative, $directory . '/')
+            ? substr($relative, strlen($directory) + 1)
+            : (explode('/', $relative, 2)[1] ?? '');
 
         $pathParts = [];
-        foreach ($parts as $part) {
+        foreach (explode('/', $relative) as $part) {
             if (str_ends_with($part, '.md')) {
                 $part = substr($part, 0, -3);
             } elseif (str_ends_with($part, '.html')) {

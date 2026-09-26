@@ -64,6 +64,32 @@ final class IndexBuilderTest extends TestCase
         $this->assertFalse(isset($routes['reverse']['page:team']));
     }
 
+    public function testNestedContentDirectoriesMapToTheirBaseUrl(): void
+    {
+        $item = new Item(['title' => 'Intro', 'slug' => 'intro', 'status' => 'published'], '', $this->contentRoot . '/docs/v2/guide/intro.md', 'doc');
+        $routes = $this->builder()->routes(['doc' => [$item]], ['doc' => [
+            'content_dir' => 'docs/v2',
+            'url' => ['type' => 'hierarchical', 'base' => '/docs'],
+        ]], []);
+
+        $this->assertEquals('/docs/guide/intro', $routes['reverse']['doc:guide/intro'] ?? null);
+    }
+
+    public function testUnfilledUrlPatternsAreReported(): void
+    {
+        $builder = $this->builder();
+        $builder->routes(['post' => [$this->post('undated')]], ['post' => [
+            'url' => ['type' => 'pattern', 'pattern' => '/posts/{yyyy}/{slug}'],
+        ]], []);
+        $builder->routes(['post' => [$this->post('no-id')]], ['post' => [
+            'url' => ['type' => 'pattern', 'pattern' => '/p/{id}/{slug}'],
+        ]], []);
+
+        $this->assertCount(2, $builder->errors());
+        $this->assertStringContains('/posts/{yyyy}/undated', $builder->errors()[0]);
+        $this->assertStringContains('/p//no-id', $builder->errors()[1]);
+    }
+
     public function testRedirectSourcesAreStoredTheWayTheRouterLooksThemUp(): void
     {
         $routes = $this->builder()->routes(['post' => [

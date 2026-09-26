@@ -310,6 +310,10 @@ final class IndexBuilder
                     'template' => $item->template() ?? $typeConfig['templates']['single'] ?? 'single.php',
                 ];
 
+                if (preg_match('#\{\w+\}|//#', $url) === 1) {
+                    $this->errors[] = "{$route['file']}: URL {$url} has an empty or unfilled part; check url.pattern and the item's date and id";
+                }
+
                 if ($item->isDraft()) {
                     $routes['preview'][$url] = $route;
                     continue;
