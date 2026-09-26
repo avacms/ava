@@ -41,7 +41,7 @@ You can write **bold text**, *italicized text*, and `inline code`. You can also 
 
 ### Code Blocks
 
-Syntax highlighting works automatically for code blocks:
+Fenced code blocks keep their language as a `language-*` class, ready for a syntax highlighter:
 
 ```php
 // Query recent posts in your templates
@@ -89,7 +89,7 @@ You can create your own shortcodes too—check the [documentation](https://ava.a
 
 1. **Edit this post** — Change the title, add your own content
 2. **Create a new post** — Run `./ava make post "Your Post Title"`
-3. **Explore the theme** — Check out `themes/default/` to see how templates work
+3. **Explore the theme** — Check out `app/themes/default/` to see how templates work
 4. **Read the docs** — Visit [ava.addy.zone/docs](https://ava.addy.zone/docs) for guides and reference
 
 Happy publishing! 📝

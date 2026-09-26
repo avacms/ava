@@ -21,13 +21,13 @@ Edit a file, save it, refresh your browser—and see your changes immediately. N
 
 ### Developer-Friendly
 
-Templates are plain PHP. Configuration is PHP arrays. The entire core is under 3,000 lines of readable code. If you want to understand how something works, you can read it in an afternoon.
+Templates are plain PHP. Configuration is PHP arrays. If you want to understand how something works, you can read the code.
 
 ### Performance by Default
 
-Ava uses two-layer caching to serve pages in under a millisecond:
+Ava uses two-layer caching to serve pages in a few milliseconds:
 
-1. **Page cache** — Full HTML pages stored as static files
+1. **Page cache** — Full HTML pages stored on disk
 2. **Content index** — Parsed metadata in a fast binary format
 
 Your site is fast without CDNs, optimization plugins, or tuning.

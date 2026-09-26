@@ -66,7 +66,7 @@ Your post will appear at `/blog/my-first-post`.
 
 ### 3. Customize Your Theme
 
-Templates live in `themes/default/templates/`. They're just PHP with a powerful helper:
+Templates live in `app/themes/default/templates/`. They're just PHP with a powerful helper:
 
 ```php
 <article>
