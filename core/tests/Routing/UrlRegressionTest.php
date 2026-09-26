@@ -105,6 +105,21 @@ final class UrlRegressionTest extends TestCase
         }
     }
 
+    public function testCachedPagesAnswerConditionalAndHeadRequests(): void
+    {
+        $miss = $this->site->app()->handle(new Request('GET', '/about', [], ['Host' => 'example.test']));
+        $etag = (string) $miss->header('ETag');
+        $this->assertEquals('MISS', $miss->header('X-Page-Cache'));
+        $this->assertStringStartsWith('W/"', $etag);
+
+        $conditional = $this->site->app()->handle(new Request('GET', '/about', [], ['Host' => 'example.test', 'If-None-Match' => $etag]));
+        $this->assertEquals(304, $conditional->status());
+        $this->assertEquals($etag, $conditional->header('ETag'));
+
+        $head = $this->site->app()->handle(new Request('HEAD', '/about', [], ['Host' => 'example.test']));
+        $this->assertEquals('HIT', $head->header('X-Page-Cache'));
+    }
+
     public function testPreviewsAreOffWithoutASecret(): void
     {
         $links = new PreviewLinks(null);

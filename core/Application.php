@@ -205,9 +205,16 @@ final class Application
             return $response;
         }
 
-        $stored = $this->webpageCache()->put($request, $response, $override, $paginated);
+        if (!$this->webpageCache()->put($request, $response, $override, $paginated)) {
+            return $response->withHeader('X-Page-Cache', 'BYPASS');
+        }
 
-        return $response->withHeader('X-Page-Cache', $stored ? 'MISS' : 'BYPASS');
+        $etag = $response->header('ETag') ?? WebpageCache::etag($response->content());
+        if (WebpageCache::notModified($request, $etag)) {
+            return new Response('', 304, ['ETag' => $etag, 'X-Page-Cache' => 'MISS']);
+        }
+
+        return $response->withHeader('ETag', $etag)->withHeader('X-Page-Cache', 'MISS');
     }
 
     /**

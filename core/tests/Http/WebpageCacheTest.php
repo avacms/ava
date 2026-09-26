@@ -192,6 +192,22 @@ final class WebpageCacheTest extends TestCase
         $this->assertEquals('fresh', $this->createApplication('never')->webpageCache()->get($request)?->content());
     }
 
+    public function testCachedPagesRevalidateWithEtagsAndServeHead(): void
+    {
+        $cache = $this->createCache();
+        $cache->put(new Request('GET', '/page'), Response::html('cached'));
+
+        $etag = (string) $cache->get(new Request('GET', '/page'))?->header('ETag');
+        $this->assertSame(WebpageCache::etag('cached'), $etag);
+
+        $revalidated = $cache->get(new Request('GET', '/page', [], ['If-None-Match' => '"other", ' . $etag]));
+        $this->assertEquals(304, $revalidated?->status());
+        $this->assertEquals('', $revalidated?->content());
+        $this->assertEquals(200, $cache->get(new Request('GET', '/page', [], ['If-None-Match' => 'W/"other"']))?->status());
+
+        $this->assertEquals('cached', $cache->get(new Request('HEAD', '/page'))?->content());
+    }
+
     public function testAuthenticatedRequestsCannotReadOrPopulateSharedCache(): void
     {
         $cache = $this->createCache();

@@ -39,7 +39,7 @@ final class WebpageCache
 
     public function isCacheable(Request $request): bool
     {
-        if (!$this->isEnabled() || $request->method() !== 'GET') {
+        if (!$this->isEnabled() || !in_array($request->method(), ['GET', 'HEAD'], true)) {
             return false;
         }
 
@@ -114,9 +114,45 @@ final class WebpageCache
             return null;
         }
 
+        $etag = $response->header('ETag') ?? (is_string($entry['etag'] ?? null) ? $entry['etag'] : self::etag($entry['body']));
+        if (self::notModified($request, $etag)) {
+            return new Response('', 304, ['ETag' => $etag, 'X-Page-Cache' => 'HIT']);
+        }
+
         return $response
+            ->withHeader('ETag', $etag)
             ->withHeader('X-Page-Cache', 'HIT')
             ->withHeader('X-Cache-Age', (string) $age);
+    }
+
+    /**
+     * A weak validator for a cached body. No Last-Modified is sent, so
+     * browsers revalidate instead of guessing a freshness lifetime.
+     */
+    public static function etag(string $content): string
+    {
+        return 'W/"' . hash('xxh128', $content) . '"';
+    }
+
+    /**
+     * Does the request's If-None-Match already name this ETag?
+     */
+    public static function notModified(Request $request, string $etag): bool
+    {
+        $header = $request->header('If-None-Match');
+        if ($header === null) {
+            return false;
+        }
+
+        $opaque = preg_replace('#^W/#', '', $etag);
+        foreach (explode(',', $header) as $candidate) {
+            $candidate = trim($candidate);
+            if ($candidate === '*' || preg_replace('#^W/#', '', $candidate) === $opaque) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -174,6 +210,7 @@ final class WebpageCache
             $entry = json_encode([
                 'identity' => $this->identity($request),
                 'stamp' => $this->app->indexStore()->stamp(),
+                'etag' => self::etag($response->content()),
                 'path' => $request->path(),
                 'headers' => $response->headers(),
                 'body' => $content,
