@@ -63,7 +63,7 @@ final class IndexStore
     /**
      * The live generation's state, read once per request.
      *
-     * @return array{version: int, generation: string, backend: string, built_at: string, build_seconds?: float, stamp?: string, fingerprint: array}|null
+     * @return array{version: int, generation: string, backend: string, built_at: string, stamp?: string, fingerprint: array}|null
      */
     public function state(): ?array
     {
@@ -116,14 +116,6 @@ final class IndexStore
         return $state['stamp'] ?? $state['generation'] ?? null;
     }
 
-    /**
-     * How long the live generation took to build (0 when unknown).
-     */
-    public function lastBuildSeconds(): float
-    {
-        return (float) ($this->state()['build_seconds'] ?? 0);
-    }
-
     public function keyDirectory(): string
     {
         return $this->cacheRoot;
@@ -164,7 +156,6 @@ final class IndexStore
         string $generation,
         string $backend,
         array $fingerprint,
-        float $buildSeconds = 0.0,
         ?string $stamp = null
     ): void {
         $previous = $this->reloadState();
@@ -174,7 +165,6 @@ final class IndexStore
             'generation' => $generation,
             'backend' => $backend,
             'built_at' => date('c'),
-            'build_seconds' => round($buildSeconds, 3),
             'stamp' => $stamp ?? self::newStamp(),
             'fingerprint' => $fingerprint,
         ]);

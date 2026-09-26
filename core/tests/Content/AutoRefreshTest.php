@@ -76,7 +76,7 @@ final class AutoRefreshTest extends TestCase
         $this->assertStringContains('Edited text', $this->request('/about')->content());
     }
 
-    public function testQuickRebuildsStillHappenInTheRequest(): void
+    public function testRebuildsHappenInTheRequestByDefault(): void
     {
         $this->request('/about');
         $this->site->page('pages/about.md', ['title' => 'About', 'status' => 'published'], 'Edited text');
@@ -87,15 +87,13 @@ final class AutoRefreshTest extends TestCase
         $this->assertStringContains('Edited text', $app->handle($this->aboutRequest())->content());
     }
 
-    public function testSlowRebuildsRunAfterTheResponse(): void
+    public function testBackgroundRebuildsRunAfterTheResponse(): void
     {
         $this->request('/about');
-        $state = $this->site->root . '/storage/cache/state.json';
-        file_put_contents($state, json_encode(['build_seconds' => 5.0] + json_decode(file_get_contents($state), true)));
         $generation = $this->generation();
         $this->site->page('pages/about.md', ['title' => 'About', 'status' => 'published'], 'Edited text');
 
-        $app = $this->site->app();
+        $app = $this->site->app(['content_index' => ['background_rebuild' => true]]);
         $app->enableDeferredTasks();
         $this->assertStringContains('Original text', $app->handle($this->aboutRequest())->content());
         $this->assertEquals($generation, $this->generation(), 'the rebuild waits for terminate()');

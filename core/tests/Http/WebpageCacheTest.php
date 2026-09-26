@@ -188,7 +188,7 @@ final class WebpageCacheTest extends TestCase
 
         // A rebuild that keeps cached pages carries the stamp over.
         [$third] = $rebuild->createGeneration();
-        $rebuild->publish($third, 'array', [], 0.0, $rebuild->reloadState()['stamp']);
+        $rebuild->publish($third, 'array', [], $rebuild->reloadState()['stamp']);
         $this->assertEquals('fresh', $this->createApplication('never')->webpageCache()->get($request)?->content());
     }
 

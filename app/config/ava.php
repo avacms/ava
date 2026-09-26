@@ -68,6 +68,11 @@ return [
     |   • array  — Binary PHP arrays, works everywhere (default)
     |   • sqlite — SQLite database, use for 10k+ items or memory limits
     |
+    | background_rebuild:
+    |   Rebuild after the response is sent, so no visitor waits for (or sees
+    |   an error from) a slow build. The request that notices a change still
+    |   serves the old page. Turn on for large sites on PHP-FPM or LiteSpeed.
+    |
     | prerender_html:
     |   Render Markdown during rebuild and store it per page, so page views
     |   skip Markdown parsing. Only used while the file is unchanged.
@@ -78,6 +83,7 @@ return [
         'check_interval' => 1,              // auto mode: seconds between change checks
         'backend'        => 'array',
         'use_igbinary'   => true,           // ~5x faster serialization if installed
+        'background_rebuild' => false,
         'prerender_html' => true,           // Pre-render markdown during rebuild
     ],
 
@@ -283,7 +289,7 @@ return [
     */
 
     'plugins' => [
-        'sitemap',
+        'sitemap', 
         'feed',
         'redirects',
         'markdown-extensions',
