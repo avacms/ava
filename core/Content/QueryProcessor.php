@@ -83,21 +83,16 @@ final class QueryProcessor
                 }
             }
 
-            // Taxonomy filters
+            // Taxonomy filters: indexed items carry their terms as slugs already
             foreach ($taxonomies as $taxonomy => $term) {
-                // Check both locations: top-level 'taxonomies' (recent_cache format)
-                // and frontmatter (content_index format)
-                $terms = $data['taxonomies'][$taxonomy]
-                    ?? $data['frontmatter'][$taxonomy]
-                    ?? [];
-
-                // Normalize to array (taxonomy can be string or array in frontmatter)
-                if (!is_array($terms)) {
-                    $terms = [$terms];
+                $slugs = $data['taxonomies'][$taxonomy] ?? null;
+                if (!is_array($slugs)) {
+                    $terms = $data['frontmatter'][$taxonomy] ?? [];
+                    $terms = array_filter(is_array($terms) ? $terms : [$terms], static fn($value) => is_scalar($value));
+                    $slugs = Terms::slugs(array_map('strval', $terms));
                 }
 
-                $terms = array_filter($terms, static fn($value) => is_scalar($value));
-                if (!in_array($term, Terms::slugs(array_map('strval', $terms)), true)) {
+                if (!in_array($term, $slugs, true)) {
                     return false;
                 }
             }
@@ -145,23 +140,17 @@ final class QueryProcessor
      */
     public static function applySort(array $items, string $orderBy, string $order): array
     {
-        usort($items, function (array $a, array $b) use ($orderBy, $order) {
-            $aVal = self::getSortValue($a, $orderBy);
-            $bVal = self::getSortValue($b, $orderBy);
+        $keys = [];
+        $titles = [];
+        foreach ($items as $item) {
+            $keys[] = self::getSortValue($item, $orderBy);
+            $titles[] = $item['title'] ?? '';
+        }
+        $positions = array_keys($keys);
+        $items = array_values($items);
 
-            $result = $aVal <=> $bVal;
-
-            if ($order === 'desc') {
-                $result = -$result;
-            }
-
-            // Tie-breaker: title ascending
-            if ($result === 0) {
-                $result = ($a['title'] ?? '') <=> ($b['title'] ?? '');
-            }
-
-            return $result;
-        });
+        // Ties: title ascending, then original order
+        array_multisort($keys, $order === 'desc' ? SORT_DESC : SORT_ASC, $titles, SORT_ASC, $positions, $items);
 
         return $items;
     }

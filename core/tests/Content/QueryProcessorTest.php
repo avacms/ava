@@ -228,6 +228,16 @@ final class QueryProcessorTest extends TestCase
                 "$field $direction"
             );
         }
+
+        $identical = [
+            'b' => ['title' => 'Same', 'date' => '2024-01-01', 'slug' => 'first'],
+            'a' => ['title' => 'Same', 'date' => '2024-01-01', 'slug' => 'second'],
+        ];
+        foreach (['asc', 'desc'] as $direction) {
+            $sorted = QueryProcessor::applySort($identical, 'date', $direction);
+            $this->assertSame(['first', 'second'], array_column($sorted, 'slug'), "full ties keep their order ($direction)");
+            $this->assertSame([0, 1], array_keys($sorted));
+        }
     }
 
     // =========================================================================
