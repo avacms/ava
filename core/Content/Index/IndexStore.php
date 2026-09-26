@@ -106,6 +106,17 @@ final class IndexStore
     }
 
     /**
+     * Identifies the index and presentation that cached pages were rendered
+     * from; it changes on every rebuild and presentation change.
+     */
+    public function stamp(): ?string
+    {
+        $state = $this->state();
+
+        return $state['stamp'] ?? $state['generation'] ?? null;
+    }
+
+    /**
      * How long the live generation took to build (0 when unknown).
      */
     public function lastBuildSeconds(): float
@@ -145,8 +156,17 @@ final class IndexStore
     /**
      * Make a fully written generation live.
      */
-    public function publish(string $generation, string $backend, array $fingerprint, float $buildSeconds = 0.0): void
-    {
+    /**
+     * @param string|null $stamp Keep cached pages valid by passing the current
+     *                           stamp(); null invalidates them.
+     */
+    public function publish(
+        string $generation,
+        string $backend,
+        array $fingerprint,
+        float $buildSeconds = 0.0,
+        ?string $stamp = null
+    ): void {
         $previous = $this->reloadState();
 
         $this->writeState([
@@ -155,6 +175,7 @@ final class IndexStore
             'backend' => $backend,
             'built_at' => date('c'),
             'build_seconds' => round($buildSeconds, 3),
+            'stamp' => $stamp ?? self::newStamp(),
             'fingerprint' => $fingerprint,
         ]);
 
@@ -175,6 +196,7 @@ final class IndexStore
         }
 
         $state['fingerprint'] = $fingerprint;
+        $state['stamp'] = self::newStamp();
         $this->writeState($state);
     }
 
@@ -354,6 +376,11 @@ final class IndexStore
     // -------------------------------------------------------------------------
     // Internal
     // -------------------------------------------------------------------------
+
+    private static function newStamp(): string
+    {
+        return bin2hex(random_bytes(8));
+    }
 
     private function generationPath(string $generation): string
     {

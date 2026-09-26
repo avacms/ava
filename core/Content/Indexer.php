@@ -298,7 +298,13 @@ final class Indexer
                 // it was being read, build again from the new state.
                 $stable = !in_array(Fingerprint::SCOPE_INDEX, $this->fingerprint()->changes($snapshot), true);
                 if ($stable) {
-                    $this->store->publish($generation, $backend, $snapshot, microtime(true) - $started);
+                    $this->store->publish(
+                        $generation,
+                        $backend,
+                        $snapshot,
+                        microtime(true) - $started,
+                        $clearWebpageCache ? null : $this->store->stamp()
+                    );
                 }
             } catch (\Throwable $e) {
                 $this->store->discardGeneration($path);
@@ -475,9 +481,9 @@ final class Indexer
      */
     private function refreshPresentation(): void
     {
-        $this->app->webpageCache()->clear();
         $this->store->updateFingerprint($this->fingerprint()->capture());
         $this->store->markChecked();
+        $this->app->webpageCache()->clear();
     }
 
     private function scanner(): ContentScanner

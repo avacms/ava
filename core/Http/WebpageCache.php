@@ -94,8 +94,13 @@ final class WebpageCache
             return null;
         }
 
+        // Pages rendered from an index or theme that has since changed are stale.
         $entry = $this->readEntry($file);
-        if ($entry === null || $entry['identity'] !== $this->identity($request)) {
+        if (
+            $entry === null
+            || $entry['identity'] !== $this->identity($request)
+            || ($entry['stamp'] ?? null) !== $this->app->indexStore()->stamp()
+        ) {
             return null;
         }
 
@@ -168,6 +173,7 @@ final class WebpageCache
         try {
             $entry = json_encode([
                 'identity' => $this->identity($request),
+                'stamp' => $this->app->indexStore()->stamp(),
                 'path' => $request->path(),
                 'headers' => $response->headers(),
                 'body' => $content,

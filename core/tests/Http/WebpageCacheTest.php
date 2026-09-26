@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ava\Tests\Http;
 
 use Ava\Application;
+use Ava\Content\Index\IndexStore;
 use Ava\Http\Request;
 use Ava\Http\Response;
 use Ava\Http\WebpageCache;
@@ -164,6 +165,31 @@ final class WebpageCacheTest extends TestCase
 
         $this->assertEquals('cached', $app->handle($request)->content());
         $this->assertFalse(is_file($this->storageAbsolute . '/cache/.rebuild.lock'));
+    }
+
+    public function testPagesRenderedFromAReplacedIndexAreNeverServed(): void
+    {
+        $rendering = $this->createApplication('never');
+        [$first] = $rendering->indexStore()->createGeneration();
+        $rendering->indexStore()->publish($first, 'array', []);
+        $request = new Request('GET', '/page');
+
+        // A rebuild publishes while that request is still rendering...
+        $rebuild = new IndexStore($this->storageAbsolute);
+        [$second] = $rebuild->createGeneration();
+        $rebuild->publish($second, 'array', []);
+
+        // ...and the page it rendered from the old index lands after the clear.
+        $this->assertTrue($rendering->webpageCache()->put($request, Response::html('stale')));
+        $this->assertNull($this->createApplication('never')->webpageCache()->get($request));
+
+        $this->createApplication('never')->webpageCache()->put($request, Response::html('fresh'));
+        $this->assertEquals('fresh', $this->createApplication('never')->webpageCache()->get($request)?->content());
+
+        // A rebuild that keeps cached pages carries the stamp over.
+        [$third] = $rebuild->createGeneration();
+        $rebuild->publish($third, 'array', [], 0.0, $rebuild->reloadState()['stamp']);
+        $this->assertEquals('fresh', $this->createApplication('never')->webpageCache()->get($request)?->content());
     }
 
     public function testAuthenticatedRequestsCannotReadOrPopulateSharedCache(): void
