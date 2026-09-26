@@ -89,18 +89,18 @@ final class ErrorPagesTest extends TestCase
         $this->assertStringContains('500', $html);
     }
 
-    public function testRender500ContainsLogHintWhenLoggingEnabled(): void
+    public function testRender500SaysTheErrorWasLoggedWithoutNamingPaths(): void
     {
         $html = ErrorPages::render500(null, null, true);
-        $this->assertStringContains('storage/logs/error.log', $html);
+        $this->assertStringContains('has been logged', $html);
+        $this->assertStringNotContains('storage/logs', $html);
     }
 
-    public function testRender500ContainsEnableLogHintWhenLoggingDisabled(): void
+    public function testRender500ShowsNoSettingsToVisitorsWhenLoggingIsOff(): void
     {
         $html = ErrorPages::render500(null, null, false);
-        $this->assertStringContains('Enable', $html);
-        $this->assertStringContains('debug.log_errors', $html);
-        $this->assertStringNotContains('debug.enabled', $html);
+        $this->assertStringNotContains('has been logged', $html);
+        $this->assertStringNotContains('debug.', $html);
     }
 
     public function testRender500IncludesErrorId(): void

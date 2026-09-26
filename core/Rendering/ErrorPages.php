@@ -133,9 +133,8 @@ HTML;
             : '';
         $showHomeLink = $requestedPath !== '/' && $requestedPath !== '';
         $homeLink = $showHomeLink ? '<a href="/" class="btn">Go Home</a>' : '';
-        $logHint = $loggingEnabled
-            ? 'Check <code>storage/logs/error.log</code> for details.'
-            : 'Enable <code>debug.log_errors</code> in config to log errors.';
+        // Visitors see this page, so it names no paths or settings.
+        $logHint = $loggingEnabled ? '<div class="error-hint">The error has been logged.</div>' : '';
         
         return <<<HTML
 <!DOCTYPE html>
@@ -155,9 +154,7 @@ HTML;
             An unexpected error occurred.{$errorRef}
         </p>
         {$homeLink}
-        <div class="error-hint">
-            {$logHint}
-        </div>
+        {$logHint}
     </div>
 </body>
 </html>
