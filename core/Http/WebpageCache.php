@@ -21,6 +21,10 @@ final class WebpageCache
      */
     private const int MAX_CACHED_PAGE = 10_000;
 
+    private const array CAMPAIGN_PARAMETERS = [
+        'utm_source' => true, 'utm_medium' => true, 'utm_campaign' => true, 'utm_term' => true, 'utm_content' => true,
+    ];
+
     private string $cachePath;
 
     public function __construct(private Application $app)
@@ -123,6 +127,11 @@ final class WebpageCache
             return false;
         }
         if (!$paginated && $this->cacheableQuery($request) !== []) {
+            return false;
+        }
+        // Tagged URLs read the plain URL's entry, but templates can see the
+        // tags, so a page rendered for one must not become that entry.
+        if (array_intersect_key($request->query(), self::CAMPAIGN_PARAMETERS) !== []) {
             return false;
         }
 
@@ -350,11 +359,8 @@ final class WebpageCache
      */
     private function cacheableQuery(Request $request): ?array
     {
-        $query = $request->query();
-
-        // Campaign tags never reach the renderer, so tagged URLs share the
-        // plain URL's entry rather than duplicating it per campaign.
-        unset($query['utm_source'], $query['utm_medium'], $query['utm_campaign'], $query['utm_term'], $query['utm_content']);
+        // Campaign-tagged URLs share the plain URL's entry.
+        $query = array_diff_key($request->query(), self::CAMPAIGN_PARAMETERS);
 
         if ($query === []) {
             return [];

@@ -275,12 +275,16 @@ final class WebpageCacheTest extends TestCase
         }
     }
 
-    public function testUtmQueriesStillShareTheAnonymousPageCache(): void
+    public function testUtmQueriesReadButNeverWriteTheSharedEntry(): void
     {
         $cache = $this->createCache();
-        $request = new Request('GET', '/page?utm_source=newsletter', ['utm_source' => 'newsletter']);
-        $this->assertTrue($cache->put($request, Response::html('public')));
-        $this->assertEquals('public', $cache->get(new Request('GET', '/page'))?->content());
+        $tagged = new Request('GET', '/page?utm_source=newsletter', ['utm_source' => 'newsletter']);
+
+        // A template could echo the tag; that page must not be served to everyone.
+        $this->assertFalse($cache->put($tagged, Response::html('hello newsletter reader')));
+
+        $this->assertTrue($cache->put(new Request('GET', '/page'), Response::html('public')));
+        $this->assertEquals('public', $cache->get($tagged)?->content());
     }
 
     public function testArchivePagesAreCachedUnderTheirOwnKey(): void
