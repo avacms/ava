@@ -110,9 +110,19 @@ final class WebpageCache
             ->withHeader('X-Cache-Age', (string) $age);
     }
 
-    public function put(Request $request, Response $response, ?bool $contentCacheOverride = null): bool
-    {
+    /**
+     * @param bool $paginated The route renders a different page per ?paged value.
+     */
+    public function put(
+        Request $request,
+        Response $response,
+        ?bool $contentCacheOverride = null,
+        bool $paginated = false
+    ): bool {
         if ($contentCacheOverride === false || !$this->isCacheable($request) || !$this->isPublicResponse($response)) {
+            return false;
+        }
+        if (!$paginated && $this->cacheableQuery($request) !== []) {
             return false;
         }
 

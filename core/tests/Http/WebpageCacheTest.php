@@ -290,7 +290,8 @@ final class WebpageCacheTest extends TestCase
         $page2 = new Request('GET', '/blog?paged=2', ['paged' => '2']);
 
         $this->assertTrue($cache->put($bare, Response::html('page one')));
-        $this->assertTrue($cache->put($page2, Response::html('page two')));
+        $this->assertFalse($cache->put($page2, Response::html('page one again')), 'route does not paginate');
+        $this->assertTrue($cache->put($page2, Response::html('page two'), paginated: true));
 
         $this->assertEquals('page one', $cache->get($bare)?->content());
         $this->assertEquals('page two', $cache->get($page2)?->content());

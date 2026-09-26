@@ -90,6 +90,21 @@ final class UrlRegressionTest extends TestCase
         $this->assertEquals(404, $app->handle(new Request('GET', '/secret-plans', ['preview' => '1', 'token' => 'wrong']))->status());
     }
 
+    public function testOnlyPaginatedRoutesCacheTheirPagedVariants(): void
+    {
+        for ($i = 3; $i <= 12; $i++) {
+            $this->site->page("posts/post-{$i}.md", ['title' => "Post {$i}", 'slug' => "post-{$i}", 'status' => 'published', 'date' => '2026-02-01']);
+        }
+
+        foreach (['/about' => 'BYPASS', '/blog/first' => 'BYPASS', '/feed.xml' => 'BYPASS', '/blog' => 'MISS'] as $path => $expected) {
+            $response = $this->site->app()->handle(
+                new Request('GET', "{$path}?paged=2", ['paged' => '2'], ['Host' => 'example.test'])
+            );
+            $this->assertEquals(200, $response->status(), $path);
+            $this->assertEquals($expected, $response->header('X-Page-Cache'), $path);
+        }
+    }
+
     public function testPreviewsAreOffWithoutASecret(): void
     {
         $links = new PreviewLinks(null);

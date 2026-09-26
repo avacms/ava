@@ -141,16 +141,16 @@ final class Application
             $cacheOverride = filter_var($override, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         }
 
-        return $this->cacheResponse($request, $response, $cacheOverride);
+        return $this->cacheResponse($request, $response, $cacheOverride, $match->getQuery() !== null);
     }
 
-    private function cacheResponse(Request $request, Response $response, ?bool $override): Response
+    private function cacheResponse(Request $request, Response $response, ?bool $override, bool $paginated = false): Response
     {
         if (!$this->webpageCache()->isEnabled() || $response->status() !== 200) {
             return $response;
         }
 
-        $stored = $this->webpageCache()->put($request, $response, $override);
+        $stored = $this->webpageCache()->put($request, $response, $override, $paginated);
 
         return $response->withHeader('X-Page-Cache', $stored ? 'MISS' : 'BYPASS');
     }
