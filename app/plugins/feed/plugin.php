@@ -32,6 +32,7 @@ return [
         $router = $app->router();
         $baseUrl = rtrim($app->config('site.base_url', ''), '/');
         $siteName = $app->config('site.name', 'Ava Site');
+        $language = strtolower(str_replace('_', '-', preg_replace('/[.@].*$/', '', (string) $app->config('site.locale', 'en')) ?: 'en'));
 
         // Default configuration
         $config = array_merge([
@@ -102,7 +103,7 @@ XSL;
         };
 
         // Helper to generate RSS XML
-        $generateFeed = function (array $items, string $title, string $description, string $feedUrl) use ($baseUrl, $config, $app) {
+        $generateFeed = function (array $items, string $title, string $description, string $feedUrl) use ($baseUrl, $config, $app, $language) {
             $router = $app->router();
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
@@ -114,7 +115,7 @@ XSL;
             $xml .= "  <title>" . htmlspecialchars($title, ENT_XML1, 'UTF-8') . "</title>\n";
             $xml .= "  <link>{$safeBaseUrl}</link>\n";
             $xml .= "  <description>" . htmlspecialchars($description, ENT_XML1, 'UTF-8') . "</description>\n";
-            $xml .= "  <language>en</language>\n";
+            $xml .= "  <language>" . htmlspecialchars($language, ENT_XML1, 'UTF-8') . "</language>\n";
             $xml .= "  <atom:link href=\"{$safeBaseUrl}{$safeFeedUrl}\" rel=\"self\" type=\"application/rss+xml\"/>\n";
 
             // Build date from the most recently changed item

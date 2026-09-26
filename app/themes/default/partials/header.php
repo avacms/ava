@@ -19,7 +19,7 @@
  */
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= $ava->e($site['lang']) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -47,7 +47,7 @@
     ?>
     <meta name="author" content="<?= $ava->e($site['name']) ?>">
     <meta property="og:site_name" content="<?= $ava->e($site['name']) ?>">
-    <meta property="og:locale" content="en_US">
+    <meta property="og:locale" content="<?= $ava->e($site['locale']) ?>">
     
     <?php if (isset($item)): ?>
         <?php

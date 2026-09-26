@@ -108,10 +108,13 @@ final class Engine
     private function buildContext(array $context): array
     {
         // Add site context
+        $locale = preg_replace('/[.@].*$/', '', (string) $this->app->config('site.locale', 'en')) ?: 'en';
         $context['site'] = [
             'name' => $this->app->config('site.name'),
             'url' => $this->app->config('site.base_url'),
             'timezone' => $this->app->config('site.timezone'),
+            'locale' => $locale,
+            'lang' => str_replace('_', '-', $locale),
         ];
 
         // Add theme context

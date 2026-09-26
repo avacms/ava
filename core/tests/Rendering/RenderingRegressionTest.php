@@ -125,4 +125,17 @@ final class RenderingRegressionTest extends TestCase
         $this->assertStringContains('href="/category/tutorials"', $content);
         $this->assertStringContains('Tutorials', $content);
     }
+
+    public function testPagesAndFeedsFollowTheSiteLocale(): void
+    {
+        $this->site->page('posts/hello.md', ['title' => 'Hello', 'slug' => 'hello', 'status' => 'published', 'date' => '2026-01-01']);
+        $app = $this->site->app(['site' => ['locale' => 'fr_CA.UTF-8']]);
+
+        $page = $app->handle(new Request('GET', '/blog/hello'))->content();
+        $this->assertStringContains('<html lang="fr-CA">', $page);
+        $this->assertStringContains('<meta property="og:locale" content="fr_CA">', $page);
+
+        $feed = $this->site->app(['site' => ['locale' => 'fr_CA.UTF-8']])->handle(new Request('GET', '/feed.xml'))->content();
+        $this->assertStringContains('<language>fr-ca</language>', $feed);
+    }
 }
