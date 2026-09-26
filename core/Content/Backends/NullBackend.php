@@ -44,6 +44,11 @@ final class NullBackend implements BackendInterface
         return [];
     }
 
+    public function each(string $type): iterable
+    {
+        return [];
+    }
+
     public function types(): array
     {
         return [];

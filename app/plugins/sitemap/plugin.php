@@ -70,8 +70,8 @@ XSL;
             $router = $app->router();
             $entries = [];
 
-            foreach ($app->repository()->publishedMeta($type) as $item) {
-                if ($item->noindex()) {
+            foreach ($app->repository()->eachMeta($type) as $item) {
+                if (!$item->isPublished() || $item->noindex()) {
                     continue;
                 }
                 $url = $router->urlFor($type, $item->contentKey());

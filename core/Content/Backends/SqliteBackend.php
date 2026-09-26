@@ -132,6 +132,16 @@ final class SqliteBackend implements BackendInterface
         return $items;
     }
 
+    public function each(string $type): iterable
+    {
+        $stmt = $this->pdo()->prepare('SELECT ' . self::META_COLUMNS . ' FROM content WHERE type = :type ORDER BY rowid');
+        $stmt->execute(['type' => $type]);
+
+        while (($row = $stmt->fetch()) !== false) {
+            yield $row['content_key'] => $this->rowToItem($row);
+        }
+    }
+
     public function types(): array
     {
         $stmt = $this->stmt('types', 'SELECT DISTINCT type FROM content ORDER BY type');

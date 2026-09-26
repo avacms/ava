@@ -42,6 +42,13 @@ interface BackendInterface
      */
     public function allRaw(string $type, bool $withBody = false): array;
 
+    /**
+     * Every item of a type, one at a time (metadata only), in index order.
+     *
+     * @return iterable<string, array>
+     */
+    public function each(string $type): iterable;
+
     /** @return array<string> Types that have at least one item */
     public function types(): array;
 

@@ -126,6 +126,18 @@ final class QueryParityTest extends TestCase
         $this->assertEquals('A unique bodyneedle appears here.', $backend->allRaw('post', withBody: true)['other']['body']);
     }
 
+    public function testEachStreamsATypeInIndexOrder(): void
+    {
+        foreach ([$this->array, $this->sqlite] as $backend) {
+            if ($backend === null) {
+                continue;
+            }
+            $items = iterator_to_array($backend->each('post'));
+            $this->assertSame(['shared', 'draft', 'other'], array_keys($items), $backend->name());
+            $this->assertSame('Other guide', $items['other']['title'], $backend->name());
+        }
+    }
+
     public function testCrossTypeQueriesDoNotOverwriteMatchingContentKeys(): void
     {
         $result = $this->array->query(['status' => 'published']);

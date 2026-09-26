@@ -239,6 +239,19 @@ final class Repository
     }
 
     /**
+     * Items of a type one at a time (metadata only, no file I/O), for walking
+     * a whole type without holding it in memory.
+     *
+     * @return \Generator<Item>
+     */
+    public function eachMeta(string $type): \Generator
+    {
+        foreach ($this->backend()->each($type) as $data) {
+            yield Item::fromArray($data, '');
+        }
+    }
+
+    /**
      * Get raw index data for a type (for optimized queries).
      *
      * @return array<array>

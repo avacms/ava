@@ -81,6 +81,22 @@ final class FeedAndSitemapTest extends TestCase
         $this->assertStringContains('<loc>https://example.test/about/team</loc>', $pages);
     }
 
+    public function testSitemapsWorkOnTheSqliteBackend(): void
+    {
+        if (!extension_loaded('pdo_sqlite')) {
+            $this->markSkipped('pdo_sqlite is unavailable');
+        }
+
+        $xml = $this->site->app(['content_index' => ['backend' => 'sqlite']])
+            ->handle(new Request('GET', '/sitemap-post.xml'))->content();
+
+        $this->assertEquals(5, substr_count($xml, '<url>'));
+        $this->assertStringContains('<loc>https://example.test/blog/post-5</loc>', $xml);
+        $this->assertStringContains('<lastmod>2026-01-05</lastmod>', $xml);
+        $this->assertStringNotContains('hidden', $xml);
+        $this->assertStringNotContains('draft', $xml);
+    }
+
     public function testRobotsTxtPointsAtTheConfiguredSitemap(): void
     {
         $response = $this->site->app()->handle(new Request('GET', '/robots.txt'));

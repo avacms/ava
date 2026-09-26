@@ -100,6 +100,11 @@ final class ArrayBackend implements BackendInterface
         return $items;
     }
 
+    public function each(string $type): iterable
+    {
+        yield from $this->file('content_index')['by_type'][$type] ?? [];
+    }
+
     public function types(): array
     {
         return array_map('strval', array_keys($this->file('content_index')['by_type'] ?? []));
