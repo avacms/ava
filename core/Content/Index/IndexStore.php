@@ -63,7 +63,7 @@ final class IndexStore
     /**
      * The live generation's state, read once per request.
      *
-     * @return array{version: int, generation: string, backend: string, built_at: string, fingerprint: array}|null
+     * @return array{version: int, generation: string, backend: string, built_at: string, build_seconds?: float, stamp?: string, fingerprint: array}|null
      */
     public function state(): ?array
     {
