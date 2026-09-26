@@ -28,6 +28,9 @@ final class Indexer
 {
     private const MAX_BUILD_ATTEMPTS = 3;
 
+    /** Builds that took longer than this last time run after the response. */
+    private const float INLINE_BUILD_SECONDS = 1.0;
+
     private Application $app;
     private IndexStore $store;
     private ItemPaths $paths;
@@ -132,9 +135,11 @@ final class Indexer
      *           metadata with the live generation. Presentation-only changes
      *           clear cached pages. Content changes are rebuilt by one
      *           request while every other request keeps using the live
-     *           generation. A failed automatic rebuild is logged and not
-     *           retried for the same sources for a few minutes, so a build
-     *           that runs out of memory cannot take every request down with it.
+     *           generation, after that request's response is sent if the
+     *           last build took over a second. A failed automatic rebuild is
+     *           logged and not retried for the same sources for a few
+     *           minutes, so a build that runs out of memory cannot take
+     *           every request down with it.
      */
     public function refresh(string $mode): void
     {
@@ -184,13 +189,13 @@ final class Indexer
         }
 
         if (!in_array(Fingerprint::SCOPE_INDEX, $changes, true)) {
-            $this->store->withRebuildLock(function (): void {
+            $this->runOrDefer(fn() => $this->store->withRebuildLock(function (): void {
                 $state = $this->store->reloadState();
                 $changes = $state === null ? [] : $this->fingerprint()->changes($state['fingerprint']);
                 if ($changes !== [] && !in_array(Fingerprint::SCOPE_INDEX, $changes, true)) {
                     $this->refreshPresentation();
                 }
-            }, wait: false);
+            }, wait: false));
             return;
         }
 
@@ -199,7 +204,7 @@ final class Indexer
             return;
         }
 
-        $this->store->withRebuildLock(function () use ($identity): void {
+        $this->runOrDefer(fn() => $this->store->withRebuildLock(function () use ($identity): void {
             $state = $this->store->reloadState();
             if ($state !== null && $this->fingerprint()->changes($state['fingerprint']) === []) {
                 return; // Another process rebuilt while we waited for the lock.
@@ -217,7 +222,20 @@ final class Indexer
                     . '. It is retried when files change again or in 5 minutes; run ./ava rebuild for details.'
                 );
             }
-        }, wait: false);
+        }, wait: false));
+    }
+
+    /**
+     * Quick rebuilds run now, so an edit shows on the next refresh; slow ones
+     * run after the response so no visitor waits for them.
+     */
+    private function runOrDefer(callable $task): void
+    {
+        if ($this->store->lastBuildSeconds() < self::INLINE_BUILD_SECONDS) {
+            $task();
+        } else {
+            $this->app->defer($task);
+        }
     }
 
     /**
@@ -268,6 +286,7 @@ final class Indexer
             );
         }
 
+        $started = microtime(true);
         for ($attempt = 1; ; $attempt++) {
             $snapshot = $this->fingerprint()->capture();
             [$generation, $path] = $this->store->createGeneration();
@@ -279,7 +298,7 @@ final class Indexer
                 // it was being read, build again from the new state.
                 $stable = !in_array(Fingerprint::SCOPE_INDEX, $this->fingerprint()->changes($snapshot), true);
                 if ($stable) {
-                    $this->store->publish($generation, $backend, $snapshot);
+                    $this->store->publish($generation, $backend, $snapshot, microtime(true) - $started);
                 }
             } catch (\Throwable $e) {
                 $this->store->discardGeneration($path);

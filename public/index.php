@@ -6,6 +6,7 @@ define('AVA_START', microtime(true));
 define('AVA_ROOT', dirname(__DIR__));
 
 $app = require AVA_ROOT . '/bootstrap.php';
+$app->enableDeferredTasks();
 $request = Ava\Http\Request::capture();
 $response = $app->handle($request);
 
@@ -19,3 +20,4 @@ if ($app->config('generator_comment', false)) {
 }
 
 $response->send();
+$app->terminate();

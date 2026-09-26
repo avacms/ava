@@ -76,6 +76,35 @@ final class AutoRefreshTest extends TestCase
         $this->assertStringContains('Edited text', $this->request('/about')->content());
     }
 
+    public function testQuickRebuildsStillHappenInTheRequest(): void
+    {
+        $this->request('/about');
+        $this->site->page('pages/about.md', ['title' => 'About', 'status' => 'published'], 'Edited text');
+
+        $app = $this->site->app();
+        $app->enableDeferredTasks();
+
+        $this->assertStringContains('Edited text', $app->handle($this->aboutRequest())->content());
+    }
+
+    public function testSlowRebuildsRunAfterTheResponse(): void
+    {
+        $this->request('/about');
+        $state = $this->site->root . '/storage/cache/state.json';
+        file_put_contents($state, json_encode(['build_seconds' => 5.0] + json_decode(file_get_contents($state), true)));
+        $generation = $this->generation();
+        $this->site->page('pages/about.md', ['title' => 'About', 'status' => 'published'], 'Edited text');
+
+        $app = $this->site->app();
+        $app->enableDeferredTasks();
+        $this->assertStringContains('Original text', $app->handle($this->aboutRequest())->content());
+        $this->assertEquals($generation, $this->generation(), 'the rebuild waits for terminate()');
+
+        $app->terminate();
+        $this->assertNotEquals($generation, $this->generation());
+        $this->assertStringContains('Edited text', $this->request('/about')->content());
+    }
+
     public function testOnlyOneRequestChecksForChangesAtATime(): void
     {
         $this->request('/about');
@@ -139,6 +168,11 @@ final class AutoRefreshTest extends TestCase
     private function request(string $path)
     {
         return $this->site->app()->handle(new Request('GET', $path, [], ['Host' => 'example.test']));
+    }
+
+    private function aboutRequest(): Request
+    {
+        return new Request('GET', '/about', [], ['Host' => 'example.test']);
     }
 
     private function generation(): ?string

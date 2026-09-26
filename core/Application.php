@@ -39,6 +39,11 @@ final class Application
     /** @var array<string, object> */
     private array $services = [];
 
+    private bool $deferring = false;
+
+    /** @var list<callable> */
+    private array $deferred = [];
+
     private ?array $contentTypes = null;
     private ?array $taxonomies = null;
 
@@ -100,6 +105,56 @@ final class Application
         $this->boot();
 
         return $this->applyPublicSecurityHeaders($this->dispatch($request), $request);
+    }
+
+    /**
+     * Hold work passed to defer() until terminate(). The front controller
+     * enables this and calls terminate() after sending the response.
+     */
+    public function enableDeferredTasks(): void
+    {
+        $this->deferring = true;
+    }
+
+    /**
+     * Run $task after the response is sent, or now if deferral is off.
+     */
+    public function defer(callable $task): void
+    {
+        if (!$this->deferring) {
+            $task();
+            return;
+        }
+
+        $this->deferred[] = $task;
+    }
+
+    /**
+     * Finish the response, then run deferred work.
+     */
+    public function terminate(): void
+    {
+        if ($this->deferred === []) {
+            return;
+        }
+
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } elseif (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
+        } elseif (PHP_SAPI !== 'cli') {
+            while (ob_get_level() > 0 && ob_end_flush()) {
+            }
+            flush();
+        }
+        ignore_user_abort(true);
+        if (function_exists('set_time_limit')) {
+            set_time_limit(0);
+        }
+
+        while (($task = array_shift($this->deferred)) !== null) {
+            $task();
+        }
     }
 
     private function dispatch(Request $request): Response

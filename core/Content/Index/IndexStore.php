@@ -105,6 +105,14 @@ final class IndexStore
         return $this->state()['backend'] ?? null;
     }
 
+    /**
+     * How long the live generation took to build (0 when unknown).
+     */
+    public function lastBuildSeconds(): float
+    {
+        return (float) ($this->state()['build_seconds'] ?? 0);
+    }
+
     public function keyDirectory(): string
     {
         return $this->cacheRoot;
@@ -137,7 +145,7 @@ final class IndexStore
     /**
      * Make a fully written generation live.
      */
-    public function publish(string $generation, string $backend, array $fingerprint): void
+    public function publish(string $generation, string $backend, array $fingerprint, float $buildSeconds = 0.0): void
     {
         $previous = $this->reloadState();
 
@@ -146,6 +154,7 @@ final class IndexStore
             'generation' => $generation,
             'backend' => $backend,
             'built_at' => date('c'),
+            'build_seconds' => round($buildSeconds, 3),
             'fingerprint' => $fingerprint,
         ]);
 
