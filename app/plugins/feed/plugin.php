@@ -32,7 +32,8 @@ return [
         $router = $app->router();
         $baseUrl = rtrim($app->config('site.base_url', ''), '/');
         $siteName = $app->config('site.name', 'Ava Site');
-        $language = strtolower(str_replace('_', '-', preg_replace('/[.@].*$/', '', (string) $app->config('site.locale', 'en')) ?: 'en'));
+        $locale = preg_replace('/[.@].*$/', '', (string) $app->config('site.locale', 'en')) ?: 'en';
+        $language = strtolower(str_replace('_', '-', $locale));
 
         // Default configuration
         $config = array_merge([

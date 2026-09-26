@@ -237,7 +237,8 @@ final class Engine
      */
     public function partial(string $name, array $data = []): string
     {
-        $partialPath = $this->app->configPath('themes') . '/' . $this->app->themeName() . '/partials/' . $name . '.php';
+        $themePath = $this->app->configPath('themes') . '/' . $this->app->themeName();
+        $partialPath = $themePath . '/partials/' . $name . '.php';
 
         if (!file_exists($partialPath)) {
             throw new \RuntimeException("Partial not found: {$name}");

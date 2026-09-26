@@ -318,7 +318,8 @@ final class IndexBuilder
                 ];
 
                 if (preg_match('#\{\w+\}|//#', $url) === 1) {
-                    $this->errors[] = "{$route['file']}: URL {$url} has an empty or unfilled part; check url.pattern and the item's date and id";
+                    $this->errors[] = "{$route['file']}: URL {$url} has an empty or unfilled part;"
+                        . " check url.pattern and the item's date and id";
                 }
 
                 if ($item->isDraft()) {

@@ -114,7 +114,7 @@ final class WebpageCache
             return null;
         }
 
-        $etag = $response->header('ETag') ?? (is_string($entry['etag'] ?? null) ? $entry['etag'] : self::etag($entry['body']));
+        $etag = $response->header('ETag') ?? $entry['etag'] ?? self::etag($entry['body']);
         if (self::notModified($request, $etag)) {
             return new Response('', 304, ['ETag' => $etag, 'X-Page-Cache' => 'HIT']);
         }
@@ -313,6 +313,7 @@ final class WebpageCache
             || !is_string($entry['path'] ?? null)
             || !is_array($entry['headers'] ?? null)
             || !is_string($entry['body'] ?? null)
+            || !is_string($entry['etag'] ?? '')
         ) {
             return null;
         }

@@ -257,7 +257,11 @@ final class SqliteBackend implements BackendInterface
         $phrase = strtolower($search);
         $scores = [];
         while (($row = $stmt->fetch()) !== false) {
-            $data = ['title' => $row['title'], 'excerpt' => $row['excerpt'], 'meta' => json_decode($row['meta'] ?? '{}', true)];
+            $data = [
+                'title' => $row['title'],
+                'excerpt' => $row['excerpt'],
+                'meta' => json_decode($row['meta'] ?? '{}', true),
+            ];
             $score = QueryProcessor::scoreItem($data, $phrase, $tokens, $weights, $row['body'] ?? '');
             if ($score > 0) {
                 $scores[$row['rowid']] = $score;
