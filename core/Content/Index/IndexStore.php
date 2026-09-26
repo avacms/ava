@@ -14,6 +14,7 @@ use Ava\Support\SignedCache;
  *     state.json          which generation is live, its backend and fingerprint
  *     .cache_key          HMAC key shared by every generation
  *     .rebuild.lock       held by whichever process is building
+ *     .check.lock         held by whichever process is checking for changes
  *     index/<generation>/ one complete, immutable build
  *     pages/              webpage cache (owned by WebpageCache)
  *
@@ -245,16 +246,31 @@ final class IndexStore
      */
     public function withRebuildLock(callable $callback, bool $wait = true): bool
     {
+        return $this->withLock('.rebuild.lock', $callback, $wait);
+    }
+
+    /**
+     * Run a freshness check unless another process is already running one.
+     *
+     * @return bool Whether the callback ran.
+     */
+    public function withCheckLock(callable $callback): bool
+    {
+        return $this->withLock('.check.lock', $callback, false);
+    }
+
+    private function withLock(string $name, callable $callback, bool $wait): bool
+    {
         $this->ensureCacheRoot();
-        $lock = @fopen($this->cacheRoot . '/.rebuild.lock', 'c+b');
+        $lock = @fopen($this->cacheRoot . '/' . $name, 'c+b');
         if ($lock === false) {
-            throw new \RuntimeException('Unable to open content index rebuild lock.');
+            throw new \RuntimeException("Unable to open content index lock {$name}.");
         }
 
         try {
             if (!flock($lock, $wait ? LOCK_EX : LOCK_EX | LOCK_NB)) {
                 if ($wait) {
-                    throw new \RuntimeException('Unable to acquire content index rebuild lock.');
+                    throw new \RuntimeException("Unable to acquire content index lock {$name}.");
                 }
                 return false;
             }

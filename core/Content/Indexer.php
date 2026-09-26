@@ -161,15 +161,25 @@ final class Indexer
             return;
         }
 
+        // One request scans at a time; the rest keep serving the live index.
+        $this->store->withCheckLock(function () use ($interval): void {
+            if (!$this->store->checkedWithin($interval)) {
+                $this->checkSources();
+            }
+        });
+    }
+
+    private function checkSources(): void
+    {
         if (!$this->store->keyIsReadable()) {
             error_log('Ava: ' . SignedCache::describeUnreadableKey($this->store->keyDirectory()));
         }
 
         $current = null;
         $changes = $this->fingerprint()->changes($this->store->state()['fingerprint'], $current);
+        $this->store->markChecked();
 
         if ($changes === []) {
-            $this->store->markChecked();
             return;
         }
 
@@ -186,7 +196,6 @@ final class Indexer
 
         $identity = Fingerprint::identity(['sources' => $current]);
         if ($this->store->recentlyFailed($identity)) {
-            $this->store->markChecked();
             return;
         }
 

@@ -76,6 +76,18 @@ final class AutoRefreshTest extends TestCase
         $this->assertStringContains('Edited text', $this->request('/about')->content());
     }
 
+    public function testOnlyOneRequestChecksForChangesAtATime(): void
+    {
+        $this->request('/about');
+        $this->site->page('pages/new.md', ['title' => 'New', 'status' => 'published']);
+
+        $this->site->app()->indexStore()->withCheckLock(function (): void {
+            $this->assertEquals(404, $this->request('/new')->status(), 'another request is already checking');
+        });
+
+        $this->assertEquals(200, $this->request('/new')->status());
+    }
+
     public function testAFailedRebuildKeepsServingThePreviousIndexAndBacksOff(): void
     {
         $this->request('/about');
